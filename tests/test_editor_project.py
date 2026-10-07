@@ -124,3 +124,145 @@ def test_project_api_save_load_and_ls(srv, tmp_path):
     assert req(srv, "/api/project/save", body={"path": str(tmp_path / "bad"), "project": {"version": 9}}).status == 400
     assert req(srv, "/api/project/load", {"path": "/etc/passwd"}).status == 400
     assert req(srv, "/api/project/load", {"path": r.json()["path"]}, token=False).status == 403
+
+
+# ---------------------------------------------------------------- canvas, background and per-clip transform
+import random
+import shutil
+import subprocess
+import textwrap
+
+from conftest import ROOT
+
+
+def raw_frame(path, vf, t=0.5):
+    cmd = ["ffmpeg", "-v", "error", "-ss", str(t), "-i", str(path), "-frames:v", "1", "-vf", vf, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]
+    return subprocess.run(cmd, capture_output=True, check=True).stdout
+
+
+def mean_rgb(data):
+    n = len(data) // 3
+    return [sum(data[c::3]) / float(n) for c in range(3)]
+
+
+def render(media, tmp_path, canvas, bg=None, tf=None, key="clip", a=0, b=2):
+    c = {"path": str(media[key]), "in": a, "out": b}
+    if tf:
+        c["tf"] = tf
+    clips = P.sanitize_clips([c], [str(media["dir"])])
+    return P.render_project(clips, tmp_path / ("o%d" % random.randint(0, 10 ** 9)), canvas=canvas, bg=bg)
+
+
+def test_geometry_helpers_match_the_javascript_ones(tmp_path):
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node is not installed")
+    rnd = random.Random(7)
+    cases = []
+    for _ in range(300):
+        cases.append({"iw": rnd.choice([320, 321, 640, 1280, 1920, 3840, 1080]), "ih": rnd.choice([180, 241, 360, 720, 1080, 1920, 2160]),
+                      "W": rnd.choice([360, 640, 720, 1080, 1920]), "H": rnd.choice([360, 480, 640, 1080, 1350, 1920]),
+                      "tf": rnd.choice([None, {}, {"s": rnd.uniform(0.05, 10), "x": rnd.uniform(-3, 3), "y": rnd.uniform(-3, 3)},
+                                        {"s": 1, "x": 0.25, "y": -0.1}, {"s": 99, "x": "a"}])})
+    canv = [{"aspect": a, "short": s, "fw": rnd.choice([640, 1280, 1920]), "fh": rnd.choice([360, 720, 1080])}
+            for a in ["auto", "16:9", "9:16", "1:1", "4:5", "weird"] for s in [360, 480, 720, 1080, 1440, 2160, 123]]
+    js = tmp_path / "parity.cjs"
+    js.write_text("const T = require(%r); const d = JSON.parse(require('fs').readFileSync(0, 'utf8'));\n"
+                  "console.log(JSON.stringify({rects: d.cases.map(c => T.fgRect(c.iw, c.ih, c.W, c.H, c.tf)), "
+                  "sizes: d.canv.map(c => T.canvasSize(c.aspect, c.short, c.fw, c.fh))}))" % str(ROOT / "editor" / "web" / "timeline.js"))
+    out = subprocess.run([node, str(js)], input=json.dumps({"cases": cases, "canv": canv}), capture_output=True, text=True, check=True)
+    got = json.loads(out.stdout)
+    assert got["rects"] == [list(P.fg_rect(c["iw"], c["ih"], c["W"], c["H"], c["tf"])) for c in cases]
+    assert got["sizes"] == [list(P.canvas_size(c["aspect"], c["short"], c["fw"], c["fh"])) for c in canv]
+
+
+def test_sanitizers():
+    assert P.sanitize_canvas(None) == {"aspect": "auto", "short": 1080}
+    assert P.sanitize_canvas({"aspect": "9:16", "short": 720}) == {"aspect": "9:16", "short": 720}
+    assert P.sanitize_canvas({"aspect": "evil", "short": 5}) == {"aspect": "auto", "short": 1080}
+    assert P.sanitize_bg({"mode": "color", "color": "#12aBcd"}) == {"mode": "color", "color": "#12aBcd"}
+    assert P.sanitize_bg({"mode": "x", "color": "red;rm"}) == {"mode": "blur", "color": "#000000"}
+    assert P.clean_tf({"s": 99, "x": float("nan"), "y": -9}) == {"s": 10.0, "x": 0.0, "y": -3.0}
+
+
+def test_default_transform_on_matching_canvas_is_a_plain_scale(media):
+    clips = P.sanitize_clips([clip(media, "clip", 0, 1)], [str(media["dir"])])
+    _, graph, _ = P.build_render_graph(clips, 640, 360, 25.0, {"mode": "blur"})
+    assert "overlay" not in graph and "boxblur" not in graph                       # fast path: no compositing needed
+
+
+def test_vertical_canvas_background_modes(media, tmp_path):
+    top = "crop=iw:ih*0.12:0:0"                                                    # a strip of the area above the picture
+    blur = render(media, tmp_path, {"aspect": "9:16", "short": 360}, {"mode": "blur"})
+    black = render(media, tmp_path, {"aspect": "9:16", "short": 360}, {"mode": "black"})
+    red = render(media, tmp_path, {"aspect": "9:16", "short": 360}, {"mode": "color", "color": "#ff0000"})
+    for out in (blur, black, red):
+        v = ffprobe(out)["video"]
+        assert (v["width"], v["height"]) == (360, 640)
+    assert max(mean_rgb(raw_frame(black, top))) < 20                               # black bars
+    assert max(mean_rgb(raw_frame(blur, top))) > 40                                # blurred copy of the picture
+    r, g, b = mean_rgb(raw_frame(red, top))
+    assert r > 200 and g < 40 and b < 40                                           # chosen colour
+    mid = "crop=iw:ih*0.1:0:ih*0.45"                                               # the picture itself is the same in all three
+    assert max(mean_rgb(raw_frame(black, mid))) > 40
+
+
+def test_zoomed_picture_covers_the_canvas_and_stays_cheap(media, tmp_path):
+    out = render(media, tmp_path, {"aspect": "9:16", "short": 360}, {"mode": "black"}, {"s": 3.2, "x": 0, "y": 0})
+    v = ffprobe(out)["video"]
+    assert (v["width"], v["height"]) == (360, 640)
+    for region in ("crop=iw:ih*0.1:0:0", "crop=iw:ih*0.1:0:ih*0.9", "crop=iw*0.1:ih:0:0"):
+        assert max(mean_rgb(raw_frame(out, region))) > 40, region                 # no black bars anywhere
+    huge = render(media, tmp_path, {"aspect": "9:16", "short": 360}, {"mode": "black"}, {"s": 10, "x": 2.5, "y": -2.5})
+    assert ffprobe(huge)["duration"] == pytest.approx(2, abs=0.3)                  # mostly off-canvas picture still renders
+
+
+def test_position_moves_the_picture(media, tmp_path):
+    canvas = {"aspect": "9:16", "short": 360}
+    centred = render(media, tmp_path, canvas, {"mode": "black"})
+    right = render(media, tmp_path, canvas, {"mode": "black"}, {"s": 1, "x": 0.5, "y": 0})
+    left_mid = "crop=iw*0.2:ih*0.1:0:ih*0.45"
+    assert max(mean_rgb(raw_frame(centred, left_mid))) > 40                       # picture is there when centred
+    assert max(mean_rgb(raw_frame(right, left_mid))) < 20                         # moved right: the left edge is background
+    gone = render(media, tmp_path, canvas, {"mode": "black"}, {"s": 1, "x": 3, "y": 0})
+    assert max(mean_rgb(raw_frame(gone, "crop=iw:ih*0.1:0:ih*0.45"))) < 20        # moved completely off canvas: background only
+
+
+def test_per_clip_transforms_in_one_timeline(media, tmp_path):
+    clips = P.sanitize_clips([dict(clip(media, "clip", 0, 1.5), tf={"s": 1, "x": 0, "y": 0}),
+                              dict(clip(media, "clip", 1.5, 3), tf={"s": 3.2, "x": 0, "y": 0}),
+                              dict(clip(media, "silent", 0, 1), tf={"s": 0.5, "x": -0.2, "y": 0.1})], [str(media["dir"])])
+    out = P.render_project(clips, tmp_path / "multi", canvas={"aspect": "9:16", "short": 360}, bg={"mode": "color", "color": "#0000ff"})
+    p = ffprobe(out)
+    assert (p["video"]["width"], p["video"]["height"]) == (360, 640) and p["duration"] == pytest.approx(4.0, abs=0.3) and p["audio"]
+    first, second = "crop=iw:ih*0.1:0:0", "crop=iw:ih*0.1:0:0"
+    r1, g1, b1 = mean_rgb(raw_frame(out, first, t=0.5))
+    assert b1 > 200 and r1 < 60                                                    # clip 1: blue bars on top
+    r2 = mean_rgb(raw_frame(out, second, t=2.0))
+    assert not (r2[2] > 200 and r2[0] < 60)                                        # clip 2 is zoomed to cover: no blue
+
+
+def test_project_file_keeps_canvas_background_and_transforms(tmp_path):
+    roots = [str(tmp_path)]
+    proj = {"version": 1, "name": "t", "assets": {"a": {"path": "/x/a.mp4"}}, "canvas": {"aspect": "9:16", "short": 720},
+            "bg": {"mode": "color", "color": "#223344"},
+            "clips": [{"id": "c1", "asset": "a", "in": 0, "out": 2, "tf": {"s": 2, "x": 0.1, "y": -0.2}},
+                      {"id": "c2", "asset": "a", "in": 2, "out": 3}]}
+    back = P.load_project(P.save_project(str(tmp_path / "t"), proj, roots), roots)
+    assert back["canvas"] == {"aspect": "9:16", "short": 720} and back["bg"] == {"mode": "color", "color": "#223344"}
+    assert back["clips"][0]["tf"] == {"s": 2.0, "x": 0.1, "y": -0.2} and "tf" not in back["clips"][1]
+    old = P.validate_project({"version": 1, "assets": {}, "clips": []})              # projects from Etappe 1 still open
+    assert old["canvas"] == {"aspect": "auto", "short": 1080} and old["bg"]["mode"] == "blur"
+
+
+def test_export_api_with_canvas_and_transform(srv, media, tmp_path):
+    srv.add_root(str(tmp_path))
+    body = {"clips": [dict(clip(media, "clip", 0, 2), tf={"s": 1.5, "x": 0.1, "y": 0})], "canvas": {"aspect": "1:1", "short": 360},
+            "bg": {"mode": "black"}, "output_dir": str(tmp_path / "canvas-out")}
+    j = wait_job(srv, req(srv, "/api/export", body=body).json()["job"])
+    assert j["state"] == "done", j
+    v = ffprobe(j["result"]["output"])["video"]
+    assert (v["width"], v["height"]) == (360, 360)
+    bad = req(srv, "/api/export", body=dict(body, canvas={"aspect": "9:16; rm -rf", "short": "x"}, bg={"mode": "color", "color": "javascript:1"}))
+    assert bad.status == 200                                                        # unknown values fall back to safe defaults
+    wait_job(srv, bad.json()["job"])

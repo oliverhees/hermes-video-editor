@@ -50,8 +50,8 @@ input[type=text],select{width:100%;background:var(--panel2);border:1px solid var
 .item .grow{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .item .x{color:var(--muted);background:none;border:0;cursor:pointer;font-size:15px}
 .item .x:hover{color:var(--red)}
-#stage-wrap{grid-area:stage;display:flex;flex-direction:column;min-height:0;min-width:0;background:var(--deep)}
-#stage{position:relative;margin:auto;background:#000;border-radius:6px;overflow:hidden}
+#stage-wrap{grid-area:stage;display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden;background:var(--deep)}
+#stage{position:relative;margin:auto;background:#000;border-radius:6px}
 #video{position:absolute;inset:0;width:100%;height:100%;background:#000}
 #frame-guide{position:absolute;border:2px solid var(--teal);box-shadow:0 0 0 9999px #000a;pointer-events:none}
 .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;
@@ -130,3 +130,16 @@ details.adv{margin:10px 0;color:var(--muted)}details.adv summary{cursor:pointer}
 #header-spacer{flex:1}
 .row .btn{white-space:nowrap;padding:6px 6px}
 .row kbd{margin-left:2px}
+
+#stage video{opacity:0;pointer-events:none}
+#stage-canvas{position:absolute;inset:0;width:100%;height:100%;border-radius:6px;cursor:default}
+#gizmo{position:absolute;border:2px solid var(--accent);cursor:move;box-shadow:0 0 0 1px #0006}
+#gizmo[hidden]{display:none}
+.gh{position:absolute;width:12px;height:12px;background:var(--bg);border:2px solid var(--accent);border-radius:3px;margin:-7px}
+.gh[data-corner=nw]{left:0;top:0;cursor:nwse-resize}.gh[data-corner=ne]{left:100%;top:0;cursor:nesw-resize}
+.gh[data-corner=sw]{left:0;top:100%;cursor:nesw-resize}.gh[data-corner=se]{left:100%;top:100%;cursor:nwse-resize}
+.overlay{border-radius:6px}
+#in-aspect,#in-short,#in-bg{width:auto;flex:1}#in-short{flex:0 0 84px}
+#in-bgcolor{flex:0 0 44px;height:34px;padding:2px;background:var(--panel2);border:1px solid var(--line);border-radius:8px}
+.row select,.row input{min-width:0}
+#in-aspect{flex:1 1 auto}

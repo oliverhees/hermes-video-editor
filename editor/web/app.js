@@ -9,7 +9,8 @@
   // assets: files that were added (id -> {path,name,info,dur,src,peaks,thumbs,...}); clips: the sequence, played back to back
   var S = {
     assets: {}, clips: [], sel: -1, t: 0, zoom: 80, mark: { a: null, b: null }, hist: TL.createHistory(100),
-    projectPath: null, projectName: "", dirty: false, config: null, anchor: "center", dlgPath: "", fitted: false,
+    projectPath: null, projectName: "", dirty: false, config: null, dlgPath: "", fitted: false,
+    canvas: { aspect: "auto", short: 1080 }, bg: { mode: "blur", color: "#000000" },
   };
 
   // ---------------------------------------------------------------- api
@@ -69,8 +70,6 @@
   $("in-noise").addEventListener("input", function () { $("v-noise").textContent = this.value + " dB"; });
   $("in-minsil").addEventListener("input", function () { $("v-minsil").textContent = this.value + " s"; });
   $("in-lufs").addEventListener("input", function () { $("v-lufs").textContent = this.value + " LUFS"; });
-  $("in-reframe").addEventListener("change", updateGuide);
-  $("in-anchor").addEventListener("change", function () { S.anchor = this.value; updateGuide(); });
   $("in-speed").addEventListener("change", renderInfo);
 
   // ---------------------------------------------------------------- file dialog (add clips / open + save projects / pick files for tools)
@@ -175,7 +174,8 @@
   function findAssetByPath(path) { for (var k in S.assets) if (S.assets[k].path === path) return S.assets[k]; return null; }
 
   // ---------------------------------------------------------------- editing (every change goes through edit() so undo/redo work)
-  function snap() { return { clips: S.clips, sel: S.sel }; }
+  function snap() { return { clips: S.clips, sel: S.sel, canvas: S.canvas, bg: S.bg }; }
+  function restore(p) { S.clips = p.clips; S.sel = p.sel; S.canvas = p.canvas || S.canvas; S.bg = p.bg || S.bg; S.dirty = true; syncCanvasControls(); afterEdit(); }
   function edit(fn) {
     S.hist.push(snap());
     var next = fn(S.clips);
@@ -183,8 +183,8 @@
     S.dirty = true; if (S.sel >= S.clips.length) S.sel = S.clips.length - 1; afterEdit();
   }
   function afterEdit() { S.t = Math.min(S.t, TL.total(S.clips)); invalidatePreload(); syncPlayback(); renderAll(); }
-  function undo() { var p = S.hist.undo(snap()); if (p) { S.clips = p.clips; S.sel = p.sel; S.dirty = true; afterEdit(); } }
-  function redo() { var p = S.hist.redo(snap()); if (p) { S.clips = p.clips; S.sel = p.sel; S.dirty = true; afterEdit(); } }
+  function undo() { var p = S.hist.undo(snap()); if (p) restore(p); }
+  function redo() { var p = S.hist.redo(snap()); if (p) restore(p); }
 
   function addClipFromPath(path, uploaded) {
     busy("Reading " + baseName(path) + "…");
@@ -214,7 +214,7 @@
   function doDuplicate() {
     if (S.sel < 0) { flash("Select a clip first."); return; }
     var c = S.clips[S.sel], i = S.sel;
-    edit(function (cl) { S.sel = i + 1; return TL.insertAt(cl, i + 1, { id: TL.uid("c"), asset: c.asset, "in": c["in"], out: c.out }); });
+    edit(function (cl) { S.sel = i + 1; var d = { id: TL.uid("c"), asset: c.asset, "in": c["in"], out: c.out }; if (c.tf) d.tf = TL.cleanTf(c.tf); return TL.insertAt(cl, i + 1, d); });
   }
   function setIn() { S.mark.a = S.t; if (S.mark.b != null && S.mark.b <= S.mark.a) S.mark.b = null; renderAll(); }
   function setOut() { S.mark.b = S.t; if (S.mark.a != null && S.mark.a >= S.mark.b) S.mark.a = null; renderAll(); }
@@ -273,7 +273,7 @@
   var vids = [$("video"), $("video2")], ACT = 0, PB = { i: -1, playing: false };
   function act() { return vids[ACT]; }
   function idle() { return vids[1 - ACT]; }
-  function show(v) { vids.forEach(function (x) { x.style.opacity = x === v ? "1" : "0"; x.style.zIndex = x === v ? "2" : "1"; x.muted = x !== v; }); }
+  function show(v) { vids.forEach(function (x) { x.muted = x !== v; }); drawStage(); }
   function attach(v, assetId, srcTime, done) {
     var a = assetFor(assetId); if (!a || !a.src) { if (done) done(false); return; }
     function go() { try { v.currentTime = srcTime; } catch (e) { /* not seekable yet */ } if (done) done(true); }
@@ -326,35 +326,145 @@
       else if (idle().getAttribute("data-for") === next.id && idle().readyState >= 2) { v.pause(); ACT = 1 - ACT; show(act()); act().play(); }
       else attach(v, next.asset, next["in"], function () { act().play(); });
     }
-    drawPlayhead();
+    drawPlayhead(); drawStage();
     requestAnimationFrame(tick);
   }
-  vids.forEach(function (v) { v.addEventListener("loadedmetadata", layoutStage); v.addEventListener("click", togglePlay); });
+  vids.forEach(function (v) {
+    v.addEventListener("loadedmetadata", layoutStage);
+    ["seeked", "loadeddata", "timeupdate"].forEach(function (ev) { v.addEventListener(ev, function () { if (v === act() && !PB.playing) drawStage(); }); });
+  });
+  $("stage-canvas").addEventListener("click", function () { if (!stageDragged) togglePlay(); });
   $("btn-play").addEventListener("click", togglePlay);
 
   // ---------------------------------------------------------------- stage / guide
-  function layoutStage() {
-    var wrap = $("stage-wrap"), tr = $("transport").offsetHeight, v = act();
-    var hit = currentHit(), a = hit && assetFor(hit.clip.asset), vi = a && a.info && a.info.video;
-    var ar = (v.videoWidth && v.videoHeight && v.getAttribute("data-asset")) ? v.videoWidth / v.videoHeight : (vi ? vi.display_width / vi.display_height : 16 / 9);
-    var maxW = wrap.clientWidth - 24, maxH = wrap.clientHeight - tr - 24;
-    var w = Math.min(maxW, maxH * ar), h = w / ar;
-    var st = $("stage"); st.style.width = Math.max(100, w) + "px"; st.style.height = Math.max(60, h) + "px";
-    updateGuide();
+  function firstVideoDims() {
+    for (var i = 0; i < S.clips.length; i++) { var a = assetFor(S.clips[i].asset), v = a && a.info && a.info.video; if (v) return [v.display_width || 1280, v.display_height || 720]; }
+    return [1280, 720];
   }
-  function updateGuide() {
-    var g = $("frame-guide"), mode = $("in-reframe").value, st = $("stage");
-    $("anchor-wrap").hidden = mode.indexOf("crop_") !== 0;
-    if (mode.indexOf("crop_") !== 0) { g.hidden = true; return; }
-    var m = { crop_9x16: 9 / 16, crop_1x1: 1, crop_4x5: 4 / 5, crop_16x9: 16 / 9 }[mode];
-    var W = st.clientWidth, H = st.clientHeight, ar = W / H, w, h, x, y;
-    if (ar > m) { h = H; w = H * m; } else { w = W; h = W / m; }
-    x = (W - w) / 2; y = (H - h) / 2;
-    if (w < W - 1 && ({ left: 0, right: W - w })[S.anchor] != null) x = ({ left: 0, right: W - w })[S.anchor];
-    if (h < H - 1 && ({ top: 0, bottom: H - h })[S.anchor] != null) y = ({ top: 0, bottom: H - h })[S.anchor];
-    g.hidden = false; g.style.left = x + "px"; g.style.top = y + "px"; g.style.width = w + "px"; g.style.height = h + "px";
+  function canvasDims() { var f = firstVideoDims(); return TL.canvasSize(S.canvas.aspect, S.canvas.short, Math.floor(f[0] / 2) * 2, Math.floor(f[1] / 2) * 2); }
+  function layoutStage() {
+    var wrap = $("stage-wrap"), tr = $("transport").offsetHeight, d = canvasDims();
+    var maxW = wrap.clientWidth - 40, maxH = wrap.clientHeight - tr - 40, ar = d[0] / d[1];
+    var w = Math.min(maxW, maxH * ar), h = w / ar;
+    var st = $("stage"); st.style.width = Math.max(100, Math.floor(w)) + "px"; st.style.height = Math.max(60, Math.floor(h)) + "px";
+    drawStage();
+  }
+
+  // the preview is a canvas: background + the picture of the clip under the playhead, placed exactly like the export does it
+  var blurBuf = document.createElement("canvas"), stageDragged = false;
+  function drawStage() {
+    var cv = $("stage-canvas"), st = $("stage"), d = canvasDims(), W = d[0], H = d[1];
+    var cssW = st.clientWidth, cssH = st.clientHeight, dpr = window.devicePixelRatio || 1;
+    if (!cssW || !cssH) return;
+    if (cv.width !== Math.round(cssW * dpr) || cv.height !== Math.round(cssH * dpr)) { cv.width = Math.round(cssW * dpr); cv.height = Math.round(cssH * dpr); }
+    var g = cv.getContext("2d"), k = cv.width / W;
+    g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = S.bg.mode === "color" ? S.bg.color : "#000"; g.fillRect(0, 0, cv.width, cv.height);
+    var hit = currentHit(), a = hit && assetFor(hit.clip.asset), v = act();
+    $("gizmo").hidden = true;
+    if (!hit || !a || !a.hasVideo || !a.info || !a.info.video) return;
+    var iw = a.info.video.display_width, ih = a.info.video.display_height, r = TL.fgRect(iw, ih, W, H, hit.clip.tf);
+    updateGizmo(r, hit.index, cssW / W);
+    if (v.getAttribute("data-asset") !== a.id || !v.videoWidth || v.readyState < 2) return;
+    var covers = r[0] <= 0 && r[1] <= 0 && r[0] + r[2] >= W && r[1] + r[3] >= H;
+    if (S.bg.mode === "blur" && !covers) {
+      var bw = Math.max(8, Math.round(W / 8)), bh = Math.max(8, Math.round(H / 8)); blurBuf.width = bw; blurBuf.height = bh;
+      var b = blurBuf.getContext("2d"), sc = Math.max(bw / v.videoWidth, bh / v.videoHeight), dw = v.videoWidth * sc, dh = v.videoHeight * sc;
+      b.drawImage(v, (bw - dw) / 2, (bh - dh) / 2, dw, dh); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high";
+      g.drawImage(blurBuf, 0, 0, bw, bh, 0, 0, cv.width, cv.height);
+    }
+    g.drawImage(v, r[0] * k, r[1] * k, r[2] * k, r[3] * k);
+  }
+  function updateGizmo(r, index, kc) {                         // the frame around the picture that can be dragged
+    var gz = $("gizmo"), target = targetIndex();
+    if (target !== index || PB.playing) { gz.hidden = true; return; }
+    gz.hidden = false; gz.style.left = (r[0] * kc) + "px"; gz.style.top = (r[1] * kc) + "px"; gz.style.width = (r[2] * kc) + "px"; gz.style.height = (r[3] * kc) + "px";
   }
   window.addEventListener("resize", function () { layoutStage(); drawAll(); });
+
+  // ---------------------------------------------------------------- canvas, background and the position of the selected clip
+  function targetIndex() { if (S.sel >= 0 && S.sel < S.clips.length) return S.sel; var h = currentHit(); return h ? h.index : -1; }
+  function targetAsset() { var i = targetIndex(), c = i >= 0 ? S.clips[i] : null; return c ? assetFor(c.asset) : null; }
+  function tfOf(i) { return TL.cleanTf(S.clips[i] && S.clips[i].tf); }
+  function setTfLive(i, tf) {                                  // preview only; the history entry is added once per gesture
+    var t = TL.cleanTf(tf);
+    S.clips = S.clips.map(function (c, k) { if (k !== i) return c; var o = { id: c.id, asset: c.asset, "in": c["in"], out: c.out }; o.tf = t; return o; });
+    S.dirty = true; drawStage(); renderTfPanel(); renderInfo();
+  }
+  var gesture = null;
+  function beginGesture() { if (!gesture) gesture = snap(); }
+  function endGesture() { if (gesture) { S.hist.push(gesture); gesture = null; renderInfo(); } }
+  function setTfCommit(i, tf) { beginGesture(); setTfLive(i, tf); endGesture(); }
+  function renderTfPanel() {
+    var i = targetIndex(), has = i >= 0, t = tfOf(i), asset = targetAsset();
+    ["in-scale", "in-x", "in-y", "btn-tf-fit", "btn-tf-fill", "btn-tf-center", "btn-tf-reset", "btn-tf-all"].forEach(function (id) { $(id).disabled = !has || !(asset && asset.hasVideo); });
+    $("in-scale").value = Math.round(t.s * 100); $("v-scale").textContent = Math.round(t.s * 100) + "%";
+    $("in-x").value = Math.round(t.x * 100); $("v-x").textContent = Math.round(t.x * 100) + "%";
+    $("in-y").value = Math.round(t.y * 100); $("v-y").textContent = Math.round(t.y * 100) + "%";
+    var h = currentHit(), d = canvasDims();
+    $("canvas-size").textContent = "Output: " + d[0] + " \u00D7 " + d[1] + " px";
+    $("tf-hint").textContent = !has ? "Add a clip first." : !(asset && asset.hasVideo) ? "This clip has no picture." : (h && h.index !== i ? "Move the playhead into the selected clip to see it." : "Position and size apply to the selected clip only.");
+  }
+  function syncCanvasControls() {
+    $("in-aspect").value = S.canvas.aspect; $("in-short").value = String(S.canvas.short); $("in-bg").value = S.bg.mode; $("in-bgcolor").value = S.bg.color;
+    $("in-bgcolor").hidden = S.bg.mode !== "color"; $("in-short").disabled = S.canvas.aspect === "auto";
+  }
+  function changeCanvas(patchCanvas, patchBg) {
+    S.hist.push(snap());
+    if (patchCanvas) S.canvas = Object.assign({}, S.canvas, patchCanvas);
+    if (patchBg) S.bg = Object.assign({}, S.bg, patchBg);
+    S.dirty = true; syncCanvasControls(); layoutStage(); renderAll();
+  }
+  $("in-aspect").addEventListener("change", function () { changeCanvas({ aspect: this.value }); });
+  $("in-short").addEventListener("change", function () { changeCanvas({ short: +this.value }); });
+  $("in-bg").addEventListener("change", function () { changeCanvas(null, { mode: this.value }); });
+  $("in-bgcolor").addEventListener("change", function () { changeCanvas(null, { color: this.value }); });
+  [["in-scale", function (t, v) { t.s = v / 100; }], ["in-x", function (t, v) { t.x = v / 100; }], ["in-y", function (t, v) { t.y = v / 100; }]].forEach(function (pair) {
+    $(pair[0]).addEventListener("input", function () { var i = targetIndex(); if (i < 0) return; beginGesture(); var t = tfOf(i); pair[1](t, +this.value); setTfLive(i, t); });
+    $(pair[0]).addEventListener("change", endGesture);
+  });
+  function tfPreset(kind) {
+    var i = targetIndex(), a = targetAsset(); if (i < 0 || !a || !a.hasVideo) return;
+    var d = canvasDims(), v = a.info.video, t = tfOf(i);
+    if (kind === "fit") t.s = 1; else if (kind === "fill") t.s = TL.fillScale(v.display_width, v.display_height, d[0], d[1]); else if (kind === "center") { t.x = 0; t.y = 0; } else { t = { s: 1, x: 0, y: 0 }; }
+    setTfCommit(i, t);
+  }
+  $("btn-tf-fit").addEventListener("click", function () { tfPreset("fit"); });
+  $("btn-tf-fill").addEventListener("click", function () { tfPreset("fill"); });
+  $("btn-tf-center").addEventListener("click", function () { tfPreset("center"); });
+  $("btn-tf-reset").addEventListener("click", function () { tfPreset("reset"); });
+  $("btn-tf-all").addEventListener("click", function () {
+    var i = targetIndex(); if (i < 0) return; var t = tfOf(i);
+    edit(function (c) { return c.map(function (x) { var o = { id: x.id, asset: x.asset, "in": x["in"], out: x.out, tf: { s: t.s, x: t.x, y: t.y } }; return o; }); });
+  });
+
+  // drag the picture on the preview (move), drag a corner (zoom), mouse wheel (zoom)
+  (function () {
+    var drag = null, magnet = 0.012;
+    function pt(e) { var r = $("stage").getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, w: r.width, h: r.height }; }
+    $("gizmo").addEventListener("mousedown", function (e) {
+      var i = targetIndex(); if (i < 0 || e.button !== 0) return;
+      var corner = e.target.getAttribute && e.target.getAttribute("data-corner"), p = pt(e), t = tfOf(i), g = $("gizmo");
+      var cx = g.offsetLeft + g.offsetWidth / 2, cy = g.offsetTop + g.offsetHeight / 2;
+      drag = { i: i, corner: corner, x0: p.x, y0: p.y, t: t, w: p.w, h: p.h, d0: Math.max(1, Math.hypot(p.x - cx, p.y - cy)), cx: cx, cy: cy };
+      stageDragged = false; beginGesture(); e.preventDefault(); e.stopPropagation();
+    });
+    window.addEventListener("mousemove", function (e) {
+      if (!drag) return;
+      var p = pt(e), t = { s: drag.t.s, x: drag.t.x, y: drag.t.y };
+      if (drag.corner) t.s = drag.t.s * Math.hypot(p.x - drag.cx, p.y - drag.cy) / drag.d0;
+      else {
+        t.x = drag.t.x + (p.x - drag.x0) / drag.w; t.y = drag.t.y + (p.y - drag.y0) / drag.h;
+        if (Math.abs(t.x) < magnet) t.x = 0; if (Math.abs(t.y) < magnet) t.y = 0;          // snap to the centre lines
+      }
+      if (Math.abs(p.x - drag.x0) + Math.abs(p.y - drag.y0) > 3) stageDragged = true;
+      setTfLive(drag.i, t);
+    });
+    window.addEventListener("mouseup", function () { if (!drag) return; drag = null; endGesture(); setTimeout(function () { stageDragged = false; }, 0); });
+    $("stage").addEventListener("wheel", function (e) {
+      var i = targetIndex(), a = targetAsset(); if (i < 0 || !a || !a.hasVideo) return;
+      e.preventDefault(); var t = tfOf(i); t.s = t.s * Math.exp(-e.deltaY * 0.0015); setTfCommit(i, t);
+    }, { passive: false });
+  })();
 
   // ---------------------------------------------------------------- timeline
   function total() { return TL.total(S.clips); }
@@ -444,7 +554,7 @@
     if (PB.playing && (x < sc.scrollLeft || x > sc.scrollLeft + sc.clientWidth - 40)) sc.scrollLeft = x - 60;
   }
   function drawAll() { sizeTrack(); drawCanvases(); drawClips(); drawPlayhead(); }
-  function renderAll() { renderMarks(); renderInfo(); drawAll(); }
+  function renderAll() { renderMarks(); renderInfo(); drawAll(); renderTfPanel(); drawStage(); }
 
   // mouse on the timeline: click/drag empty space = scrub, Shift+drag = mark a range, drag a clip = reorder, drag an edge = trim
   (function () {
@@ -519,7 +629,8 @@
   function projectData() {
     var used = {}; S.clips.forEach(function (c) { used[c.asset] = true; });
     var assets = {}; Object.keys(used).forEach(function (id) { var a = S.assets[id]; if (a) assets[id] = { path: a.path, name: a.name }; });
-    return { version: 1, name: S.projectName || "", assets: assets, clips: S.clips.map(function (c) { return { id: c.id, asset: c.asset, "in": c["in"], out: c.out }; }) };
+    return { version: 1, name: S.projectName || "", assets: assets, canvas: S.canvas, bg: S.bg,
+      clips: S.clips.map(function (c) { var o = { id: c.id, asset: c.asset, "in": c["in"], out: c.out }; if (c.tf) o.tf = TL.cleanTf(c.tf); return o; }) };
   }
   function saveProject(forceDialog) {
     if (!S.clips.length) { flash("Nothing to save yet."); return; }
@@ -538,7 +649,8 @@
       S.assets = {}; S.clips = []; S.sel = -1; S.t = 0; S.mark = { a: null, b: null }; S.hist = TL.createHistory(100);
       var ids = Object.keys(p.assets);
       return Promise.all(ids.map(function (id) { return registerAsset(id, p.assets[id].path, p.assets[id].name).catch(function () { return null; }); })).then(function () {
-        S.clips = p.clips.map(function (c) { return { id: c.id, asset: c.asset, "in": c["in"], out: c.out }; });
+        S.clips = p.clips.map(function (c) { var o = { id: c.id, asset: c.asset, "in": c["in"], out: c.out }; if (c.tf) o.tf = c.tf; return o; });
+        S.canvas = p.canvas || { aspect: "auto", short: 1080 }; S.bg = p.bg || { mode: "blur", color: "#000000" }; syncCanvasControls();
         S.projectPath = p.path; S.projectName = p.name || ""; S.dirty = false; S.fitted = true; S.sel = S.clips.length ? 0 : -1;
         busy(null); invalidatePreload(); syncPlayback(); renderAll(); fit();
         var missing = ids.filter(function (id) { return S.assets[id] && S.assets[id].state === "missing"; });
@@ -553,7 +665,7 @@
   $("btn-export").addEventListener("click", function () {
     if (!S.clips.length) { openDialog(); return; }
     var body = {
-      clips: TL.forExport(S.clips, S.assets), speed: +$("in-speed").value, reframe: $("in-reframe").value, anchor: S.anchor,
+      clips: TL.forExport(S.clips, S.assets), canvas: S.canvas, bg: S.bg, speed: +$("in-speed").value, reframe: "none",
       loudness: $("in-loud").checked ? +$("in-lufs").value : null, preset: $("in-preset").value || null,
       output_dir: $("in-outdir").value.trim() || null,
     };
@@ -770,5 +882,5 @@
       layoutStage(); renderAll();
     }).catch(function (e) { busy("Cannot reach the editor server: " + e.message); });
   }
-  show(vids[0]); layoutStage(); renderAll(); init();
+  show(vids[0]); syncCanvasControls(); layoutStage(); renderAll(); init();
 })();

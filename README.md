@@ -76,14 +76,17 @@ python scripts/editor.py my-video.mp4    # with a file preloaded
 | Remove silences | *Edit* tab -> **Remove silences** (selected clip, or all clips if none is selected) |
 | Several videos in one | Just add more clips; different sizes, frame rates and audio formats are matched on export (black bars, silence for clips without sound) |
 | Save / open a project | **Save** / **Save as...** / **Open project...** (a `.vproj.json` file that remembers clips and cut points, not the media) |
-| Speed, 9:16 / 1:1 / 4:5 crop, blurred bars | *Picture* tab (a frame on the preview shows what stays). Applied to the whole timeline on export |
+| **Canvas** (16:9, 9:16, 1:1, 4:5, or auto) and resolution | *Picture* tab. The preview shows the canvas; the output has exactly that size |
+| **Background** behind pictures that do not fill the canvas | *Picture* tab: blurred copy of the picture, black, or a colour |
+| **Position and size of each clip** | Select a clip, then drag the picture on the preview, drag a corner or use the mouse wheel to zoom; or use the sliders and **Fit / Fill / Center / Reset**. Split a clip first to place each part differently (e.g. re-frame when the speaker moves). Fill makes a 16:9 clip cover a 9:16 canvas |
+| Speed | *Picture* tab. Applied to the whole timeline on export |
 | Loudness | *Sound* tab |
 | **Any of the 42 tools** | *All tools* tab: every `ve_*` tool as a form (search, fill in, Run). Results can be added to the timeline |
 | Export | *Export* tab: pick a platform preset, then **Export**. The timeline is rendered first, then speed/format/loudness/preset are applied, then a platform check is shown |
 
 The editor never changes your original. **Export** runs the same `ve_*` tools the agent uses
 (remove cuts -> speed -> reframe -> loudness -> preset) and writes a new file next to the original (or into the folder you choose).
-It is an *assembly* editor: one video track of clips played back to back. Layers, free positioning/scaling and effects on the timeline are planned; picture-in-picture, stacking and text overlays are available as tools in the *All tools* tab.
+It is an *assembly* editor: one video track of clips played back to back, each with its own position and size on a canvas. Layers (overlays, text, music tracks) are planned; picture-in-picture, stacking and text overlays are available as tools in the *All tools* tab.
 
 How it works and what it exposes: a tiny web server inside the plugin listens on **127.0.0.1 only** (random port, random
 one-time token in the link; requests without it get 403).

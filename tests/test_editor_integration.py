@@ -1,5 +1,6 @@
 """Hermes-facing pieces: dashboard API route, Desktop plugin.js (with a stubbed SDK), and a real-browser run."""
 import json
+import subprocess
 import shutil
 import urllib.parse
 import subprocess
@@ -481,3 +482,96 @@ def test_desktop_page_finds_the_apps_own_accent_colour(tmp_path):
         """) % body
     r = run_node(script, tmp_path)
     assert r.returncode == 0 and "OK" in r.stdout, r.stderr + r.stdout
+
+
+def test_browser_canvas_transform_background_and_export(media, tmp_path):
+    pw = pytest.importorskip("playwright.sync_api")
+    from hermes_video_editor.editor.server import EditorServer
+    srv = EditorServer(roots=[str(media["dir"]), str(tmp_path)])
+    p, b, page, errors = browser(pw)
+    try:
+        page.goto(srv.url(str(media["clip"])))                        # 640x360, 4 s
+        wait_ready(page)
+        page.click("#tabs button[data-tab=picture]")
+        page.select_option("#in-aspect", "9:16")
+        page.select_option("#in-short", "360")
+        assert state(page, "s.canvas.aspect") == "9:16" and "360 × 640" in page.inner_text("#canvas-size")
+        # background colour shows in the preview next to the (fitted) picture
+        page.select_option("#in-bg", "color")
+        page.evaluate("document.getElementById('in-bgcolor').value = '#ff0000'; document.getElementById('in-bgcolor').dispatchEvent(new Event('change'))")
+        page.evaluate("window.__ve.seek(1)")
+        page.wait_for_timeout(800)
+        px = page.evaluate("(() => { const c = document.getElementById('stage-canvas'); const d = c.getContext('2d').getImageData(3, 3, 1, 1).data; return [d[0], d[1], d[2]] })()")
+        assert px[0] > 200 and px[1] < 40 and px[2] < 40, px
+        # drag the picture with the mouse: position changes and can be undone
+        gz = bbox(page, "#gizmo")
+        page.mouse.move(gz["x"] + gz["width"] / 2, gz["y"] + gz["height"] / 2)
+        page.mouse.down()
+        page.mouse.move(gz["x"] + gz["width"] / 2 + 40, gz["y"] + gz["height"] / 2 - 90, steps=6)
+        page.mouse.up()
+        tf = state(page, "s.clips[0].tf")
+        assert tf["x"] > 0.05 and tf["y"] < -0.1 and tf["s"] == 1
+        page.keyboard.press("Control+z")
+        assert state(page, "!s.clips[0].tf || s.clips[0].tf.x === 0")
+        # zoom with the mouse wheel, then with the Fill button
+        page.mouse.move(gz["x"] + gz["width"] / 2, gz["y"] + gz["height"] / 2)
+        page.mouse.wheel(0, -300)
+        assert state(page, "s.clips[0].tf.s") > 1.3
+        page.click("#btn-tf-fill")
+        assert state(page, "s.clips[0].tf.s") == pytest.approx(state(page, "TL.fillScale(640, 360, 360, 640)"), abs=0.01)
+        page.click("#btn-tf-reset")
+        # split: each piece gets its own position
+        page.evaluate("window.__ve.seek(2)")
+        page.keyboard.press("s")
+        assert state(page, "s.clips.length") == 2 and state(page, "s.sel") == 1
+        page.click("#btn-tf-fill")
+        assert state(page, "s.clips[1].tf.s") > 3
+        assert state(page, "!s.clips[0].tf || s.clips[0].tf.s === 1")
+        # export with the chosen canvas, background and the different positions
+        page.click("#tabs button[data-tab=export]")
+        page.fill("#in-outdir", str(tmp_path / "vertical"))
+        page.click("#btn-export")
+        page.wait_for_selector("#result .ok", timeout=120000)
+        out = list((tmp_path / "vertical").glob("*.mp4"))
+        assert len(out) == 1
+        v = ffprobe(out[0])
+        assert (v["video"]["width"], v["video"]["height"]) == (360, 640)
+        top = subprocess.run(["ffmpeg", "-v", "error", "-ss", "0.5", "-i", str(out[0]), "-frames:v", "1", "-vf", "crop=iw:ih*0.1:0:0", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+                             capture_output=True, check=True).stdout
+        n = len(top) // 3
+        assert sum(top[0::3]) / n > 200 and sum(top[1::3]) / n < 40            # red bars above the fitted first clip
+        later = subprocess.run(["ffmpeg", "-v", "error", "-ss", "3.0", "-i", str(out[0]), "-frames:v", "1", "-vf", "crop=iw:ih*0.1:0:0", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+                               capture_output=True, check=True).stdout
+        assert sum(later[1::3]) / (len(later) // 3) > 30                         # second clip is zoomed to fill: no red bars
+        # project file keeps canvas, background and the transforms
+        page.click("#btn-saveas")
+        page.fill("#dlg-name", "vertical")
+        page.fill("#dlg-path", str(tmp_path))
+        page.press("#dlg-path", "Enter")
+        for _ in range(50):
+            if state(page, "s.dlgPath") == str(tmp_path):
+                break
+            page.wait_for_timeout(100)
+        page.click("#dlg-usefolder")
+        saved = tmp_path / "vertical.vproj.json"
+        for _ in range(50):
+            if saved.exists():
+                break
+            page.wait_for_timeout(100)
+        data = json.loads(saved.read_text())
+        assert data["canvas"] == {"aspect": "9:16", "short": 360} and data["bg"] == {"mode": "color", "color": "#ff0000"}
+        assert data["clips"][1]["tf"]["s"] > 3
+        page2 = b.new_page(viewport={"width": 1500, "height": 900})
+        page2.on("pageerror", lambda e: errors.append(str(e)))
+        page2.goto(srv.url() + "&project=" + urllib.parse.quote(str(saved)))
+        for _ in range(100):
+            if state(page2, "s.clips.length") == 2:
+                break
+            page2.wait_for_timeout(100)
+        assert state(page2, "s.canvas.aspect") == "9:16" and state(page2, "s.bg.color") == "#ff0000" and state(page2, "s.clips[1].tf.s") > 3
+        assert page2.input_value("#in-aspect") == "9:16"
+        assert not errors, errors
+    finally:
+        b.close()
+        p.stop()
+        srv.stop()

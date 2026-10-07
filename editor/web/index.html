@@ -56,25 +56,38 @@
     </section>
 
     <section data-pane="picture" class="pane">
-      <h3>Speed</h3>
-      <select id="in-speed"></select>
-      <h3>Format</h3>
-      <select id="in-reframe">
-        <option value="none">Keep original</option>
-        <option value="crop_9x16">9:16 crop (Reels / TikTok / Shorts)</option>
-        <option value="blur_9x16">9:16 with blurred bars (keeps everything)</option>
-        <option value="crop_1x1">1:1 square crop</option>
-        <option value="crop_4x5">4:5 crop</option>
-        <option value="crop_16x9">16:9 crop</option>
-      </select>
-      <div id="anchor-wrap">
-        <h3>Keep which part?</h3>
-        <select id="in-anchor">
-          <option value="center">Center</option><option value="left">Left</option><option value="right">Right</option>
-          <option value="top">Top</option><option value="bottom">Bottom</option>
+      <h3>Canvas</h3>
+      <div class="row">
+        <select id="in-aspect">
+          <option value="auto">Auto (first clip)</option><option value="16:9">16:9 landscape</option><option value="9:16">9:16 Reels / TikTok / Shorts</option>
+          <option value="1:1">1:1 square</option><option value="4:5">4:5 feed</option>
+        </select>
+        <select id="in-short" title="Short side of the picture in pixels">
+          <option value="360">360</option><option value="480">480</option><option value="720">720</option>
+          <option value="1080" selected>1080</option><option value="1440">1440</option><option value="2160">2160</option>
         </select>
       </div>
-      <p class="muted">The frame on the preview shows what stays.</p>
+      <div id="canvas-size" class="muted"></div>
+      <h3>Background</h3>
+      <div class="row">
+        <select id="in-bg"><option value="blur">Blurred picture</option><option value="black">Black</option><option value="color">Colour</option></select>
+        <input id="in-bgcolor" type="color" value="#000000" hidden title="Background colour">
+      </div>
+      <h3>Selected clip</h3>
+      <div id="tf-hint" class="muted"></div>
+      <label class="field">Size <span id="v-scale">100%</span><input id="in-scale" type="range" min="5" max="400" step="1" value="100"></label>
+      <label class="field">Left / right <span id="v-x">0%</span><input id="in-x" type="range" min="-100" max="100" step="1" value="0"></label>
+      <label class="field">Up / down <span id="v-y">0%</span><input id="in-y" type="range" min="-100" max="100" step="1" value="0"></label>
+      <div class="row">
+        <button id="btn-tf-fit" class="btn" title="Whole picture visible">Fit</button>
+        <button id="btn-tf-fill" class="btn" title="Picture covers the whole canvas">Fill</button>
+        <button id="btn-tf-center" class="btn">Center</button>
+        <button id="btn-tf-reset" class="btn">Reset</button>
+      </div>
+      <button id="btn-tf-all" class="btn wide">Use this position for all clips</button>
+      <p class="muted">Tip: drag the picture on the preview to move it, drag a corner or use the mouse wheel to zoom. Split a clip first to place each part differently.</p>
+      <h3>Speed</h3>
+      <select id="in-speed"></select>
     </section>
 
     <section data-pane="sound" class="pane">
@@ -116,7 +129,9 @@
   </aside>
 
   <main id="stage-wrap">
-    <div id="stage"><video id="video" playsinline preload="auto"></video><video id="video2" playsinline preload="auto"></video><div id="frame-guide" hidden></div>
+    <div id="stage"><video id="video" playsinline preload="auto"></video><video id="video2" playsinline preload="auto"></video>
+      <canvas id="stage-canvas"></canvas>
+      <div id="gizmo" hidden><b class="gh" data-corner="nw"></b><b class="gh" data-corner="ne"></b><b class="gh" data-corner="sw"></b><b class="gh" data-corner="se"></b></div>
       <div id="overlay" class="overlay" hidden></div>
       <div id="empty" class="overlay">
         <div class="empty-card">
