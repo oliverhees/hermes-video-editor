@@ -14,7 +14,7 @@ Der Editor verändert nie deine Originaldateien. Jeder Export erzeugt eine neue 
 
 | Bereich | Was es ist |
 |---|---|
-| Links | Tabs: **Edit, Picture, Text, Overlay, Sound, All tools, Export** |
+| Links | Tabs: **Edit, Picture, Text, Overlay, Sound, Tools, Export** |
 | Mitte | Vorschau deiner Leinwand. Bild, Text oder Overlay direkt hier ziehen |
 | Unten | Zeitleiste: Clips, Wellenform, Spur **Text**, Spur **Audio**, Spur **Overlay** |
 
@@ -67,7 +67,7 @@ Eine zweite Videospur über dem Hauptbild: Reaktions-Clip, Logo-Animation, B-Rol
   Ohne Ordner landet die Datei neben dem Original (hineingezogene Dateien landen in `~/Videos`).
 - **Save** / **Save as** speichern ein `.vproj.json`-Projekt (Clips, Leinwand, Texte, Audio, Overlays). **Open project** holt es zurück.
 
-## 9. Alle Werkzeuge (Tab All tools)
+## 9. Alle Werkzeuge (Tab Tools)
 
 Alle 42 `lk_*`-Werkzeuge als Formular: suchen, ausfüllen, **Run**. Dieselben Werkzeuge nutzt der Hermes-Agent im Chat.
 Beispiele für den Chat:

@@ -114,7 +114,7 @@ python scripts/editor.py my-video.mp4    # with a file preloaded
 | **Video on top** | *Overlay* tab: a second video track above the picture (position, size, opacity, own sound) |
 | **Text** | *Text* tab: size, colour, outline, box, presets (Title, Lower third, Caption); drag in the preview |
 | **Music / voice-over** | *Sound* tab: volume, fades, start time, **ducking** (music gets quieter while the video speaks) |
-| Any of the 42 tools | *All tools* tab: every tool as a form |
+| Any of the 42 tools | *Tools* tab: every tool as a form |
 | Export | *Export* tab: platform preset, loudness, speed, folder |
 | Help | **Help** button (top bar): this guide in English or German |
 
