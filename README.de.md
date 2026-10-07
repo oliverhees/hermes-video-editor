@@ -1,5 +1,3 @@
-<div align="center">
-
 [🇬🇧 English](README.md) · **🇩🇪 Deutsch**
 
 **🚧 STATUS: BETA v0.2**
@@ -21,7 +19,6 @@
 
 > Powered by [Lokyy.de](https://lokyy.de) - German Hermes Engineering
 
-</div>
 
 ---
 

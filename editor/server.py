@@ -105,8 +105,8 @@ def api_probe(srv: EditorServer, raw: Optional[str]) -> Dict[str, Any]:
     return probe(safe_media_file(raw, srv.roots))
 
 
-def api_recent(srv: EditorServer) -> Dict[str, Any]:
-    keep = [p for p in jobs_mod.recent_files() if inside(p, srv.roots)]
+def api_recent(srv: EditorServer, kind: Optional[str] = None) -> Dict[str, Any]:
+    keep = [p for p in jobs_mod.recent_files("project" if kind == "project" else "media") if inside(p, srv.roots)]
     return {"files": [{"path": p, "name": os.path.basename(p)} for p in keep]}
 
 
@@ -142,7 +142,9 @@ def api_silence(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def api_project_save(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
-    return {"ok": True, "path": project_mod.save_project(body.get("path"), body.get("project"), srv.roots)}
+    saved = project_mod.save_project(body.get("path"), body.get("project"), srv.roots)
+    jobs_mod.remember(Path(saved), "project")
+    return {"ok": True, "path": saved}
 
 
 def api_tool(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
@@ -360,9 +362,11 @@ def make_handler(srv: EditorServer):
             elif route == "/api/probe":
                 self._json(api_probe(srv, first("path")))
             elif route == "/api/project/load":
-                self._json(project_mod.load_project(first("path"), srv.roots))
+                loaded = project_mod.load_project(first("path"), srv.roots)
+                jobs_mod.remember(Path(loaded["path"]), "project")
+                self._json(loaded)
             elif route == "/api/recent":
-                self._json(api_recent(srv))
+                self._json(api_recent(srv, first("kind")))
             elif route == "/api/media":
                 self._serve_file(safe_media_file(first("path"), srv.roots))
             elif route == "/api/cache":
