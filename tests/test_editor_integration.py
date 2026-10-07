@@ -243,3 +243,40 @@ def test_browser_theme_empty_state_and_drop(media, tmp_path):
         srv.stop()
         for f in jobs_mod.UPLOAD_DIR.glob("dropped one*.mp4"):
             f.unlink()
+
+
+def test_browser_tools_tab_lists_all_42_and_runs_one(media, tmp_path):
+    pw = pytest.importorskip("playwright.sync_api")
+    from hermes_video_editor.editor.server import EditorServer
+    srv = EditorServer(roots=[str(media["dir"]), str(tmp_path)])
+    try:
+        with pw.sync_playwright() as p:
+            try:
+                browser = p.chromium.launch()
+            except Exception as exc:  # noqa: BLE001
+                pytest.skip("no usable chromium: %s" % exc)
+            page = browser.new_page(viewport={"width": 1500, "height": 900})
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.goto(srv.url(str(media["clip"])))
+            page.wait_for_selector("#video[data-src]", state="attached", timeout=90000)
+            page.click("#tabs button[data-tab=tools]")
+            page.wait_for_selector(".tool-item")
+            assert page.locator(".tool-item").count() == 42
+            page.fill("#tool-search", "silence")
+            assert 2 <= page.locator(".tool-item").count() < 42                 # search filters the list
+            assert page.locator('.tool-item[data-tool="ve_detect_silence"]').count() == 1
+            assert page.locator('.tool-item[data-tool="ve_remove_silence"]').count() == 1
+            page.fill("#tool-search", "")
+            page.click('.tool-item[data-tool="ve_trim"]')
+            assert page.input_value("#tool-input").endswith("clip.mp4")          # current file is prefilled
+            page.fill("#tool-fields .fld:has(label:text-is('duration')) input", "1")
+            page.click("#tool-adv >> xpath=ancestor::details/summary")
+            page.fill("#tool-adv .fld:has(label:text-is('output dir')) input", str(tmp_path / "from-ui"))
+            page.click("#tool-run")
+            page.wait_for_selector("#tool-result .ok", timeout=60000)
+            assert len(list((tmp_path / "from-ui").glob("*.mp4"))) == 1
+            assert not errors, errors
+            browser.close()
+    finally:
+        srv.stop()

@@ -19,6 +19,7 @@
       <button data-tab="cuts" class="on">Cuts</button>
       <button data-tab="picture">Picture</button>
       <button data-tab="sound">Sound</button>
+      <button data-tab="tools">All tools</button>
       <button data-tab="export">Export</button>
     </nav>
 
@@ -70,6 +71,21 @@
       <label class="field">Target <span id="v-lufs">-14 LUFS</span>
         <input id="in-lufs" type="range" min="-24" max="-9" step="1" value="-14"></label>
       <p class="muted">-14 LUFS suits Reels, TikTok, Shorts and YouTube. Use -16 for podcasts.</p>
+    </section>
+
+    <section data-pane="tools" class="pane">
+      <input id="tool-search" type="text" placeholder="Search the 42 tools&hellip;">
+      <div id="tool-list"></div>
+      <div id="tool-form" hidden>
+        <button id="tool-back" class="btn small">&larr; All tools</button>
+        <h3 id="tool-title"></h3>
+        <p id="tool-desc" class="muted"></p>
+        <div id="tool-fields"></div>
+        <details class="adv"><summary>Advanced</summary><div id="tool-adv"></div></details>
+        <button id="tool-run" class="btn primary wide">Run</button>
+        <div id="tool-job" class="job" hidden><div class="bar"><i id="tool-bar"></i></div><div id="tool-step" class="muted"></div></div>
+        <div id="tool-result" class="result" hidden></div>
+      </div>
     </section>
 
     <section data-pane="export" class="pane">
@@ -126,6 +142,7 @@
   <div class="dialog">
     <div class="dlg-head"><strong>Open a video</strong><button id="dlg-close" class="btn small">Close</button></div>
     <input id="dlg-path" type="text" placeholder="Folder or file path, then Enter">
+    <button id="dlg-usefolder" class="btn small" hidden>Use this folder</button>
     <div id="dlg-recent-title" class="sect" hidden>Recent</div>
     <div id="dlg-recent" class="list"></div>
     <div class="sect">Folders</div>

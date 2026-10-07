@@ -70,11 +70,12 @@ python scripts/editor.py my-video.mp4    # with a file preloaded
 | Skip cuts while playing | "Skip cuts in preview" |
 | Speed, 9:16 / 1:1 / 4:5 crop, blurred bars | *Picture* tab (a frame on the preview shows what stays) |
 | Loudness | *Sound* tab |
+| **Any of the 42 tools** | *All tools* tab: every `ve_*` tool as a form (search, fill in, Run). Results can be opened in the editor |
 | Export | *Export* tab: pick a platform preset, then **Export**. A platform check is shown afterwards |
 
 The editor never changes your original. **Export** runs the same `ve_*` tools the agent uses
 (remove cuts -> speed -> reframe -> loudness -> preset) and writes a new file next to the original (or into the folder you choose).
-It is a *cut-and-deliver* editor: there are no layers, text animation or multi-track timelines.
+It is a *cut-and-deliver* editor for one clip at a time: there are no layers or multi-track timelines yet (join, picture-in-picture and stacking are available as tools in the *All tools* tab).
 
 How it works and what it exposes: a tiny web server inside the plugin listens on **127.0.0.1 only** (random port, random
 one-time token in the link; requests without it get 403).
