@@ -31,7 +31,7 @@ def render(names):
         "silence, crop to 9:16, add text and captions, mix music, normalize loudness, export for "
         "Reels/TikTok/YouTube and check platform rules. No cloud, no API key.",
         "author: oliverhees",
-        "license: MIT",
+        "license: PolyForm-Noncommercial-1.0.0",
         "homepage: https://github.com/oliverhees/hermes-video-editor",
         "provides_tools:",
     ]

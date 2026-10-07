@@ -7,7 +7,7 @@
   var S = V.S, TL = V.TL, $ = V.$, el = V.el, clamp = V.clamp;
 
   function tab(name) { var b = document.querySelector('#tabs button[data-tab="' + name + '"]'); if (b) b.click(); }
-  function clearSel(except) { if (except !== "clip") S.sel = -1; if (except !== "text") S.selText = -1; if (except !== "audio") S.selAudio = -1; }
+  function clearSel(except) { if (except !== "clip") S.sel = -1; if (except !== "text") S.selText = -1; if (except !== "audio") S.selAudio = -1; S.selOv = -1; }
   function curText() { return S.selText >= 0 ? S.texts[S.selText] : null; }
   function curAudio() { return S.selAudio >= 0 ? S.audios[S.selAudio] : null; }
   function replaceText(i, changes) { S.texts = S.texts.map(function (t, k) { return k === i ? TL.cleanText(TL.patch(t, changes)) : t; }); S.dirty = true; }

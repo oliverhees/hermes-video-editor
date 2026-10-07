@@ -163,3 +163,16 @@ def test_text_and_audio_items(tmp_path):
     assert.deepStrictEqual(T.activeText([t, T.newText(10, 1, 'y')], 3).map(x => x.id), ['x'])
     assert.deepStrictEqual(T.activeAudio([m], 14).map(x => x.id), []); assert.deepStrictEqual(T.activeAudio([m], 13.9).map(x => x.id), ['m'])
     """, tmp_path)
+
+
+def test_overlay_items(tmp_path):
+    run("""
+    const o = T.newOverlay('v1', 6, 2.5, 'o')
+    assert.deepStrictEqual(o.tf, {s: 0.4, x: 0.27, y: -0.27}); assert.strictEqual(o.start, 2.5); assert.strictEqual(o.out, 6)
+    const c = T.cleanOverlay({asset: 'v1', in: -2, out: 9, start: -1, tf: {s: 99, x: 7}, op: 4, sound: 1, vol: -99})
+    assert.strictEqual(c.in, 0); assert.strictEqual(c.start, 0); assert.strictEqual(c.tf.s, 10); assert.strictEqual(c.tf.x, 3)
+    assert.strictEqual(c.op, 1); assert.strictEqual(c.sound, true); assert.strictEqual(c.vol, -60)
+    assert.deepStrictEqual(T.cleanOverlay({asset: 'a', in: 0, out: 1}).tf, {s: 0.4, x: 0.27, y: -0.27})
+    assert.strictEqual(T.activeOverlays([o], 2.4).length, 0); assert.strictEqual(T.activeOverlays([o], 3).length, 1); assert.strictEqual(T.activeOverlays([o], 8.6).length, 0)
+    const t = T.trimAudio(o, 'left', 1, 6); assert.strictEqual(t.in, 1); assert.strictEqual(t.start, 3.5)
+    """, tmp_path)
