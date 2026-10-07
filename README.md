@@ -1,6 +1,6 @@
 # hermes-video-editor
 
-> Powered by [lokyy.de](https://lokyy.de)
+> Powered by [Lokyy.de](https://lokyy.de) - German Hermes Engineering
 
 **Edit your OWN local videos from chat.** A plugin for [Hermes Agent](https://hermes-agent.nousresearch.com/)
 with **42 FFmpeg tools**. 100% local: no cloud, no API key, no network calls, no telemetry.
@@ -65,19 +65,25 @@ python scripts/editor.py my-video.mp4    # with a file preloaded
 
 | Do this | How |
 |---|---|
-| Open a video | **Open file...** (browse your home folder or paste a path), pick one from **Recent**, or **drop a video file** into the window (dropped files are copied into the editor's cache; exports then go to `~/Videos` by default) |
-| Preview | Space = play/pause, arrows = frame step, Shift+arrows = 1 s |
-| Cut a range | `I` (in), `O` (out), `X` (cut). Or Shift+drag on the timeline |
-| Find silences | **Find silences** adds them as cuts (adjust level / length first) |
-| Skip cuts while playing | "Skip cuts in preview" |
-| Speed, 9:16 / 1:1 / 4:5 crop, blurred bars | *Picture* tab (a frame on the preview shows what stays) |
+| Add a video | **Add clip...** (browse your home folder or paste a path), pick one from **Recent**, or **drop video files** into the window. Several files can be dropped at once; they are appended in order (dropped files are copied into the editor's cache; exports then go to `~/Videos` by default) |
+| Preview | Space = play/pause (plays across clips without gaps), arrows = frame step, Shift+arrows = 1 s, Up/Down = previous/next clip boundary |
+| Split | Put the playhead where you want the cut, press `S` |
+| Delete a clip | Click it, press `Delete` (the gap closes automatically) |
+| Remove a range | `I` (in), `O` (out), `X` (cut), or Shift+drag on the timeline. Works across clip borders |
+| Reorder | Drag a clip to another position (an orange line shows where it lands) |
+| Trim | Drag the left or right edge of a clip |
+| Undo / redo | `Ctrl+Z` / `Ctrl+Shift+Z` (100 steps) |
+| Remove silences | *Edit* tab -> **Remove silences** (selected clip, or all clips if none is selected) |
+| Several videos in one | Just add more clips; different sizes, frame rates and audio formats are matched on export (black bars, silence for clips without sound) |
+| Save / open a project | **Save** / **Save as...** / **Open project...** (a `.vproj.json` file that remembers clips and cut points, not the media) |
+| Speed, 9:16 / 1:1 / 4:5 crop, blurred bars | *Picture* tab (a frame on the preview shows what stays). Applied to the whole timeline on export |
 | Loudness | *Sound* tab |
-| **Any of the 42 tools** | *All tools* tab: every `ve_*` tool as a form (search, fill in, Run). Results can be opened in the editor |
-| Export | *Export* tab: pick a platform preset, then **Export**. A platform check is shown afterwards |
+| **Any of the 42 tools** | *All tools* tab: every `ve_*` tool as a form (search, fill in, Run). Results can be added to the timeline |
+| Export | *Export* tab: pick a platform preset, then **Export**. The timeline is rendered first, then speed/format/loudness/preset are applied, then a platform check is shown |
 
 The editor never changes your original. **Export** runs the same `ve_*` tools the agent uses
 (remove cuts -> speed -> reframe -> loudness -> preset) and writes a new file next to the original (or into the folder you choose).
-It is a *cut-and-deliver* editor for one clip at a time: there are no layers or multi-track timelines yet (join, picture-in-picture and stacking are available as tools in the *All tools* tab).
+It is an *assembly* editor: one video track of clips played back to back. Layers, free positioning/scaling and effects on the timeline are planned; picture-in-picture, stacking and text overlays are available as tools in the *All tools* tab.
 
 How it works and what it exposes: a tiny web server inside the plugin listens on **127.0.0.1 only** (random port, random
 one-time token in the link; requests without it get 403).
@@ -201,7 +207,7 @@ Until the entry is merged the card shows the manifest description and a "Git" ba
 
 ## Credits
 
-Powered by [lokyy.de](https://lokyy.de). The link is also shown at the bottom of the editor's side panel.
+Powered by [Lokyy.de](https://lokyy.de) - German Hermes Engineering. The credit is also shown at the bottom of the editor's side panel.
 
 ## License
 

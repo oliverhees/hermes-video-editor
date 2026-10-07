@@ -25,11 +25,16 @@ def main():
     with tempfile.TemporaryDirectory(prefix="ve_shot_") as scratch:
         tmp = str(shot_dir)
         clip = shot_dir / "interview.mp4"
+        broll = shot_dir / "b-roll.mp4"
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i",
                         "gradients=s=1280x720:d=24:speed=0.02:r=25:c0=0x1b1464:c1=0xff6b35:c2=0x4ecdc4:nb_colors=3",
                         "-f", "lavfi", "-i", "anoisesrc=c=pink:d=24:a=0.5:r=44100", "-af",
                         "tremolo=f=4:d=0.8,volume=enable='between(t,4,6.5)+between(t,11,13.2)+between(t,18,19.5)':volume=0",
                         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", str(clip)], check=True)
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i",
+                        "gradients=s=1280x720:d=8:speed=0.05:r=25:c0=0x0b6e4f:c1=0xf7c948:c2=0xff5d8f:nb_colors=3",
+                        "-f", "lavfi", "-i", "sine=frequency=330:d=8", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac",
+                        "-shortest", str(broll)], check=True)
         srv = EditorServer(roots=[tmp])
         try:
             with sync_playwright() as p:
@@ -38,10 +43,14 @@ def main():
                 page.goto(srv.url(str(clip)))
                 page.wait_for_selector("#video[data-src]", state="attached", timeout=90000)
                 page.wait_for_timeout(2500)
-                page.click("#btn-silence")
-                page.wait_for_selector("#cuts-list .item", timeout=20000)
-                page.evaluate("document.getElementById('video').currentTime = 8.5")
-                page.wait_for_timeout(800)
+                page.click("#btn-silence")                       # cut the silent parts out of the interview
+                page.wait_for_timeout(4000)
+                page.click("#btn-open")                          # add a second clip behind it
+                page.fill("#dlg-path", str(broll))
+                page.press("#dlg-path", "Enter")
+                page.wait_for_timeout(5000)
+                page.evaluate("window.__ve.seek(9.5)")
+                page.wait_for_timeout(1200)
                 page.screenshot(path=str(ROOT / "docs" / "editor.png"))
                 browser.close()
         finally:

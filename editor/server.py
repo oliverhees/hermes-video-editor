@@ -16,11 +16,13 @@ from ..core.ffmpeg import probe
 from ..core.result import ToolError
 from ..core.validate import get_num
 from . import jobs as jobs_mod
+from . import project as project_mod
 from . import toolrun
 from .security import MEDIA_EXTS, default_roots, inside, safe_dir, safe_media_file
 
 WEB = Path(__file__).resolve().parent / "web"
-STATIC = {"app.js": "text/javascript; charset=utf-8", "app.css": "text/css; charset=utf-8"}
+STATIC = {"app.js": "text/javascript; charset=utf-8", "timeline.js": "text/javascript; charset=utf-8",
+          "app.css": "text/css; charset=utf-8"}
 MAX_BODY = 1 << 20
 MIME_FIX = {".mkv": "video/x-matroska", ".mov": "video/quicktime", ".m4v": "video/mp4", ".mp3": "audio/mpeg",
             ".m4a": "audio/mp4", ".flac": "audio/flac", ".opus": "audio/ogg", ".ts": "video/mp2t"}
@@ -88,7 +90,8 @@ def api_ls(srv: EditorServer, raw: Optional[str], kind: Optional[str] = None) ->
         try:
             if e.is_dir():
                 dirs.append({"name": e.name})
-            elif Path(e.name).suffix.lower() in exts and e.is_file():
+            elif ((e.name.endswith(".vproj.json") if kind == "project" else Path(e.name).suffix.lower() in exts)
+                  and e.is_file()):
                 files.append({"name": e.name, "size": e.stat().st_size})
         except OSError:
             continue
@@ -136,6 +139,10 @@ def api_silence(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
     return res["info"]
 
 
+def api_project_save(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
+    return {"ok": True, "path": project_mod.save_project(body.get("path"), body.get("project"), srv.roots)}
+
+
 def api_tool(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
     name = body.get("name")
     cfg = api_config(srv)
@@ -149,9 +156,15 @@ def api_tool(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def api_export(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
-    src = safe_media_file(body.get("path"), srv.roots)
+    if body.get("clips") is not None:                       # timeline export
+        body = dict(body, clips_info=project_mod.sanitize_clips(body["clips"], srv.roots), cuts=[])
+        src = Path(body["clips_info"][0]["path"])
+        default_dir = Path(api_config(srv)["videos_dir"]) if inside(str(src), [str(jobs_mod.UPLOAD_DIR)]) else src.parent
+    else:
+        src = safe_media_file(body.get("path"), srv.roots)
+        default_dir = src.parent
     jobs_mod.validate_export(body)
-    out_dir = safe_dir(body["output_dir"], srv.roots, create=True) if body.get("output_dir") else src.parent
+    out_dir = safe_dir(body["output_dir"], srv.roots, create=True) if body.get("output_dir") else default_dir
     job = srv.jobs.start("export", lambda j: jobs_mod.run_export(j, src, body, out_dir))
     return {"job": job.id}
 
@@ -339,6 +352,8 @@ def make_handler(srv: EditorServer):
                 self._json({"tools": toolrun.tool_catalog(), "groups": [t for _, t in toolrun.GROUPS]})
             elif route == "/api/probe":
                 self._json(api_probe(srv, first("path")))
+            elif route == "/api/project/load":
+                self._json(project_mod.load_project(first("path"), srv.roots))
             elif route == "/api/recent":
                 self._json(api_recent(srv))
             elif route == "/api/media":
@@ -382,6 +397,8 @@ def make_handler(srv: EditorServer):
                 self._json(api_export(srv, body))
             elif route == "/api/tool":
                 self._json(api_tool(srv, body))
+            elif route == "/api/project/save":
+                self._json(api_project_save(srv, body))
             else:
                 self._error(404, "Not found")
 

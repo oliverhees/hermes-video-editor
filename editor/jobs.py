@@ -189,7 +189,7 @@ SPEEDS = (0.5, 0.75, 1.0, 1.25, 1.5, 2.0)
 
 
 def build_steps(req: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Pure: turn an export request into an ordered list of tool calls."""
+    """Pure: turn an export request into an ordered list of tool calls (the timeline render comes before these)."""
     steps: List[Dict[str, Any]] = []
     cuts = req.get("cuts") or []
     if cuts:
@@ -232,13 +232,19 @@ def validate_export(req: Dict[str, Any]) -> None:
 
 def run_export(job: Job, src: Path, req: Dict[str, Any], final_dir: Path) -> None:
     from ..schemas import TOOLS
+    from . import project as project_mod
     handlers = {t["name"]: t["handler"] for t in TOOLS}
+    clips = req.get("clips_info")                       # a timeline: render it first, then apply the other steps
     steps = build_steps(req)
-    if not steps:
+    if not steps and not clips:
         raise ToolError("Nothing to export: add a cut, change speed/format, or pick a preset.")
     tmp = Path(tempfile.mkdtemp(prefix="ve_export_"))
     current, result = src, None
     try:
+        if clips:
+            job.step = "Rendering the timeline"
+            rendered = project_mod.render_project(clips, final_dir if not steps else tmp)
+            current, result = rendered, {"output": str(rendered), "duration_s": probe(rendered)["duration_s"]}
         for i, step in enumerate(steps):
             job.step = step["label"]
             job.progress = i / float(len(steps))
@@ -252,8 +258,9 @@ def run_export(job: Job, src: Path, req: Dict[str, Any], final_dir: Path) -> Non
     finally:
         shutil.rmtree(str(tmp), ignore_errors=True)
     out = result["output"]
+    labels = (["Rendering the timeline"] if clips else []) + [s["label"] for s in steps]
     summary: Dict[str, Any] = {"output": out, "duration_s": result.get("duration_s"),
-                               "size_bytes": os.path.getsize(out), "steps": [s["label"] for s in steps],
+                               "size_bytes": os.path.getsize(out), "steps": labels,
                                "platform_check": None}
     if req.get("preset") in PLATFORM_RULES:
         check = json.loads(handlers["ve_platform_check"]({"input": out, "platform": req["preset"]}))

@@ -86,3 +86,16 @@ needs `HERMES_ENABLE_PROJECT_PLUGINS=true`). Plugins are opt-in: must be enabled
   and `register()` throws an error that lists the SDK exports that are missing and the ones that exist.
 - The Plugins card shows a plugin as "Agent + Desktop", source "Disk" when both halves live in `~/.hermes/plugins/<id>`
   and `~/.hermes/desktop-plugins/<id>`; a load error appears as a red text plus a "failed" badge on that card.
+
+## Addendum: editor architecture (clips timeline)
+
+- Model: `assets` (files) + `clips` ({id, asset, in, out}) played back to back. All edits are pure functions in
+  `editor/web/timeline.js` (unit-tested in Node): split, ripple delete, delete range, silence subtraction, trim, move,
+  undo/redo history.
+- Preview: two `<video>` elements; the next clip is preloaded and swapped at the boundary (contiguous clips from the same
+  file just keep playing). Needs H.264 or VP8 playback; otherwise a proxy is made on the server.
+- Export: `editor/project.py` builds one `filter_complex` (one `-ss/-t/-i` input per clip, scale+pad to the first clip's
+  size, concat) and renders `<first clip>_project.mp4`; then the existing steps (speed, reframe, loudness, preset) run.
+- Projects: `.vproj.json` (version 1) with assets (path, name) and clips; validated on save and load, paths confined to
+  the allowed folders.
+- Not yet: layers/tracks, per-clip transform (position/scale), text/overlay clips, audio tracks (music), transitions.
