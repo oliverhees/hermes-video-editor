@@ -180,11 +180,11 @@ def prepare(job: Job, src: Path, client_h264: bool) -> None:
 
 
 # --------------------------------------------------------------------------- export pipeline
-ASPECT_REFRAME = {"crop_9x16": ("ve_crop_to_aspect", {"aspect": "9:16"}),
-                  "blur_9x16": ("ve_pad_blur_background", {"width": 1080, "height": 1920}),
-                  "crop_1x1": ("ve_crop_to_aspect", {"aspect": "1:1"}),
-                  "crop_4x5": ("ve_crop_to_aspect", {"aspect": "4:5"}),
-                  "crop_16x9": ("ve_crop_to_aspect", {"aspect": "16:9"})}
+ASPECT_REFRAME = {"crop_9x16": ("lk_crop_to_aspect", {"aspect": "9:16"}),
+                  "blur_9x16": ("lk_pad_blur_background", {"width": 1080, "height": 1920}),
+                  "crop_1x1": ("lk_crop_to_aspect", {"aspect": "1:1"}),
+                  "crop_4x5": ("lk_crop_to_aspect", {"aspect": "4:5"}),
+                  "crop_16x9": ("lk_crop_to_aspect", {"aspect": "16:9"})}
 SPEEDS = (0.5, 0.75, 1.0, 1.25, 1.5, 2.0)
 
 
@@ -193,23 +193,23 @@ def build_steps(req: Dict[str, Any]) -> List[Dict[str, Any]]:
     steps: List[Dict[str, Any]] = []
     cuts = req.get("cuts") or []
     if cuts:
-        steps.append({"label": "Removing cuts", "tool": "ve_remove_segments",
+        steps.append({"label": "Removing cuts", "tool": "lk_remove_segments",
                       "args": {"segments": [{"start": float(a), "end": float(b)} for a, b in cuts]}})
     speed = float(req.get("speed") or 1.0)
     if speed != 1.0:
-        steps.append({"label": "Changing speed", "tool": "ve_change_speed", "args": {"factor": speed}})
+        steps.append({"label": "Changing speed", "tool": "lk_change_speed", "args": {"factor": speed}})
     reframe = req.get("reframe") or "none"
     if reframe != "none":
         tool, base = ASPECT_REFRAME[reframe]
         args = dict(base)
-        if tool == "ve_crop_to_aspect" and req.get("anchor") in ("center", "left", "right", "top", "bottom"):
+        if tool == "lk_crop_to_aspect" and req.get("anchor") in ("center", "left", "right", "top", "bottom"):
             args["anchor"] = req["anchor"]
         steps.append({"label": "Reframing", "tool": tool, "args": args})
     if req.get("loudness") is not None:
-        steps.append({"label": "Normalising loudness", "tool": "ve_normalize_loudness",
+        steps.append({"label": "Normalising loudness", "tool": "lk_normalize_loudness",
                       "args": {"target_lufs": float(req["loudness"]), "verify": False}})
     if req.get("preset"):
-        steps.append({"label": "Exporting for %s" % req["preset"], "tool": "ve_export_preset",
+        steps.append({"label": "Exporting for %s" % req["preset"], "tool": "lk_export_preset",
                       "args": {"preset": req["preset"]}})
     return steps
 
@@ -244,7 +244,7 @@ def run_export(job: Job, src: Path, req: Dict[str, Any], final_dir: Path) -> Non
         if clips:
             job.step = "Rendering the timeline"
             rendered = project_mod.render_project(clips, final_dir if not steps else tmp, canvas=req.get("canvas"), bg=req.get("bg"),
-                                                   texts=req.get("texts"), audios=req.get("audios_info"))
+                                                   texts=req.get("texts"), audios=req.get("audios_info"), overlays=req.get("overlays_info"))
             current, result = rendered, {"output": str(rendered), "duration_s": probe(rendered)["duration_s"]}
         for i, step in enumerate(steps):
             job.step = step["label"]
@@ -264,7 +264,7 @@ def run_export(job: Job, src: Path, req: Dict[str, Any], final_dir: Path) -> Non
                                "size_bytes": os.path.getsize(out), "steps": labels,
                                "platform_check": None}
     if req.get("preset") in PLATFORM_RULES:
-        check = json.loads(handlers["ve_platform_check"]({"input": out, "platform": req["preset"]}))
+        check = json.loads(handlers["lk_platform_check"]({"input": out, "platform": req["preset"]}))
         if check.get("ok"):
             summary["platform_check"] = check["info"]
     job.result = summary
@@ -275,23 +275,23 @@ UPLOAD_DIR = CACHE_ROOT / "uploads"
 MAX_RECENT = 12
 
 
-def _recent_file() -> Path:
+def _recent_file(kind: str = "media") -> Path:
     CACHE_ROOT.mkdir(parents=True, exist_ok=True)
-    return CACHE_ROOT / "recent.json"
+    return CACHE_ROOT / ("recent_projects.json" if kind == "project" else "recent.json")
 
 
-def recent_files() -> List[str]:
+def recent_files(kind: str = "media") -> List[str]:
     try:
-        items = json.loads(_recent_file().read_text(encoding="utf-8"))
+        items = json.loads(_recent_file(kind).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return []
     return [p for p in items if isinstance(p, str) and os.path.isfile(p)][:MAX_RECENT]
 
 
-def remember(path: Path) -> None:
-    items = [str(path)] + [p for p in recent_files() if p != str(path)]
+def remember(path: Path, kind: str = "media") -> None:
+    items = [str(path)] + [p for p in recent_files(kind) if p != str(path)]
     try:
-        _recent_file().write_text(json.dumps(items[:MAX_RECENT]), encoding="utf-8")
+        _recent_file(kind).write_text(json.dumps(items[:MAX_RECENT]), encoding="utf-8")
     except OSError:
         pass
 

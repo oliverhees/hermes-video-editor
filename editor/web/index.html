@@ -11,6 +11,7 @@
   <header id="top">
     <div class="brand"><span class="dot"></span> Video Editor <small>local &middot; FFmpeg</small></div>
     <div id="file-chip" class="chip" title="">Untitled project</div>
+    <button id="btn-help" class="btn" title="User guide (English / Deutsch)">Help</button>
     <button id="btn-openproj" class="btn">Open project&hellip;</button>
     <button id="btn-save" class="btn" title="Save project (Ctrl+S)">Save</button>
     <button id="btn-saveas" class="btn">Save as&hellip;</button>
@@ -22,8 +23,9 @@
       <button data-tab="cuts" class="on">Edit</button>
       <button data-tab="picture">Picture</button>
       <button data-tab="text">Text</button>
+      <button data-tab="overlay">Overlay</button>
       <button data-tab="sound">Sound</button>
-      <button data-tab="tools">All tools</button>
+      <button data-tab="tools">Tools</button>
       <button data-tab="export">Export</button>
     </nav>
 
@@ -117,6 +119,23 @@
       </div>
     </section>
 
+    <section data-pane="overlay" class="pane">
+      <h3>Video on top (picture-in-picture)</h3>
+      <button id="btn-ov-add" class="btn primary wide">Add a video on top at the playhead&hellip;</button>
+      <p id="ov-none" class="muted">A second video track above the main picture: a reaction, a logo clip, a b-roll. Move it on the OVERLAY lane, drag its edges to trim, drag it on the preview to place it.</p>
+      <div id="ov-edit" hidden>
+        <div id="ov-name" class="muted"></div>
+        <label class="field">Size <span id="v-ovs">40%</span><input id="ov-s" type="range" min="5" max="300" step="1" value="40"></label>
+        <label class="field">Opacity <span id="v-ovop">100%</span><input id="ov-op" type="range" min="0" max="100" step="1" value="100"></label>
+        <div class="row ctl"><button id="ov-c-tl" class="btn small">Top left</button><button id="ov-c-tr" class="btn small">Top right</button><button id="ov-c-bl" class="btn small">Bottom left</button><button id="ov-c-br" class="btn small">Bottom right</button></div>
+        <div class="row ctl"><button id="ov-c-mid" class="btn small">Center</button><button id="ov-c-full" class="btn small">Full picture</button></div>
+        <label class="check"><input id="ov-sound" type="checkbox"> Play its sound</label>
+        <label class="field">Sound level <span id="v-ovvol">0 dB</span><input id="ov-vol" type="range" min="-40" max="12" step="1" value="0"></label>
+        <div class="row ctl"><label class="mini">Start (s) <input id="ov-start" type="number" min="0" step="0.1"></label></div>
+        <button id="btn-ov-del" class="btn danger wide">Delete this video</button>
+      </div>
+    </section>
+
     <section data-pane="sound" class="pane">
       <h3>Loudness</h3>
       <label class="check"><input id="in-loud" type="checkbox"> Normalize loudness (EBU R128)</label>
@@ -173,6 +192,7 @@
       <canvas id="stage-canvas"></canvas>
       <div id="tgizmo" hidden></div>
       <div id="gizmo" hidden><b class="gh" data-corner="nw"></b><b class="gh" data-corner="ne"></b><b class="gh" data-corner="sw"></b><b class="gh" data-corner="se"></b></div>
+      <div id="ogizmo" hidden></div>
       <div id="overlay" class="overlay" hidden></div>
     </div>
     <div id="empty">
@@ -215,6 +235,7 @@
         <div id="texts" class="lane"><span class="lane-label">Text</span></div>
         <canvas id="awave" class="lane"></canvas>
         <div id="audios" class="lane"><span class="lane-label">Audio</span></div>
+        <div id="ovs" class="lane"><span class="lane-label">Overlay</span></div>
         <div id="mark-range" hidden></div>
         <div id="drop-ind" hidden></div>
         <div id="playhead"></div>
@@ -223,9 +244,19 @@
   </section>
 </div>
 
+<div id="help" hidden>
+  <div class="help-box" role="dialog" aria-label="Help">
+    <div class="help-head"><strong>Help</strong>
+      <span class="seg"><button id="help-en" class="btn small on">English</button><button id="help-de" class="btn small">Deutsch</button></span>
+      <button id="help-close" class="btn small">Close</button></div>
+    <article id="help-body" class="help-body">Loading&hellip;</article>
+  </div>
+</div>
+
 <div id="modal" hidden>
   <div class="dialog">
     <div class="dlg-head"><strong id="dlg-title">Add a video</strong><button id="dlg-close" class="btn small">Close</button></div>
+    <p id="dlg-hint" class="muted" style="margin:0 0 8px"></p>
     <input id="dlg-path" type="text" placeholder="Folder or file path, then Enter">
     <div class="row" style="margin-top:6px"><input id="dlg-name" type="text" placeholder="Project name" hidden>
       <button id="dlg-usefolder" class="btn small" hidden>Use this folder</button></div>
@@ -239,5 +270,7 @@
 <script src="/static/timeline.js"></script>
 <script src="/static/app.js"></script>
 <script src="/static/layers.js"></script>
+<script src="/static/overlays.js"></script>
+<script src="/static/help.js"></script>
 </body>
 </html>

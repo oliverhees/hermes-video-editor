@@ -9,14 +9,14 @@ pytestmark = needs_ffmpeg
 
 
 def test_doctor():
-    r = call("ve_media_doctor")
+    r = call("lk_media_doctor")
     assert r["ok"], r
     assert r["info"]["encoders"]["libx264"] and r["info"]["encoders"]["aac"]
     assert "ffmpeg_version" in r["info"]
 
 
 def test_probe(media):
-    r = call("ve_media_probe", input=str(media["clip"]))
+    r = call("lk_media_probe", input=str(media["clip"]))
     assert r["ok"]
     i = r["info"]
     assert i["video"]["width"] == 640 and i["video"]["height"] == 360
@@ -25,22 +25,22 @@ def test_probe(media):
 
 
 def test_probe_silent_and_odd(media):
-    assert call("ve_media_probe", input=str(media["silent"]))["info"]["has_audio"] is False
-    assert call("ve_media_probe", input=str(media["odd"]))["info"]["video"]["width"] == 321
+    assert call("lk_media_probe", input=str(media["silent"]))["info"]["has_audio"] is False
+    assert call("lk_media_probe", input=str(media["odd"]))["info"]["video"]["width"] == 321
 
 
 def test_probe_errors(tmp_path):
-    assert call("ve_media_probe", input=str(tmp_path / "nope.mp4"))["ok"] is False
+    assert call("lk_media_probe", input=str(tmp_path / "nope.mp4"))["ok"] is False
     txt = tmp_path / "a.txt"
     txt.write_text("hello")
-    r = call("ve_media_probe", input=str(txt))
+    r = call("lk_media_probe", input=str(txt))
     assert r["ok"] is False and r["error"]
-    assert call("ve_media_probe")["ok"] is False
+    assert call("lk_media_probe")["ok"] is False
 
 
 def test_trim_accurate(media, out_dir):
     before = sha(media["clip"])
-    r = call("ve_trim", input=str(media["clip"]), start=1, end="00:03", output_dir=str(out_dir))
+    r = call("lk_trim", input=str(media["clip"]), start=1, end="00:03", output_dir=str(out_dir))
     assert r["ok"], r
     p = ffprobe(r["output"])
     assert p["duration"] == pytest.approx(2.0, abs=0.15)
@@ -50,34 +50,34 @@ def test_trim_accurate(media, out_dir):
 
 
 def test_trim_fast_duration(media, out_dir):
-    r = call("ve_trim", input=str(media["clip"]), start=0, duration=2, mode="fast", output_dir=str(out_dir))
+    r = call("lk_trim", input=str(media["clip"]), start=0, duration=2, mode="fast", output_dir=str(out_dir))
     assert r["ok"], r
     assert ffprobe(r["output"])["duration"] == pytest.approx(2.0, abs=0.6)
 
 
 def test_trim_silent_clip(media, out_dir):
-    r = call("ve_trim", input=str(media["silent"]), start=0.5, duration=1, output_dir=str(out_dir))
+    r = call("lk_trim", input=str(media["silent"]), start=0.5, duration=1, output_dir=str(out_dir))
     assert r["ok"], r
     assert ffprobe(r["output"])["audio"] is None
 
 
 def test_trim_odd_dimensions(media, out_dir):
-    r = call("ve_trim", input=str(media["odd"]), duration=1, output_dir=str(out_dir))
+    r = call("lk_trim", input=str(media["odd"]), duration=1, output_dir=str(out_dir))
     assert r["ok"], r
     v = ffprobe(r["output"])["video"]
     assert (v["width"], v["height"]) == (320, 240)
 
 
 def test_trim_unicode_spaces_path(media, out_dir):
-    r = call("ve_trim", input=str(media["tricky"]), duration=1)
+    r = call("lk_trim", input=str(media["tricky"]), duration=1)
     assert r["ok"], r
     assert "mein Ordner ünï" in r["output"] and "clip äöü_trim" in r["output"]
 
 
 def test_trim_collision_suffix(media, out_dir):
-    a = call("ve_trim", input=str(media["clip"]), duration=1, output_dir=str(out_dir))
-    b = call("ve_trim", input=str(media["clip"]), duration=1, output_dir=str(out_dir))
-    c = call("ve_trim", input=str(media["clip"]), duration=1, output_dir=str(out_dir), overwrite=True)
+    a = call("lk_trim", input=str(media["clip"]), duration=1, output_dir=str(out_dir))
+    b = call("lk_trim", input=str(media["clip"]), duration=1, output_dir=str(out_dir))
+    c = call("lk_trim", input=str(media["clip"]), duration=1, output_dir=str(out_dir), overwrite=True)
     assert a["output"].endswith("clip_trim.mp4") and b["output"].endswith("clip_trim_1.mp4")
     assert c["output"] == a["output"]
 
@@ -87,20 +87,20 @@ def test_trim_collision_suffix(media, out_dir):
     {"duration": 0}, {"start": "1:99"}, {"mode": "weird"}, {"crf": 99}, {"timeout_s": 0},
 ])
 def test_trim_bad_params(media, out_dir, kw):
-    r = call("ve_trim", input=str(media["clip"]), output_dir=str(out_dir), **kw)
+    r = call("lk_trim", input=str(media["clip"]), output_dir=str(out_dir), **kw)
     assert r["ok"] is False and r["error"]
     assert not out_dir.exists() or not list(out_dir.iterdir())
 
 
 def test_output_cannot_be_input(media):
-    r = call("ve_trim", input=str(media["clip"]), output=str(media["clip"]), overwrite=True, duration=1)
+    r = call("lk_trim", input=str(media["clip"]), output=str(media["clip"]), overwrite=True, duration=1)
     assert r["ok"] is False
 
 
 def test_missing_ffmpeg(media, monkeypatch):
     monkeypatch.setattr(shutil, "which", lambda name, *a, **k: None)
-    for name, args in [("ve_media_doctor", {}), ("ve_media_probe", {"input": str(media["clip"])}),
-                       ("ve_trim", {"input": str(media["clip"]), "duration": 1})]:
+    for name, args in [("lk_media_doctor", {}), ("lk_media_probe", {"input": str(media["clip"])}),
+                       ("lk_trim", {"input": str(media["clip"]), "duration": 1})]:
         r = call(name, **args)
         assert r["ok"] is False
         assert "winget" in r["hint"] and "apt" in r["hint"] and "brew" in r["hint"]
@@ -139,7 +139,7 @@ def test_register_valid_schemas():
     hermes_video_editor.register(ctx)
     assert ctx.tools
     for name, (toolset, schema, handler) in ctx.tools.items():
-        assert name.startswith("ve_") and toolset == "video_editor"
+        assert name.startswith("lk_") and toolset == "video_editor"
         assert schema["name"] == name and schema["description"]
         assert schema["parameters"]["type"] == "object"
         assert callable(handler)

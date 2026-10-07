@@ -21,8 +21,10 @@ from . import toolrun
 from .security import MEDIA_EXTS, default_roots, inside, safe_dir, safe_media_file
 
 WEB = Path(__file__).resolve().parent / "web"
-STATIC = {"app.js": "text/javascript; charset=utf-8", "timeline.js": "text/javascript; charset=utf-8", "layers.js": "text/javascript; charset=utf-8",
+STATIC = {"app.js": "text/javascript; charset=utf-8", "timeline.js": "text/javascript; charset=utf-8", "layers.js": "text/javascript; charset=utf-8", "overlays.js": "text/javascript; charset=utf-8", "help.js": "text/javascript; charset=utf-8",
           "app.css": "text/css; charset=utf-8"}
+DOCS = Path(__file__).resolve().parents[1] / "docs"
+HELP_DOCS = {"/help/en.md": DOCS / "en" / "GUIDE.md", "/help/de.md": DOCS / "de" / "GUIDE.md"}
 MAX_BODY = 1 << 20
 MIME_FIX = {".mkv": "video/x-matroska", ".mov": "video/quicktime", ".m4v": "video/mp4", ".mp3": "audio/mpeg",
             ".m4a": "audio/mp4", ".flac": "audio/flac", ".opus": "audio/ogg", ".ts": "video/mp2t"}
@@ -103,8 +105,8 @@ def api_probe(srv: EditorServer, raw: Optional[str]) -> Dict[str, Any]:
     return probe(safe_media_file(raw, srv.roots))
 
 
-def api_recent(srv: EditorServer) -> Dict[str, Any]:
-    keep = [p for p in jobs_mod.recent_files() if inside(p, srv.roots)]
+def api_recent(srv: EditorServer, kind: Optional[str] = None) -> Dict[str, Any]:
+    keep = [p for p in jobs_mod.recent_files("project" if kind == "project" else "media") if inside(p, srv.roots)]
     return {"files": [{"path": p, "name": os.path.basename(p)} for p in keep]}
 
 
@@ -131,7 +133,7 @@ def api_prepare(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
 def api_silence(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
     from ..schemas import TOOLS
     src = safe_media_file(body.get("path"), srv.roots)
-    handler = {t["name"]: t["handler"] for t in TOOLS}["ve_detect_silence"]
+    handler = {t["name"]: t["handler"] for t in TOOLS}["lk_detect_silence"]
     res = json.loads(handler({"input": str(src), "noise_db": body.get("noise_db", -35),
                               "min_duration_s": body.get("min_silence_s", 0.5), "timeout_s": 600}))
     if not res.get("ok"):
@@ -140,7 +142,9 @@ def api_silence(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def api_project_save(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
-    return {"ok": True, "path": project_mod.save_project(body.get("path"), body.get("project"), srv.roots)}
+    saved = project_mod.save_project(body.get("path"), body.get("project"), srv.roots)
+    jobs_mod.remember(Path(saved), "project")
+    return {"ok": True, "path": saved}
 
 
 def api_tool(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
@@ -159,7 +163,8 @@ def api_export(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
     if body.get("clips") is not None:                       # timeline export
         body = dict(body, clips_info=project_mod.sanitize_clips(body["clips"], srv.roots), cuts=[],
                     canvas=project_mod.sanitize_canvas(body.get("canvas")), bg=project_mod.sanitize_bg(body.get("bg")),
-                    texts=project_mod.sanitize_texts(body.get("texts")), audios_info=project_mod.sanitize_audios(body.get("audios"), srv.roots))
+                    texts=project_mod.sanitize_texts(body.get("texts")), audios_info=project_mod.sanitize_audios(body.get("audios"), srv.roots),
+                    overlays_info=project_mod.sanitize_overlays(body.get("overlays"), srv.roots))
         src = Path(body["clips_info"][0]["path"])
         default_dir = Path(api_config(srv)["videos_dir"]) if inside(str(src), [str(jobs_mod.UPLOAD_DIR)]) else src.parent
     else:
@@ -346,6 +351,8 @@ def make_handler(srv: EditorServer):
                                                        "style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'"})
             elif route.startswith("/static/") and route[8:] in STATIC:
                 self._send(200, (WEB / route[8:]).read_bytes(), STATIC[route[8:]])
+            elif route in HELP_DOCS:                                  # the user guide, one markdown file per language
+                self._send(200, HELP_DOCS[route].read_bytes(), "text/markdown; charset=utf-8")
             elif route == "/api/config":
                 self._json(api_config(srv))
             elif route == "/api/ls":
@@ -355,9 +362,11 @@ def make_handler(srv: EditorServer):
             elif route == "/api/probe":
                 self._json(api_probe(srv, first("path")))
             elif route == "/api/project/load":
-                self._json(project_mod.load_project(first("path"), srv.roots))
+                loaded = project_mod.load_project(first("path"), srv.roots)
+                jobs_mod.remember(Path(loaded["path"]), "project")
+                self._json(loaded)
             elif route == "/api/recent":
-                self._json(api_recent(srv))
+                self._json(api_recent(srv, first("kind")))
             elif route == "/api/media":
                 self._serve_file(safe_media_file(first("path"), srv.roots))
             elif route == "/api/cache":

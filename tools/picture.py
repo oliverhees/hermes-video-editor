@@ -29,7 +29,7 @@ def crop(args: Dict[str, Any]) -> Any:
     dw, dh = display_size(job.info)
     if x + w > dw or y + h > dh:
         raise ToolError("Crop box (x=%d,y=%d,%dx%d) exceeds the frame (%dx%d)." % (x, y, w, h, dw, dh),
-                        hint="Check ve_media_probe for the real size (rotation is already applied).")
+                        hint="Check lk_media_probe for the real size (rotation is already applied).")
     return _finish_vf(job, args, "crop=%d:%d:%d:%d" % (w, h, x, y), crop_box=[x, y, w, h])
 
 
@@ -196,10 +196,10 @@ def stabilize(args: Dict[str, Any]) -> Any:
 # ------------------------------------------------------------------ specs
 SPECS = [
     ToolSpec(
-        name="ve_crop",
+        name="lk_crop",
         description=("Cut out a rectangle of the picture. x,y = top-left corner in pixels, width/height in pixels "
                      "(measured on the displayed frame, rotation already applied). For 9:16/1:1/4:5 use "
-                     "ve_crop_to_aspect instead; to hide something use ve_blur_region."),
+                     "lk_crop_to_aspect instead; to hide something use lk_blur_region."),
         handler=crop, required=["width", "height"],
         properties={"width": {"type": "integer", "minimum": 2, "description": "Crop width in pixels."},
                     "height": {"type": "integer", "minimum": 2, "description": "Crop height in pixels."},
@@ -207,11 +207,11 @@ SPECS = [
                     "y": {"type": "integer", "minimum": 0, "default": 0, "description": "Top edge in pixels."},
                     "crf": CRF_PROP}),
     ToolSpec(
-        name="ve_crop_to_aspect",
+        name="lk_crop_to_aspect",
         description=("Crop to a standard aspect ratio, keeping as much picture as possible (no black bars, "
                      "no stretching). 9:16 for Reels/TikTok/Shorts, 1:1 square, 4:5 feed, 16:9 landscape. "
                      "anchor picks which part is kept. To KEEP the whole landscape picture in a vertical "
-                     "frame use ve_pad_blur_background instead."),
+                     "frame use lk_pad_blur_background instead."),
         handler=crop_to_aspect, required=["aspect"],
         properties={"aspect": {"type": "string", "enum": list(ASPECTS), "description": "Target aspect ratio (width:height)."},
                     "anchor": {"type": "string", "enum": list(ANCHORS), "default": "center",
@@ -219,7 +219,7 @@ SPECS = [
                     "output_width": {"type": "integer", "description": "Optional: scale the result to this width in pixels (e.g. 1080)."},
                     "crf": CRF_PROP}),
     ToolSpec(
-        name="ve_resize",
+        name="lk_resize",
         description=("Scale the video. Use 'preset' (480p/720p/1080p/1440p/2160p = SHORT side in pixels, so it works "
                      "for vertical clips too; or 1080x1920 / 1920x1080 / 1080x1080 = fit inside that box) or "
                      "'width' and/or 'height' in pixels. Aspect ratio is kept by default; sizes are made even."),
@@ -231,7 +231,7 @@ SPECS = [
                                     "description": "When both width and height are given: fit inside the box (true) or stretch to it (false)."},
                     "crf": CRF_PROP}),
     ToolSpec(
-        name="ve_rotate_flip",
+        name="lk_rotate_flip",
         description="Rotate by 90/180/270 degrees clockwise and/or mirror horizontally/vertically.",
         handler=rotate_flip,
         properties={"rotate": {"type": "integer", "enum": [0, 90, 180, 270], "default": 0,
@@ -240,7 +240,7 @@ SPECS = [
                     "vflip": {"type": "boolean", "default": False, "description": "Mirror top-bottom (after rotating)."},
                     "crf": CRF_PROP}),
     ToolSpec(
-        name="ve_pad_blur_background",
+        name="lk_pad_blur_background",
         description=("Reels/TikTok style: fit the WHOLE clip inside a frame (default 1080x1920 vertical) and fill the "
                      "empty areas with a blurred, enlarged copy of the same video. Use this instead of cropping when "
                      "you do not want to lose any of the picture."),
@@ -251,7 +251,7 @@ SPECS = [
                                       "description": "Blur radius of the background in pixels. Default 25."},
                     "crf": CRF_PROP}),
     ToolSpec(
-        name="ve_color_adjust",
+        name="lk_color_adjust",
         description=("Basic colour correction. brightness -1..1 (0 = unchanged), contrast 0..3 (1 = unchanged), "
                      "saturation 0..3 (1 = unchanged, 0 = black&white), gamma 0.1..10 (1 = unchanged). "
                      "Set only what you want to change."),
@@ -262,22 +262,22 @@ SPECS = [
                     "gamma": {"type": "number", "default": 1, "minimum": 0.1, "maximum": 10, "description": "Gamma (>1 brightens midtones)."},
                     "crf": CRF_PROP}),
     ToolSpec(
-        name="ve_denoise_video",
-        description="Reduce grain/noise in the picture (hqdn3d). For audio noise use ve_denoise_audio. Can soften fine detail at 'strong'.",
+        name="lk_denoise_video",
+        description="Reduce grain/noise in the picture (hqdn3d). For audio noise use lk_denoise_audio. Can soften fine detail at 'strong'.",
         handler=denoise_video,
         properties={"strength": {"type": "string", "enum": list(HQDN3D), "default": "medium", "description": "Denoise amount."},
                     "crf": CRF_PROP}),
     ToolSpec(
-        name="ve_fade_video",
+        name="lk_fade_video",
         description=("Fade the picture in from black at the start and/or out to black at the end. Seconds. "
-                     "Optionally fades the audio too (audio=true, default). For audio-only fades use ve_fade_audio."),
+                     "Optionally fades the audio too (audio=true, default). For audio-only fades use lk_fade_audio."),
         handler=fade_video,
         properties={"fade_in_s": {"type": "number", "default": 0, "minimum": 0, "description": "Fade-in length in seconds."},
                     "fade_out_s": {"type": "number", "default": 0, "minimum": 0, "description": "Fade-out length in seconds."},
                     "audio": {"type": "boolean", "default": True, "description": "Also fade the audio track."},
                     "crf": CRF_PROP}),
     ToolSpec(
-        name="ve_stabilize",
+        name="lk_stabilize",
         description=("Reduce camera shake with FFmpeg's built-in 'deshake' filter (single pass; moderate quality, "
                      "may crop/mirror the edges). Not a replacement for gimbal footage."),
         handler=stabilize,

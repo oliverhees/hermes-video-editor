@@ -160,6 +160,62 @@ def sanitize_audios(raw: Any, roots: List[str]) -> List[Dict[str, Any]]:
     return out
 
 
+MAX_OVERLAYS = 30
+
+
+def clean_overlay_fields(o: Dict[str, Any]) -> Dict[str, Any]:
+    """Placement of a picture-in-picture item. Limits are identical to cleanOverlay() in editor/web/timeline.js."""
+    return {"start": _num(o.get("start"), 0.0, 0.0, 86400.0), "tf": clean_tf(o.get("tf") if isinstance(o.get("tf"), dict) else {"s": 0.4, "x": 0.27, "y": -0.27}),
+            "op": _num(o.get("op"), 1.0, 0.0, 1.0), "sound": bool(o.get("sound")), "vol": _num(o.get("vol"), 0.0, -60.0, 24.0)}
+
+
+def sanitize_overlays(raw: Any, roots: List[str]) -> List[Dict[str, Any]]:
+    """Overlay items (a second video track on top of the main one): [{path, in, out, start, tf, op, sound, vol}]."""
+    if raw is None:
+        return []
+    if not isinstance(raw, list) or len(raw) > MAX_OVERLAYS:
+        raise ToolError("'overlays' must be a list with at most %d entries." % MAX_OVERLAYS)
+    out, cache = [], {}
+    for i, o in enumerate(raw):
+        if not isinstance(o, dict):
+            raise ToolError("Overlay %d is invalid." % (i + 1))
+        path = str(safe_media_file(o.get("path"), roots))
+        if path not in cache:
+            cache[path] = probe(Path(path))
+        info = cache[path]
+        if not info.get("video"):
+            raise ToolError("Overlay %d (%s) has no picture." % (i + 1, os.path.basename(path)))
+        total = info["duration_s"] or 0
+        lo, hi = _num(o.get("in"), 0.0, 0.0, 86400.0), _num(o.get("out"), total, 0.0, 86400.0)
+        hi = min(hi, total) if total else hi
+        if hi - lo < 0.05:
+            raise ToolError("Overlay %d is shorter than 0.05 s." % (i + 1))
+        item = {"path": path, "in": lo, "out": hi, "info": info}
+        item.update(clean_overlay_fields(o))
+        out.append(item)
+    return out
+
+
+def overlay_filters(overlays: List[Dict[str, Any]], first_input: int, W: int, H: int, fps: Any, src: str, dst: str) -> List[str]:
+    """Lay every overlay over the picture [src] during its own time window; the result is [dst]."""
+    from ..tools.overlay import enable_expr
+    parts: List[str] = []
+    cur = src
+    for k, o in enumerate(overlays):
+        v = o["info"]["video"]
+        x, y, w, h = fg_rect(v["display_width"], v["display_height"], W, H, o["tf"])
+        d = o["out"] - o["in"]
+        chain = ["[%d:v:0]setpts=PTS-STARTPTS" % (first_input + k), "fps=%s" % fps, "scale=%d:%d" % (w, h), "setsar=1", "format=yuva420p"]
+        if o["op"] < 0.999:
+            chain.append("colorchannelmixer=aa=%s" % round(o["op"], 3))
+        chain += ["trim=duration=%.3f" % d, "setpts=PTS-STARTPTS+%.3f/TB" % o["start"]]
+        parts.append(",".join(chain) + "[o%d]" % k)
+        nxt = dst if k == len(overlays) - 1 else "ov%d" % k
+        parts.append("[%s][o%d]overlay=%d:%d:format=auto:eof_action=pass:%s[%s]" % (cur, k, x, y, enable_expr(o["start"], o["start"] + d), nxt))
+        cur = nxt
+    return parts
+
+
 def canvas_size(aspect: str, short: int, first_w: int = 1280, first_h: int = 720) -> Tuple[int, int]:
     if aspect not in ASPECTS:
         return _even(first_w), _even(first_h)
@@ -291,11 +347,13 @@ def audio_mix_parts(has_main: bool, audios: List[Dict[str, Any]], first_input: i
 
 
 def build_render_graph(clips: List[Dict[str, Any]], width: int, height: int, fps: float, bg: Any = None,
-                       texts: Any = None, audios: Any = None, workdir: Any = None) -> Tuple[List[str], str, bool]:
+                       texts: Any = None, audios: Any = None, workdir: Any = None, overlays: Any = None) -> Tuple[List[str], str, bool]:
     """Pure (apart from text files in workdir): ffmpeg input args and a filter_complex that plays all clips back to back,
-    draws the texts and mixes the audio items. Returns (inputs, graph, has_audio)."""
+    lays the overlay track over them, draws the texts and mixes the audio items. Returns (inputs, graph, has_audio)."""
     bgs = sanitize_bg(bg)
-    texts, audios = list(texts or []), list(audios or [])
+    texts, overlays = list(texts or []), list(overlays or [])
+    audios = list(audios or []) + [dict(path=o["path"], info=o["info"], duck=False, fi=0.0, fo=0.0, vol=o["vol"], start=o["start"],
+                                        **{"in": o["in"], "out": o["out"]}) for o in overlays if o["sound"] and o["info"]["has_audio"]]
     if texts and workdir is None:
         raise ToolError("Internal error: texts need a work folder.")
     any_audio = any(c["info"]["has_audio"] for c in clips)
@@ -314,30 +372,38 @@ def build_render_graph(clips: List[Dict[str, Any]], width: int, height: int, fps
             else:
                 parts.append("anullsrc=r=48000:cl=stereo:d=%.3f[a%d]" % (d, i))
             labels += "[a%d]" % i
-    vlabel, alabel = ("vc" if texts else "vo"), ("ac" if audios else "ao")
+    vlabel = "vc" if (texts or overlays) else "vo"
+    alabel = "ac" if audios else "ao"
     parts.append("%sconcat=n=%d:v=1:a=%d[%s]%s" % (labels, len(clips), int(any_audio), vlabel, "[%s]" % alabel if any_audio else ""))
+    if overlays:
+        for o in overlays:
+            inputs += ["-ss", "%.3f" % o["in"], "-t", "%.3f" % (o["out"] - o["in"]), "-i", o["path"]]
+        parts += overlay_filters(overlays, len(clips), width, height, fps, "vc", "vt" if texts else "vo")
+        if texts:
+            vlabel = "vt"
     if texts:
-        parts.append("[vc]%s[vo]" % text_filters(texts, width, height, Path(workdir)))
+        parts.append("[%s]%s[vo]" % (vlabel, text_filters(texts, width, height, Path(workdir))))
     if audios:
+        first = len(clips) + len(overlays)
         for a in audios:
             inputs += ["-ss", "%.3f" % a["in"], "-t", "%.3f" % (a["out"] - a["in"]), "-i", a["path"]]
-        parts += audio_mix_parts(any_audio, audios, len(clips))
+        parts += audio_mix_parts(any_audio, audios, first)
         any_audio = True
     return inputs, ";".join(parts), any_audio
 
 
 def render_project(clips: List[Dict[str, Any]], out_dir: Path, crf: int = 20, timeout: int = 3600,
-                   canvas: Any = None, bg: Any = None, texts: Any = None, audios: Any = None) -> Path:
+                   canvas: Any = None, bg: Any = None, texts: Any = None, audios: Any = None, overlays: Any = None) -> Path:
     """Render the sequence (+ texts, + audio items) to <first clip name>_project.mp4 in out_dir. Inputs are never modified."""
     width, height, fps = canvas_for(clips, canvas)
     out = plan_output(Path(clips[0]["path"]), "project", ".mp4", None, str(out_dir), False)
     tmp = Path(tempfile.mkdtemp(prefix="ve_render_"))
     try:
-        inputs, graph, has_audio = build_render_graph(clips, width, height, fps, bg, texts, audios, tmp)
+        inputs, graph, has_audio = build_render_graph(clips, width, height, fps, bg, texts, audios, tmp, overlays)
         ff = ["-n"] + inputs + filter_complex_args(graph, tmp) + ["-map", "[vo]"]
         if has_audio:
             ff += ["-map", "[ao]"]
-        if audios:                                                   # music may be longer than the picture
+        if audios or overlays:                                       # music / overlays may be longer than the picture
             ff += ["-t", "%.3f" % sum(c["out"] - c["in"] for c in clips)]
         ff += encode_args(".mp4", crf=crf, audio=has_audio)
         try:
@@ -387,7 +453,17 @@ def validate_project(obj: Any) -> Dict[str, Any]:
             raise ToolError("An audio item has invalid times.")
         item.update(clean_audio_fields(a))
         clean_audios.append(item)
-    return {"version": 1, "name": str(obj.get("name") or "")[:120], "assets": clean_assets, "clips": clean_clips,
+    clean_overlays = []
+    for o in (obj.get("overlays") or [])[:MAX_OVERLAYS]:
+        if not isinstance(o, dict) or str(o.get("asset")) not in clean_assets:
+            raise ToolError("An overlay points to an asset that is not in the project.")
+        try:
+            item = {"id": str(o.get("id"))[:40], "asset": str(o["asset"]), "in": float(o["in"]), "out": float(o["out"])}
+        except (KeyError, TypeError, ValueError):
+            raise ToolError("An overlay has invalid times.")
+        item.update(clean_overlay_fields(o))
+        clean_overlays.append(item)
+    return {"version": 1, "name": str(obj.get("name") or "")[:120], "assets": clean_assets, "clips": clean_clips, "overlays": clean_overlays,
             "canvas": sanitize_canvas(obj.get("canvas")), "bg": sanitize_bg(obj.get("bg")),
             "texts": sanitize_texts(obj.get("texts") or []), "audios": clean_audios}
 

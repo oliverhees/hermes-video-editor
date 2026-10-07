@@ -38,7 +38,7 @@ def test_manifest_matches_registrations():
     caps = m["capabilities"]
     assert caps["provides_tools"] == names
     assert caps["provides_hooks"] == [] and caps["provides_middleware"] == [] and caps["requires_env"] == []
-    assert m["name"] == "hermes-video-editor" and m["version"] == '"0.1.0"'
+    assert m["name"] == "hermes-video-editor" and m["version"] == '"0.2.0"'
 
 
 def test_manifest_script_in_sync():
