@@ -18,16 +18,73 @@ const h = (type, props) => {
   return React.createElement(type, rest, children)
 }
 
+// ---- theme: the editor runs in an isolated frame, so we read the app's colours here and pass them in -------------
+function toHex(cssColor) {
+  try {
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = 1
+    const g = canvas.getContext('2d')
+    g.clearRect(0, 0, 1, 1)
+    g.fillStyle = cssColor
+    g.fillRect(0, 0, 1, 1)
+    const d = g.getImageData(0, 0, 1, 1).data
+    if (d[3] < 200) return null
+    return '#' + [d[0], d[1], d[2]].map(v => v.toString(16).padStart(2, '0')).join('')
+  } catch (e) {
+    return null
+  }
+}
+
+function luminance(hex) {
+  const v = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+  return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]
+}
+
+function effectiveBackground(node) {
+  for (let el = node; el; el = el.parentElement) {
+    const hex = toHex(getComputedStyle(el).backgroundColor)
+    if (hex) return hex
+  }
+  return toHex(getComputedStyle(document.body).backgroundColor) || '#ffffff'
+}
+
+function readTheme(node) {
+  try {
+    const bg = effectiveBackground(node || document.body)
+    const fg = toHex(getComputedStyle(node || document.body).color) || (luminance(bg) > 0.5 ? '#1d2330' : '#e6eaf2')
+    let accent = null
+    const probe = document.createElement('span')
+    probe.style.color = 'var(--ui-accent)'
+    document.body.appendChild(probe)
+    accent = toHex(getComputedStyle(probe).color)
+    document.body.removeChild(probe)
+    const out = { theme: luminance(bg) > 0.5 ? 'light' : 'dark', bg, fg }
+    if (accent && accent !== fg) out.accent = accent
+    return out
+  } catch (e) {
+    return {}
+  }
+}
+
+function withTheme(url, theme) {
+  const q = Object.keys(theme)
+    .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(theme[k]))
+    .join('&')
+  return q ? url + '&' + q : url
+}
+
 function EditorPage(props) {
   const ctx = props.ctx
   const SandboxedFrame = sdk.SandboxedFrame
   const [state, setState] = React.useState({ phase: 'loading' })
+  const boxRef = React.useRef(null)
+  const frameRef = React.useRef(null)
 
   const load = React.useCallback(() => {
     setState({ phase: 'loading' })
     ctx
       .rest('/start')
-      .then(data => setState({ phase: 'ready', url: data.url }))
+      .then(data => setState({ phase: 'ready', url: withTheme(data.url, readTheme(boxRef.current)) }))
       .catch(err => setState({ phase: 'error', message: String((err && err.message) || err) }))
   }, [ctx])
 
@@ -35,10 +92,31 @@ function EditorPage(props) {
     load()
   }, [load])
 
+  // follow theme changes while the page is open (no reload: the colours are posted into the frame)
+  React.useEffect(() => {
+    if (typeof MutationObserver !== 'function') return undefined
+    let timer = null
+    const push = () => {
+      const win = frameRef.current && frameRef.current.contentWindow
+      if (win) win.postMessage(Object.assign({ type: 've-theme' }, readTheme(boxRef.current)), '*')
+    }
+    const observer = new MutationObserver(() => {
+      clearTimeout(timer)
+      timer = setTimeout(push, 150)
+    })
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style', 'data-theme'] })
+    return () => {
+      clearTimeout(timer)
+      observer.disconnect()
+    }
+  }, [])
+
   if (state.phase === 'ready') {
     return h('div', {
+      ref: boxRef,
       className: 'flex h-full w-full flex-col',
       children: h(SandboxedFrame, {
+        ref: frameRef,
         src: state.url,
         title: 'Video Editor',
         sandbox: 'allow-scripts allow-forms allow-downloads',
@@ -63,7 +141,7 @@ function EditorPage(props) {
       h('button', { key: 'retry', className: 'rounded border px-3 py-1 text-sm', onClick: load, children: 'Try again' })
     )
   }
-  return h('div', { className: 'flex h-full flex-col items-center justify-center gap-3 p-6 text-center', children })
+  return h('div', { ref: boxRef, className: 'flex h-full flex-col items-center justify-center gap-3 p-6 text-center', children })
 }
 
 export default {

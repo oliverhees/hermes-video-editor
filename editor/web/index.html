@@ -88,7 +88,16 @@
 
   <main id="stage-wrap">
     <div id="stage"><video id="video" playsinline preload="auto"></video><div id="frame-guide" hidden></div>
-      <div id="overlay" class="overlay">Open a video to start.</div></div>
+      <div id="overlay" class="overlay" hidden></div>
+      <div id="empty" class="overlay">
+        <div class="empty-card">
+          <h2>Open a video to start</h2>
+          <button id="btn-open2" class="btn primary big">Open file&hellip;</button>
+          <div class="muted" style="color:#aab3c5">or drop a video file anywhere in this window</div>
+          <h4 id="recent-title" hidden>Recent</h4>
+          <div id="recent" class="list"></div>
+        </div>
+      </div></div>
     <div id="transport">
       <button id="btn-play" class="btn round" title="Play / pause (Space)">&#9654;</button>
       <span id="time">0:00.0 / 0:00.0</span>
@@ -117,6 +126,9 @@
   <div class="dialog">
     <div class="dlg-head"><strong>Open a video</strong><button id="dlg-close" class="btn small">Close</button></div>
     <input id="dlg-path" type="text" placeholder="Folder or file path, then Enter">
+    <div id="dlg-recent-title" class="sect" hidden>Recent</div>
+    <div id="dlg-recent" class="list"></div>
+    <div class="sect">Folders</div>
     <div id="dlg-list" class="list tall"></div>
     <p id="dlg-err" class="err"></p>
   </div>

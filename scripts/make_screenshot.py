@@ -36,7 +36,7 @@ def main():
                 browser = p.chromium.launch()
                 page = browser.new_page(viewport={"width": 1500, "height": 860})
                 page.goto(srv.url(str(clip)))
-                page.wait_for_selector("#overlay[hidden]", state="attached", timeout=90000)
+                page.wait_for_selector("#video[data-src]", state="attached", timeout=90000)
                 page.wait_for_timeout(2500)
                 page.click("#btn-silence")
                 page.wait_for_selector("#cuts-list .item", timeout=20000)

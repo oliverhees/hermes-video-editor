@@ -1,6 +1,7 @@
 """Hermes-facing pieces: dashboard API route, Desktop plugin.js (with a stubbed SDK), and a real-browser run."""
 import json
 import shutil
+import urllib.parse
 import subprocess
 import sys
 import textwrap
@@ -9,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from conftest import ROOT, needs_ffmpeg
+from hermes_video_editor.editor import jobs as jobs_mod
 
 pytestmark = needs_ffmpeg
 
@@ -69,9 +71,12 @@ def desktop_harness(sdk_js: str, jsx_runtime_js: str, tail: str) -> str:
           createElement: (type, props, children) => ({ type, props: Object.assign({}, props, { children }) }),
           useState: init => { const s = [init, v => { s[0] = v }]; hookState.push(s); return s },
           useCallback: fn => fn,
+          useRef: init => ({ current: init }),
           useEffect: fn => { effects.push(fn) },
         }
         %s
+        const document = { body: {}, documentElement: {}, createElement: () => ({ style: {}, getContext: () => null }) }
+        const getComputedStyle = () => ({ backgroundColor: 'rgb(0, 0, 0)', color: 'rgb(0,0,0)' })
         const regs = []
         const ctx = { registerMany: items => regs.push(...items), calls: [],
                       rest: path => { ctx.calls.push(path); return ctx.reply },
@@ -164,7 +169,7 @@ def test_browser_end_to_end(media, tmp_path):
             errors = []
             page.on("pageerror", lambda e: errors.append(str(e)))
             page.goto(srv.url(str(media["gap"])))
-            page.wait_for_selector("#overlay[hidden]", state="attached", timeout=90000)
+            page.wait_for_selector("#video[data-src]", state="attached", timeout=90000)
             page.wait_for_timeout(1500)
             assert "gap.mp4" in page.inner_text("#file-chip")
             page.click("#btn-silence")
@@ -194,3 +199,47 @@ def test_browser_end_to_end(media, tmp_path):
             browser.close()
     finally:
         srv.stop()
+
+
+def test_browser_theme_empty_state_and_drop(media, tmp_path):
+    pw = pytest.importorskip("playwright.sync_api")
+    from hermes_video_editor.editor.server import EditorServer
+    srv = EditorServer(roots=[str(media["dir"])])
+    try:
+        with pw.sync_playwright() as p:
+            try:
+                browser = p.chromium.launch()
+            except Exception as exc:  # noqa: BLE001
+                pytest.skip("no usable chromium: %s" % exc)
+            page = browser.new_page(viewport={"width": 1400, "height": 800})
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            # light theme + app colours arrive through the URL
+            page.goto(srv.url() + "&theme=light&bg=%23fafafa&fg=%23222222&accent=%230a7cff")
+            page.wait_for_selector("#empty", state="visible")
+            assert page.get_attribute("html", "data-theme") == "light"
+            body_bg = page.evaluate("getComputedStyle(document.body).backgroundColor")
+            assert body_bg == "rgb(250, 250, 250)", body_bg
+            assert page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()") == "#0a7cff"
+            # live theme change through postMessage is ignored unless it comes from the embedding page
+            page.evaluate("window.postMessage({type: 've-theme', theme: 'dark'}, '*')")
+            page.wait_for_timeout(200)
+            assert page.get_attribute("html", "data-theme") == "light"
+            # drop a file onto the window: it is copied in and loaded
+            page.evaluate("""async (url) => {
+                const blob = await (await fetch(url)).blob()
+                const dt = new DataTransfer()
+                dt.items.add(new File([blob], 'dropped one.mp4', { type: 'video/mp4' }))
+                window.dispatchEvent(new DragEvent('dragenter', { dataTransfer: dt, bubbles: true, cancelable: true }))
+                window.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }))
+            }""", "/api/media?t=%s&path=%s" % (srv.token, urllib.parse.quote(str(media["silent"]))))
+            page.wait_for_selector("#video[data-src]", state="attached", timeout=90000)
+            assert "dropped one.mp4" in page.inner_text("#file-chip")
+            assert page.is_hidden("#empty")
+            assert page.input_value("#in-outdir")                       # uploaded files default to the Videos folder
+            assert not errors, errors
+            browser.close()
+    finally:
+        srv.stop()
+        for f in jobs_mod.UPLOAD_DIR.glob("dropped one*.mp4"):
+            f.unlink()
