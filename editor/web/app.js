@@ -152,18 +152,18 @@
   function pollPrepare(a, jobId) {
     (function tick() {
       api("/api/job", { id: jobId }).then(function (j) {
-        var r = j.result || {};
+        var r = j.result || {}, changed = false;           // only redraw when something visible changed (a redraw replaces the clip elements)
         if (r.cache_id && !a.cacheId) a.cacheId = r.cache_id;
         if (r.playback && !a.src) {
           a.src = r.playback.kind === "original" ? url("/api/media", { path: a.path }) : url("/api/cache", { id: r.cache_id, name: r.playback.name });
           if (!$("video").getAttribute("data-src")) $("video").setAttribute("data-src", a.src);
-          a.state = "ready"; busy(null); syncPlayback();
+          a.state = "ready"; busy(null); syncPlayback(); changed = true;
         }
-        if (r.thumbs && !a.thumbs) a.thumbs = r.thumbs;
-        if (r.has_waveform && !a.peaks) api("/api/waveform", { id: r.cache_id }).then(function (p) { a.peaks = p; drawCanvases(); });
+        if (r.thumbs && !a.thumbs) { a.thumbs = r.thumbs; changed = true; }
+        if (r.has_waveform && !a.peaks && !a.peaksLoading) { a.peaksLoading = true; api("/api/waveform", { id: r.cache_id }).then(function (p) { a.peaks = p; drawCanvases(); }); }
         if (j.state === "running") setTimeout(tick, 600);
-        else if (j.state === "error" && !a.src) { a.state = "nopreview"; a.error = j.error.error; busy("Preview unavailable for " + a.name + ": " + j.error.error + " You can still cut and export."); }
-        renderAll();
+        else if (j.state === "error" && !a.src) { a.state = "nopreview"; a.error = j.error.error; busy("Preview unavailable for " + a.name + ": " + j.error.error + " You can still cut and export."); changed = true; }
+        if (changed) renderAll();
       }).catch(function () { setTimeout(tick, 1500); });
     })();
   }
