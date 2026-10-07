@@ -7,7 +7,7 @@ from ..core.ffmpeg import Job, tool_handler
 from ..core.result import ToolError
 from ..core.spec import ToolSpec
 from ..core.validate import get_bool, get_choice, get_num
-from ._common import CRF_PROP, crf_of, display_size, run_graph, tprop, vf_edit
+from ._common import CRF_PROP, crf_of, display_size, finish_vf as _finish_vf, run_graph, tprop, vf_edit
 
 ASPECTS = {"9:16": (9, 16), "1:1": (1, 1), "4:5": (4, 5), "16:9": (16, 9)}
 ANCHORS = ("center", "top", "bottom", "left", "right")
@@ -31,19 +31,6 @@ def crop(args: Dict[str, Any]) -> Any:
         raise ToolError("Crop box (x=%d,y=%d,%dx%d) exceeds the frame (%dx%d)." % (x, y, w, h, dw, dh),
                         hint="Check ve_media_probe for the real size (rotation is already applied).")
     return _finish_vf(job, args, "crop=%d:%d:%d:%d" % (w, h, x, y), crop_box=[x, y, w, h])
-
-
-def _finish_vf(job: Job, args: Dict[str, Any], vf: str, af: Optional[str] = None, **info: Any) -> Dict[str, Any]:
-    """Run an already-created Job with a plain -vf chain."""
-    from ..core.ffmpeg import encode_args
-    from ._common import vchain
-    ff = ["-i", str(job.src), "-map", "0:v:0", "-map", "0:a?", "-vf", vchain(vf)]
-    has_a = job.info["has_audio"]
-    if af and has_a:
-        ff += ["-af", af]
-    ff += encode_args(job.out.suffix.lower(), crf=crf_of(args), audio=has_a)
-    job.run(ff)
-    return job.done(**info)
 
 
 # ------------------------------------------------------------------ crop_to_aspect
