@@ -1,8 +1,9 @@
 name: hermes-video-editor
-version: 0.1.0
-description: Edit your OWN local footage with FFmpeg (trim, crop, captions, audio, export). 100% local, no cloud, no API key.
+version: "0.1.0"
+description: Edit your OWN local footage with FFmpeg - trim, crop, captions, audio, export. 100% local, no cloud, no API key.
 author: oliverhees
 license: MIT
+homepage: https://github.com/oliverhees/hermes-video-editor
 provides_tools:
   - ve_media_doctor
   - ve_media_probe
@@ -17,3 +18,79 @@ provides_tools:
   - ve_change_speed
   - ve_reverse
   - ve_loop
+  - ve_crop
+  - ve_crop_to_aspect
+  - ve_resize
+  - ve_rotate_flip
+  - ve_pad_blur_background
+  - ve_color_adjust
+  - ve_denoise_video
+  - ve_fade_video
+  - ve_stabilize
+  - ve_add_text
+  - ve_burn_captions
+  - ve_add_image_overlay
+  - ve_picture_in_picture
+  - ve_stack_videos
+  - ve_blur_region
+  - ve_extract_audio
+  - ve_replace_audio
+  - ve_mix_music
+  - ve_normalize_loudness
+  - ve_sync_audio_offset
+  - ve_adjust_volume
+  - ve_fade_audio
+  - ve_denoise_audio
+  - ve_export_preset
+  - ve_platform_check
+  - ve_compress_to_size
+  - ve_to_gif
+  - ve_contact_sheet
+  - ve_transcribe_captions
+capabilities:
+  provides_tools:
+    - ve_media_doctor
+    - ve_media_probe
+    - ve_detect_silence
+    - ve_detect_scenes
+    - ve_extract_frame
+    - ve_trim
+    - ve_split
+    - ve_join
+    - ve_remove_silence
+    - ve_remove_segments
+    - ve_change_speed
+    - ve_reverse
+    - ve_loop
+    - ve_crop
+    - ve_crop_to_aspect
+    - ve_resize
+    - ve_rotate_flip
+    - ve_pad_blur_background
+    - ve_color_adjust
+    - ve_denoise_video
+    - ve_fade_video
+    - ve_stabilize
+    - ve_add_text
+    - ve_burn_captions
+    - ve_add_image_overlay
+    - ve_picture_in_picture
+    - ve_stack_videos
+    - ve_blur_region
+    - ve_extract_audio
+    - ve_replace_audio
+    - ve_mix_music
+    - ve_normalize_loudness
+    - ve_sync_audio_offset
+    - ve_adjust_volume
+    - ve_fade_audio
+    - ve_denoise_audio
+    - ve_export_preset
+    - ve_platform_check
+    - ve_compress_to_size
+    - ve_to_gif
+    - ve_contact_sheet
+    - ve_transcribe_captions
+  provides_hooks: []
+  provides_middleware: []
+  requires_env: []

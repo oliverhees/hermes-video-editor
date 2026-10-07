@@ -70,12 +70,17 @@ def media(tmp_path_factory):
     other = d / "other.mp4"    # different size/fps/audio rate than clip.mp4 -> forces re-encode join
     _ff("-f", "lavfi", "-i", "testsrc2=duration=2:size=480x270:rate=30",
         "-f", "lavfi", "-i", "sine=frequency=300:duration=2:sample_rate=44100", *enc, other)
+    noisy = d / "noisy.mp4"    # 5 s 960x540 with grain -> a few MB, for compression tests
+    _ff("-f", "lavfi", "-i", "testsrc2=duration=5:size=960x540:rate=25", "-f", "lavfi", "-i", "sine=duration=5",
+        "-vf", "noise=alls=60:allf=t+u", "-c:v", "libx264", "-crf", "14", "-pix_fmt", "yuv420p", "-c:a", "aac", noisy)
+    fast = d / "fast.mp4"      # 60 fps for fps-cap tests
+    _ff("-f", "lavfi", "-i", "testsrc=duration=1:size=320x180:rate=60", "-c:v", "libx264", "-pix_fmt", "yuv420p", fast)
     tricky_dir = d / "mein Ordner ünï"
     tricky_dir.mkdir()
     tricky = tricky_dir / "clip äöü.mp4"
     shutil.copy(clip, tricky)
     return {"dir": d, "clip": clip, "silent": silent, "odd": odd, "tricky": tricky,
-            "gap": gap, "other": other}
+            "gap": gap, "other": other, "noisy": noisy, "fast": fast}
 
 
 @pytest.fixture
