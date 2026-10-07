@@ -16,6 +16,7 @@ from ..core.ffmpeg import probe
 from ..core.result import ToolError
 from ..core.validate import get_num
 from . import jobs as jobs_mod
+from . import toolrun
 from .security import MEDIA_EXTS, default_roots, inside, safe_dir, safe_media_file
 
 WEB = Path(__file__).resolve().parent / "web"
@@ -73,7 +74,8 @@ def api_config(srv: EditorServer) -> Dict[str, Any]:
             "reframes": list(jobs_mod.ASPECT_REFRAME), "speeds": list(jobs_mod.SPEEDS)}
 
 
-def api_ls(srv: EditorServer, raw: Optional[str]) -> Dict[str, Any]:
+def api_ls(srv: EditorServer, raw: Optional[str], kind: Optional[str] = None) -> Dict[str, Any]:
+    exts = toolrun.KIND_EXTS.get(kind or "media", MEDIA_EXTS)
     folder = safe_dir(raw or str(Path.home()), srv.roots)
     dirs, files = [], []
     try:
@@ -86,7 +88,7 @@ def api_ls(srv: EditorServer, raw: Optional[str]) -> Dict[str, Any]:
         try:
             if e.is_dir():
                 dirs.append({"name": e.name})
-            elif Path(e.name).suffix.lower() in MEDIA_EXTS and e.is_file():
+            elif Path(e.name).suffix.lower() in exts and e.is_file():
                 files.append({"name": e.name, "size": e.stat().st_size})
         except OSError:
             continue
@@ -132,6 +134,18 @@ def api_silence(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
     if not res.get("ok"):
         raise ToolError(res.get("error", "Silence detection failed"), res.get("hint"))
     return res["info"]
+
+
+def api_tool(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
+    name = body.get("name")
+    cfg = api_config(srv)
+    args = toolrun.sanitize_args(str(name), body.get("args") or {}, srv.roots, cfg["videos_dir"], str(jobs_mod.UPLOAD_DIR))
+
+    def work(job: jobs_mod.Job) -> None:
+        job.step = str(name)
+        job.result = toolrun.run_tool(str(name), args)
+
+    return {"job": srv.jobs.start("tool", work).id}
 
 
 def api_export(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
@@ -320,7 +334,9 @@ def make_handler(srv: EditorServer):
             elif route == "/api/config":
                 self._json(api_config(srv))
             elif route == "/api/ls":
-                self._json(api_ls(srv, first("path")))
+                self._json(api_ls(srv, first("path"), first("kind")))
+            elif route == "/api/tools":
+                self._json({"tools": toolrun.tool_catalog(), "groups": [t for _, t in toolrun.GROUPS]})
             elif route == "/api/probe":
                 self._json(api_probe(srv, first("path")))
             elif route == "/api/recent":
@@ -364,6 +380,8 @@ def make_handler(srv: EditorServer):
                 self._json(api_silence(srv, body))
             elif route == "/api/export":
                 self._json(api_export(srv, body))
+            elif route == "/api/tool":
+                self._json(api_tool(srv, body))
             else:
                 self._error(404, "Not found")
 

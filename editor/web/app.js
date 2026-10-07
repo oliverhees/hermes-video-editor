@@ -75,7 +75,14 @@
   $("in-anchor").addEventListener("change", function () { S.anchor = this.value; updateGuide(); });
 
   // ---------------------------------------------------------------- file dialog
-  function openDialog() { $("modal").hidden = false; browse(S.dlgPath || store("ve.dir") || ""); fillRecent($("dlg-recent"), $("dlg-recent-title"), closeDialog); }
+  var PICK = null;   // {kind, folder, done} while the dialog picks a file/folder for a tool field instead of opening a video
+  function openDialog(pick) {
+    PICK = pick && pick.kind ? pick : null;
+    $("modal").hidden = false; $("dlg-usefolder").hidden = !(PICK && PICK.folder);
+    browse(S.dlgPath || store("ve.dir") || "");
+    var show = !PICK; $("dlg-recent").hidden = !show; if (!show) $("dlg-recent-title").hidden = true;
+    if (show) fillRecent($("dlg-recent"), $("dlg-recent-title"), closeDialog);
+  }
   function fillRecent(list, title, after) {
     api("/api/recent").then(function (r) {
       list.textContent = ""; title.hidden = !r.files.length;
@@ -88,7 +95,8 @@
   function closeDialog() { $("modal").hidden = true; }
   function browse(path) {
     $("dlg-err").textContent = "";
-    api("/api/ls", path ? { path: path } : {}).then(function (d) {
+    var q = path ? { path: path } : {}; if (PICK && PICK.kind) q.kind = PICK.kind;
+    api("/api/ls", q).then(function (d) {
       S.dlgPath = d.path; store("ve.dir", d.path);
       $("dlg-path").value = d.path;
       var list = $("dlg-list"); list.textContent = "";
@@ -100,19 +108,23 @@
       d.files.forEach(function (x) {
         var it = el("div", "item"); it.appendChild(el("span", "grow", "🎬 " + x.name));
         it.appendChild(el("span", "muted", (x.size / 1048576).toFixed(1) + " MB"));
-        it.addEventListener("click", function () { closeDialog(); loadFile(d.path + sep(d.path) + x.name); }); list.appendChild(it);
+        it.addEventListener("click", function () {
+          var full = d.path + sep(d.path) + x.name; closeDialog();
+          if (PICK) { if (PICK.done) PICK.done(full); } else loadFile(full);
+        }); list.appendChild(it);
       });
       if (!d.dirs.length && !d.files.length) list.appendChild(el("div", "muted", "No folders or videos here."));
     }).catch(function (e) { $("dlg-err").textContent = e.message + (e.hint ? " - " + e.hint : ""); });
   }
   function sep(p) { return p.indexOf("\\") >= 0 && p.indexOf("/") < 0 ? "\\" : "/"; }
-  $("btn-open").addEventListener("click", openDialog);
-  $("btn-open2").addEventListener("click", openDialog);
+  $("btn-open").addEventListener("click", function () { openDialog(); });
+  $("btn-open2").addEventListener("click", function () { openDialog(); });
+  $("dlg-usefolder").addEventListener("click", function () { var d = S.dlgPath, cb = PICK && PICK.done; closeDialog(); if (cb) cb(d); });
   $("dlg-close").addEventListener("click", closeDialog);
   $("dlg-path").addEventListener("keydown", function (e) {
     if (e.key !== "Enter") return;
     var v = this.value.trim();
-    if (/\.[A-Za-z0-9]{2,4}$/.test(v)) { closeDialog(); loadFile(v); } else browse(v);
+    if (/\.[A-Za-z0-9]{2,4}$/.test(v)) { var cb = PICK && PICK.done; closeDialog(); if (PICK) { if (cb) cb(v); } else loadFile(v); } else browse(v);
   });
 
   // ---------------------------------------------------------------- loading a file
@@ -266,7 +278,7 @@
   function sizeTrack() { var w = trackWidth(); $("track").style.width = w + "px"; return w; }
   function drawCanvases() {
     var sc = $("tl-scroll"), vw = sc.clientWidth, dpr = window.devicePixelRatio || 1, x0 = sc.scrollLeft;
-    [["ruler", 26], ["wave", 88]].forEach(function (p) {
+    [["ruler", 26], ["wave", 110]].forEach(function (p) {
       var c = $(p[0]); c.width = vw * dpr; c.height = p[1] * dpr; c.style.width = vw + "px"; c.style.height = p[1] + "px";
       c.style.left = x0 + "px"; c.style.right = "auto";
       var g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, vw, p[1]);
@@ -278,19 +290,30 @@
       var x = Math.round(t * S.zoom - x0) + 0.5; g.beginPath(); g.moveTo(x, 14); g.lineTo(x, 26); g.stroke();
       g.fillText(fmt(t, step < 1), x + 4, 12);
     }
-    // waveform
-    var w = $("wave").getContext("2d"), H = 88;
+    // waveform: mirrored, smoothed envelope with a vertical gradient
+    var w = $("wave").getContext("2d"), H = 110, mid = H / 2, amp = mid - 6;
     if (S.peaks && S.peaks.length && S.dur) {
-      w.fillStyle = cssColor("--teal", "#4ecdc4");
-      var per = S.peaks.length / S.dur;                         // peaks per second
-      for (var px = 0; px < vw; px++) {
+      var per = S.peaks.length / S.dur, top = [], px;                  // peaks per second
+      for (px = 0; px < vw; px++) {
         var ta = (x0 + px) / S.zoom, tb = (x0 + px + 1) / S.zoom;
-        var ia = Math.floor(ta * per), ib = Math.max(ia + 1, Math.ceil(tb * per)), m = 0;
-        for (var i = ia; i < ib && i < S.peaks.length; i++) if (S.peaks[i] > m) m = S.peaks[i];
-        var h = Math.max(1, m * (H - 8)); w.fillRect(px, (H - h) / 2, 1, h);
+        var ia = Math.floor(ta * per), ib = Math.max(ia + 1, Math.ceil(tb * per)), m = 0, sum = 0, n = 0;
+        for (var i = ia; i < ib && i < S.peaks.length; i++) { if (S.peaks[i] > m) m = S.peaks[i]; sum += S.peaks[i]; n++; }
+        top.push(n ? Math.pow(0.65 * m + 0.35 * (sum / n), 0.85) : 0);   // mix of peak and average = readable at every zoom
       }
+      var sm = top.map(function (v, k) { var a1 = top[Math.max(0, k - 1)], a2 = top[Math.min(top.length - 1, k + 1)]; return (a1 + 2 * v + a2) / 4; });
+      var col = cssColor("--teal", "#4ecdc4");
+      w.globalAlpha = 0.28; w.fillStyle = col; w.fillRect(0, mid - 0.5, vw, 1); w.globalAlpha = 1;
+      w.beginPath(); w.moveTo(0, mid);
+      for (px = 0; px < vw; px++) w.lineTo(px, mid - Math.max(1, sm[px] * amp));
+      w.lineTo(vw, mid);
+      for (px = vw - 1; px >= 0; px--) w.lineTo(px, mid + Math.max(1, sm[px] * amp));
+      w.closePath();
+      w.globalAlpha = 0.9; w.fillStyle = col; w.fill();
+      w.globalAlpha = 1; w.lineWidth = 1; w.strokeStyle = col; w.stroke();
     } else if (S.info && !S.info.has_audio) {
-      w.fillStyle = cssColor("--muted", "#8a94a8"); w.font = "12px system-ui"; w.fillText("No audio track", 12, H / 2);
+      w.fillStyle = cssColor("--muted", "#8a94a8"); w.font = "12px system-ui"; w.fillText("No audio track", 12, mid);
+    } else if (S.path) {
+      w.fillStyle = cssColor("--muted", "#8a94a8"); w.font = "12px system-ui"; w.fillText("Reading audio\u2026", 12, mid);
     }
   }
   function drawThumbs() {
@@ -420,6 +443,141 @@
       xhr.send(f);
     });
   })();
+
+
+  // ---------------------------------------------------------------- all tools (forms generated from the tool schemas)
+  var T = { tools: null, cur: null, fields: {}, job: 0 };
+  var PATHISH = { input: "media", input2: "media", pip_input: "media", audio: "media", music: "media", image: "image",
+    captions: "captions", font_file: "font", model_path: "folder", output_dir: "folder", output: "media" };
+  var HIDE = { input: 1, output: 1, output_dir: 1, overwrite: 1, timeout_s: 1, crf: 1 };
+  var ADV = { output: 1, output_dir: 1, overwrite: 1, timeout_s: 1, crf: 1 };
+
+  function loadTools() {
+    if (T.tools) return;
+    api("/api/tools").then(function (r) { T.tools = r; renderToolList(); }).catch(function (e) { $("tool-list").textContent = e.message; });
+  }
+  function renderToolList() {
+    var q = $("tool-search").value.trim().toLowerCase(), box = $("tool-list"); box.textContent = "";
+    var n = 0;
+    T.tools.groups.forEach(function (g) {
+      var items = T.tools.tools.filter(function (t) { return t.group === g && (!q || (t.name + " " + t.description).toLowerCase().indexOf(q) >= 0); });
+      if (!items.length) return;
+      box.appendChild(el("h3", "", g + " (" + items.length + ")"));
+      items.forEach(function (t) {
+        n++;
+        var b = el("button", "tool-item"); b.setAttribute("data-tool", t.name);
+        b.appendChild(el("span", "tag", t.read_only ? "reads" : "makes file"));
+        b.appendChild(el("b", "", t.name.replace(/^ve_/, "")));
+        b.appendChild(el("small", "", t.description.split(". ")[0].slice(0, 110)));
+        b.addEventListener("click", function () { openTool(t); });
+        box.appendChild(b);
+      });
+    });
+    if (!n) box.appendChild(el("div", "muted", "No tool matches."));
+  }
+  $("tool-search").addEventListener("input", function () { if (T.tools) renderToolList(); });
+  document.querySelector('#tabs button[data-tab="tools"]').addEventListener("click", loadTools);
+  $("tool-back").addEventListener("click", function () { $("tool-form").hidden = true; $("tool-list").hidden = false; $("tool-search").hidden = false; });
+
+  function field(name, p, required, host) {
+    var wrap = el("div", "fld"), lab = el("label", "", name.replace(/_/g, " ") + (required ? " *" : ""));
+    wrap.appendChild(lab); var input, kind = PATHISH[name], types = [].concat(p.type);
+    if (p.enum) {
+      input = document.createElement("select"); var o0 = el("option", "", p.default !== undefined ? "(default: " + p.default + ")" : "(choose)"); o0.value = ""; input.appendChild(o0);
+      p.enum.forEach(function (v) { var o = el("option", "", String(v)); o.value = String(v); input.appendChild(o); });
+      T.fields[name] = function () { return input.value === "" ? undefined : (types.indexOf("integer") >= 0 || types.indexOf("number") >= 0 ? Number(input.value) : input.value); };
+    } else if (types.indexOf("boolean") >= 0) {
+      input = document.createElement("input"); input.type = "checkbox"; input.checked = !!p.default; lab.className = "check"; lab.textContent = ""; lab.appendChild(input);
+      lab.appendChild(document.createTextNode(" " + name.replace(/_/g, " ") + (p.default ? " (default on)" : "")));
+      T.fields[name] = function () { return input.checked === !!p.default ? undefined : input.checked; };
+      wrap.removeChild(lab); wrap.appendChild(lab); host.appendChild(wrap); if (p.description) wrap.appendChild(el("div", "hint", p.description)); return;
+    } else if (types.indexOf("array") >= 0) {
+      input = document.createElement("textarea");
+      var ex = name === "segments" ? "one range per line, e.g. 00:05 - 00:08" : name === "inputs" ? "one file path per line, in play order" : "one value per line (or comma separated)";
+      input.placeholder = ex;
+      T.fields[name] = function () {
+        var raw = input.value.trim(); if (!raw) return undefined;
+        var lines = raw.split(/\n/).map(function (l) { return l.trim(); }).filter(Boolean);
+        if (name === "segments") return lines.map(function (l) { var m = l.split(/\s*(?:-|→|–|to)\s*/); return { start: m[0], end: m[1] }; });
+        if (name === "inputs") return lines;
+        return raw.split(/[\n,]/).map(function (x) { return x.trim(); }).filter(Boolean).map(function (x) { return isNaN(Number(x)) ? x : Number(x); });
+      };
+    } else {
+      input = document.createElement("input"); input.type = (types.indexOf("integer") >= 0 || types.indexOf("number") >= 0) && types.indexOf("string") < 0 ? "number" : "text";
+      if (input.type === "number") { input.step = types.indexOf("integer") >= 0 ? "1" : "any"; if (p.minimum != null) input.min = p.minimum; if (p.maximum != null) input.max = p.maximum; }
+      if (p.default !== undefined) input.placeholder = String(p.default);
+      if (name === "text") { input = document.createElement("textarea"); }
+      T.fields[name] = function () {
+        var v = input.value.trim(); if (v === "") return undefined;
+        return input.type === "number" ? Number(v) : v;
+      };
+      if (kind) {
+        var row = el("div", "inline"); row.appendChild(input);
+        var btn = el("button", "btn small", "Browse…"); btn.type = "button";
+        btn.addEventListener("click", function () { openDialog({ kind: kind === "folder" ? "media" : kind, folder: kind === "folder", done: function (v) { input.value = v; } }); });
+        row.appendChild(btn); wrap.appendChild(row);
+        if (p.description) wrap.appendChild(el("div", "hint", p.description)); host.appendChild(wrap); return;
+      }
+    }
+    wrap.appendChild(input);
+    if (p.description) wrap.appendChild(el("div", "hint", p.description));
+    host.appendChild(wrap);
+  }
+
+  function openTool(t) {
+    T.cur = t; T.fields = {};
+    $("tool-list").hidden = true; $("tool-search").hidden = true; $("tool-form").hidden = false;
+    $("tool-title").textContent = t.name; $("tool-desc").textContent = t.description;
+    $("tool-fields").textContent = ""; $("tool-adv").textContent = ""; $("tool-result").hidden = true; $("tool-job").hidden = true;
+    var usesInput = !!t.properties.input;
+    if (usesInput) {
+      var f = el("div", "fld"); f.appendChild(el("label", "", "input"));
+      var row = el("div", "inline"), cur = el("input"); cur.type = "text"; cur.id = "tool-input"; cur.value = S.path || ""; cur.placeholder = "Open a video first, or browse";
+      var br = el("button", "btn small", "Browse…"); br.addEventListener("click", function () { openDialog({ kind: "media", done: function (v) { cur.value = v; } }); });
+      row.appendChild(cur); row.appendChild(br); f.appendChild(row); $("tool-fields").appendChild(f);
+      T.fields.input = function () { return cur.value.trim() || undefined; };
+    }
+    Object.keys(t.properties).forEach(function (name) {
+      if (name === "input") return;
+      field(name, t.properties[name], t.required.indexOf(name) >= 0, ADV[name] ? $("tool-adv") : $("tool-fields"));
+    });
+    $("tool-run").disabled = false;
+  }
+
+  $("tool-run").addEventListener("click", function () {
+    var t = T.cur, args = {}, btn = this;
+    Object.keys(T.fields).forEach(function (k) { var v = T.fields[k](); if (v !== undefined) args[k] = v; });
+    btn.disabled = true; $("tool-result").hidden = true; $("tool-job").hidden = false; $("tool-bar").style.width = "10%"; $("tool-step").textContent = "Running…";
+    var mine = ++T.job, started = Date.now();
+    api("/api/tool", null, { name: t.name, args: args }).then(function (r) {
+      (function tick() {
+        api("/api/job", { id: r.job }).then(function (j) {
+          if (mine !== T.job) return;
+          $("tool-bar").style.width = Math.min(90, 10 + (Date.now() - started) / 400) + "%";
+          if (j.state === "running") return setTimeout(tick, 600);
+          btn.disabled = false; $("tool-job").hidden = true;
+          if (j.state === "error") showToolResult(t, null, j.error); else showToolResult(t, j.result);
+        }).catch(function (e) { btn.disabled = false; $("tool-job").hidden = true; showToolResult(t, null, { error: e.message }); });
+      })();
+    }).catch(function (e) { btn.disabled = false; $("tool-job").hidden = true; showToolResult(t, null, { error: e.message, hint: e.hint }); });
+  });
+
+  function showToolResult(t, r, err) {
+    var box = $("tool-result"); box.hidden = false; box.textContent = "";
+    if (err) { box.appendChild(el("div", "bad", "Failed")); box.appendChild(el("div", "", err.error + (err.hint ? " - " + err.hint : ""))); return; }
+    box.appendChild(el("div", "ok", "Done ✓"));
+    if (r.output) {
+      box.appendChild(el("div", "", r.output));
+      box.appendChild(el("div", "muted", (r.duration_s != null ? fmt(r.duration_s) + " · " : "") + (r.info && r.info.size_bytes ? (r.info.size_bytes / 1048576).toFixed(1) + " MB" : "")));
+      if (/\.(mp4|mov|m4v|mkv|webm|avi|mp3|wav|m4a|flac)$/i.test(r.output)) {
+        var row = el("div", "row"), b = el("button", "btn small", "Open result in editor");
+        b.addEventListener("click", function () { loadFile(r.output); }); row.appendChild(b); box.appendChild(row);
+      }
+      if (r.info && r.info.outputs && r.info.outputs.length > 1) box.appendChild(el("pre", "", r.info.outputs.join("\n")));
+    }
+    var show = r.info && (!r.output || t.read_only) ? r.info : null;
+    if (show) box.appendChild(el("pre", "", JSON.stringify(show, null, 2)));
+  }
 
   // ---------------------------------------------------------------- start
   function init() {
