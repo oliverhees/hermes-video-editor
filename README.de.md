@@ -6,10 +6,10 @@
 
 # 🎬 HERMES VIDEO EDITOR
 
-**Ein lokaler Video-Editor für deine eigenen Aufnahmen: 42 FFmpeg-Werkzeuge für den Hermes-Agenten plus ein visueller Editor mit Ebenen.**
+**Ein lokaler Video-Editor für deine eigenen Aufnahmen: 45 FFmpeg-Werkzeuge für den Hermes-Agenten plus ein visueller Editor mit Ebenen.**
 
 [![Lizenz: PolyForm Noncommercial](https://img.shields.io/badge/Lizenz-PolyForm%20Noncommercial%201.0.0-blue.svg)](LICENSE)
-[![Werkzeuge](https://img.shields.io/badge/Werkzeuge-42-informational.svg)](docs/de/TOOLS.md)
+[![Werkzeuge](https://img.shields.io/badge/Werkzeuge-45-informational.svg)](docs/de/TOOLS.md)
 [![Lokal](https://img.shields.io/badge/100%25-lokal-brightgreen.svg)](#-sicherheit-und-offenlegung)
 [![Hermes](https://img.shields.io/badge/Hermes-%E2%89%A50.21.5-black.svg)](https://hermes-agent.nousresearch.com/)
 
@@ -29,7 +29,7 @@
 - [Schnellstart](#-schnellstart)
 - [Der visuelle Editor](#-der-visuelle-editor)
 - [Oder einfach mit Hermes reden](#-oder-einfach-mit-hermes-reden)
-- [Die 42 Werkzeuge](#-die-42-werkzeuge)
+- [Die 45 Werkzeuge](#-die-45-werkzeuge)
 - [KI-Erzeugung mit Kie.ai (kommt bald)](#-optional-ki-erzeugung-mit-kieai-kommt-bald)
 - [Dokumentation](#-dokumentation)
 - [Wie sich jedes Werkzeug verhält](#-wie-sich-jedes-werkzeug-verhält)
@@ -46,13 +46,13 @@
 
 Die meisten „KI-Video“-Werkzeuge erzeugen Clips in der Cloud. Dieses Plugin macht die andere, alltägliche Hälfte: **Du hast das Material schon** und brauchst es geschnitten, gestrafft, auf 9:16 umgerahmt, untertitelt, in der Lautheit angeglichen und für die richtige Plattform exportiert.
 
-Es gibt dem Hermes-Agenten 42 präzise FFmpeg-Werkzeuge und dir einen visuellen Editor (Seite in der Hermes-Desktop-Seitenleiste) mit Mehrclip-Zeitleiste, Leinwand, Video-Overlay-Spur, Text und Musik. Beide nutzen denselben Code: Was du klickst, macht auch der Agent.
+Es gibt dem Hermes-Agenten 45 präzise FFmpeg-Werkzeuge und dir einen visuellen Editor (Seite in der Hermes-Desktop-Seitenleiste) mit Mehrclip-Zeitleiste, Leinwand, Video-Overlay-Spur, Text und Musik. Beide nutzen denselben Code: Was du klickst, macht auch der Agent.
 
 > Nicht „erzeuge mir ein Video“, sondern „schneide / beschneide / untertitele / mastere **mein** Material“.
 
 ## ✨ Funktionen
 
-- **42 Werkzeuge** für den Agenten: prüfen, schneiden und Zeit, Bild, Overlays und Text, Ton, Export und Prüfung.
+- **45 Werkzeuge** für den Agenten: prüfen, schneiden und Zeit, Bild, Overlays und Text, Ton, Export und Prüfung.
 - **Visueller Editor** in Hermes Desktop: Videos hineinziehen, teilen, löschen, umsortieren, kürzen, Stille entfernen, Rückgängig/Wiederholen.
 - **Leinwand** 16:9, 9:16, 1:1, 4:5 mit unscharfem, schwarzem oder farbigem Hintergrund; jeden Clip frei positionieren und skalieren (ein 16:9-Clip passt in eine 9:16-Leinwand, du rahmst neu, wenn sich die Person bewegt).
 - **Ebenen**: eine **Video-Overlay-Spur** (Bild-in-Bild), eine **Textebene** und eine **Audiospur** (Musik oder Sprecher mit Ein-/Ausblenden und Ducking).
@@ -112,7 +112,7 @@ python scripts/editor.py my-video.mp4    # mit vorgeladener Datei
 | **Video obendrauf** | Tab *Overlay*: zweite Videospur über dem Bild (Position, Größe, Deckkraft, eigener Ton) |
 | **Text** | Tab *Text*: Größe, Farbe, Umriss, Box, Vorlagen (Title, Lower third, Caption); in der Vorschau ziehen |
 | **Musik / Sprecher** | Tab *Sound*: Lautstärke, Ein-/Ausblenden, Startzeit, **Ducking** (Musik wird leiser, solange das Video spricht) |
-| Eines der 42 Werkzeuge | Tab *Tools*: jedes Werkzeug als Formular |
+| Eines der 45 Werkzeuge | Tab *Tools*: jedes Werkzeug als Formular |
 | Export | Tab *Export*: Plattform-Voreinstellung, Lautheit, Tempo, Ordner |
 | Hilfe | Knopf **Help** (obere Leiste): diese Anleitung auf Deutsch oder Englisch |
 
@@ -132,15 +132,15 @@ Bekannte Grenzen: Die Vorschau spielt kein Ducking und kann Ton nicht lauter mac
 
 Das Plugin bringt einen Skill mit, der dem Agenten die richtige Reihenfolge beibringt (erst prüfen, zuletzt die Plattform-Prüfung).
 
-## 🧰 Die 42 Werkzeuge
+## 🧰 Die 45 Werkzeuge
 
 | Gruppe | Werkzeuge |
 |---|---|
-| **A. Prüfen (5)** | `lk_media_doctor` `lk_media_probe` `lk_detect_silence` `lk_detect_scenes` `lk_extract_frame` |
-| **B. Schneiden & Zeit (8)** | `lk_trim` `lk_split` `lk_join` `lk_remove_silence` `lk_remove_segments` `lk_change_speed` `lk_reverse` `lk_loop` |
+| **A. Prüfen (6)** | `lk_media_doctor` `lk_media_probe` `lk_detect_silence` `lk_detect_scenes` `lk_extract_frame` `lk_loudness_report` |
+| **B. Schneiden & Zeit (9)** | `lk_trim` `lk_split` `lk_join` `lk_crossfade_join` `lk_remove_silence` `lk_remove_segments` `lk_change_speed` `lk_reverse` `lk_loop` |
 | **C. Bild (9)** | `lk_crop` `lk_crop_to_aspect` `lk_resize` `lk_rotate_flip` `lk_pad_blur_background` `lk_color_adjust` `lk_denoise_video` `lk_fade_video` `lk_stabilize` |
 | **D. Overlays & Text (6)** | `lk_add_text` `lk_burn_captions` `lk_add_image_overlay` `lk_picture_in_picture` `lk_stack_videos` `lk_blur_region` |
-| **E. Ton (8)** | `lk_extract_audio` `lk_replace_audio` `lk_mix_music` `lk_normalize_loudness` `lk_sync_audio_offset` `lk_adjust_volume` `lk_fade_audio` `lk_denoise_audio` |
+| **E. Ton (9)** | `lk_extract_audio` `lk_replace_audio` `lk_mix_music` `lk_normalize_loudness` `lk_sync_audio_offset` `lk_adjust_volume` `lk_fade_audio` `lk_denoise_audio` `lk_mute_video` |
 | **F. Export & Prüfung (6)** | `lk_export_preset` `lk_platform_check` `lk_compress_to_size` `lk_to_gif` `lk_contact_sheet` `lk_transcribe_captions` |
 
 ## 🤖 Optional: KI-Erzeugung mit Kie.ai (kommt bald)
@@ -220,7 +220,7 @@ Hinweis: Das ist eine *Source-Available*-Lizenz, keine von der OSI anerkannte Op
 
 ## 🔧 Status
 
-Beta. Die 42 Werkzeuge und der Editor sind durch eine automatische Testsuite abgedeckt (Unit-, FFmpeg-Integrations- und echte Browser-Tests). Noch nicht auf jeder Hermes-Desktop-Version geprüft; getestet gegen Hermes Desktop 0.21.5. Geplant: weitere Overlay-Funktionen und ein optionales separates Plugin für KI-Erzeugung.
+Beta. Die 45 Werkzeuge und der Editor sind durch eine automatische Testsuite abgedeckt (Unit-, FFmpeg-Integrations- und echte Browser-Tests). Noch nicht auf jeder Hermes-Desktop-Version geprüft; getestet gegen Hermes Desktop 0.21.5. Geplant: weitere Overlay-Funktionen und ein optionales separates Plugin für KI-Erzeugung.
 
 ---
 

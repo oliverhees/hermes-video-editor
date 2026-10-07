@@ -236,6 +236,15 @@ def denoise_audio(args: Dict[str, Any]) -> Any:
 
 
 # ------------------------------------------------------------------ specs
+@tool_handler
+def mute_video(args: Dict[str, Any]) -> Any:
+    job = Job(args, "muted", ext="av", need_video=True)
+    if not job.info["has_audio"]:
+        return {"output": str(job.src), "duration_s": job.info["duration_s"], "info": {"op": "mute_video", "unchanged": True}}
+    job.run(["-i", str(job.src), "-map", "0:v:0", "-c:v", "copy", "-an"] + _tail(job))
+    return job.done(op="mute_video")
+
+
 SPECS = [
     ToolSpec(
         name="lk_extract_audio",
@@ -303,4 +312,10 @@ SPECS = [
                      "rumble below 90 Hz and hiss above 9 kHz for speech. Strong settings can make voices sound watery."),
         handler=denoise_audio,
         properties={"preset": {"type": "string", "enum": list(DENOISE), "default": "medium", "description": "Denoise amount / profile."}}),
+    ToolSpec(
+        name="lk_mute_video",
+        description=("Remove the sound from a video (all audio tracks). The picture is copied without re-encoding, so it is "
+                     "instant and lossless. Returns the input unchanged if there is no audio. To put new sound under it use "
+                     "lk_replace_audio or lk_mix_music."),
+        handler=mute_video),
 ]

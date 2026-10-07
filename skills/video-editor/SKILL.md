@@ -37,10 +37,10 @@ Files the user exports there appear as new files next to the original.
 
 | Goal | Tool |
 |---|---|
-| Look at a file | `lk_media_probe`, `lk_contact_sheet`, `lk_extract_frame` |
+| Look at a file | `lk_media_probe`, `lk_contact_sheet`, `lk_extract_frame`, `lk_loudness_report` (how loud, measure only) |
 | Find things | `lk_detect_silence`, `lk_detect_scenes` |
 | Keep a section | `lk_trim` |
-| Cut into parts / join | `lk_split`, `lk_join` |
+| Cut into parts / join | `lk_split`, `lk_join` (hard cut), `lk_crossfade_join` (smooth transitions) |
 | Delete middle sections | `lk_remove_segments`, `lk_remove_silence` |
 | Speed / reverse / loop | `lk_change_speed`, `lk_reverse`, `lk_loop` |
 | Crop / resize / rotate | `lk_crop`, `lk_crop_to_aspect`, `lk_resize`, `lk_rotate_flip` |
@@ -49,7 +49,7 @@ Files the user exports there appear as new files next to the original.
 | Text and graphics | `lk_add_text`, `lk_burn_captions`, `lk_add_image_overlay` |
 | Two videos | `lk_picture_in_picture`, `lk_stack_videos` |
 | Hide something | `lk_blur_region` (fixed box, no tracking) |
-| Sound | `lk_extract_audio`, `lk_replace_audio`, `lk_mix_music`, `lk_normalize_loudness`, `lk_sync_audio_offset`, `lk_adjust_volume`, `lk_fade_audio`, `lk_denoise_audio` |
+| Sound | `lk_extract_audio`, `lk_replace_audio`, `lk_mix_music`, `lk_normalize_loudness`, `lk_sync_audio_offset`, `lk_adjust_volume`, `lk_fade_audio`, `lk_denoise_audio`, `lk_mute_video` (remove the sound) |
 | Deliver | `lk_export_preset`, `lk_platform_check`, `lk_compress_to_size`, `lk_to_gif` |
 | Speech to subtitles (optional) | `lk_transcribe_captions` |
 

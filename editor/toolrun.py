@@ -19,7 +19,7 @@ PATH_KEYS = {"input": "media", "input2": "media", "pip_input": "media", "audio":
              "image": "image", "captions": "captions", "font_file": "font", "model_path": "dir",
              "output": "outfile", "output_dir": "dir_create"}
 LIST_PATH_KEYS = {"inputs": "media"}
-READ_ONLY = {"lk_media_doctor", "lk_media_probe", "lk_detect_silence", "lk_detect_scenes", "lk_platform_check"}
+READ_ONLY = {"lk_loudness_report", "lk_media_doctor", "lk_media_probe", "lk_detect_silence", "lk_detect_scenes", "lk_platform_check"}
 GROUPS = [("info", "Inspect"), ("cut", "Cut & time"), ("picture", "Picture"), ("overlay", "Overlays & text"),
           ("audio", "Audio"), ("export", "Export & check")]
 KIND_EXTS = {"project": {".json"}, "media": MEDIA_EXTS, "image": IMAGE_EXTS | VIDEO_EXTS, "captions": CAPTION_EXTS, "font": FONT_EXTS,

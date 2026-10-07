@@ -416,9 +416,9 @@ def test_browser_tools_tab_lists_all_42_and_runs_one(media, tmp_path):
         wait_ready(page)
         page.click("#tabs button[data-tab=tools]")
         page.wait_for_selector(".tool-item")
-        assert page.locator(".tool-item").count() == 42
+        assert page.locator(".tool-item").count() == 45
         page.fill("#tool-search", "silence")
-        assert 2 <= page.locator(".tool-item").count() < 42
+        assert 2 <= page.locator(".tool-item").count() < 45
         assert page.locator('.tool-item[data-tool="lk_detect_silence"]').count() == 1
         assert page.locator('.tool-item[data-tool="lk_remove_silence"]').count() == 1
         page.fill("#tool-search", "")
