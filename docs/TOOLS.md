@@ -6,15 +6,15 @@ Every tool returns a JSON string: `{"ok": true, "output": ..., "duration_s": ...
 
 ## A. Inspect
 
-### `ve_media_doctor`
+### `lk_media_doctor`
 
-Check that FFmpeg/ffprobe are installed and which encoders/filters exist (libx264, aac, libx265, drawtext, subtitles, loudnorm...). Run this once if any other ve_* tool reports a missing binary or filter. Takes no media file.
+Check that FFmpeg/ffprobe are installed and which encoders/filters exist (libx264, aac, libx265, drawtext, subtitles, loudnorm...). Run this once if any other lk_* tool reports a missing binary or filter. Takes no media file.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `timeout_s` | integer |  | Kill FFmpeg after this many seconds. Default: `600`. |
 
-### `ve_media_probe`
+### `lk_media_probe`
 
 Read-only inspection of a media file: duration (seconds), resolution, fps, codecs, bitrate, rotation, audio streams, has_audio/has_video. ALWAYS call this before editing a clip. Does not create any file.
 
@@ -23,9 +23,9 @@ Read-only inspection of a media file: duration (seconds), resolution, fps, codec
 | `input` | string | yes | Path to the source media file. Never modified; the result is a new file. |
 | `timeout_s` | integer |  | Kill FFmpeg after this many seconds. Default: `600`. |
 
-### `ve_detect_silence`
+### `lk_detect_silence`
 
-Find silent stretches in the audio track and return their start/end times in seconds. Read-only (no file created). Use ve_remove_silence to actually cut them out.
+Find silent stretches in the audio track and return their start/end times in seconds. Read-only (no file created). Use lk_remove_silence to actually cut them out.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -34,9 +34,9 @@ Find silent stretches in the audio track and return their start/end times in sec
 | `noise_db` | number |  | Level below which audio counts as silence, in dB. -35 default; -50 = stricter. Default: `-35`. |
 | `min_duration_s` | number |  | Minimum silence length in seconds. Default 0.5. Default: `0.5`. |
 
-### `ve_detect_scenes`
+### `lk_detect_scenes`
 
-Find scene-change (cut) timestamps in a video. Read-only. Returns seconds and HH:MM:SS.mmm. Useful before ve_split or for choosing thumbnails.
+Find scene-change (cut) timestamps in a video. Read-only. Returns seconds and HH:MM:SS.mmm. Useful before lk_split or for choosing thumbnails.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -44,9 +44,9 @@ Find scene-change (cut) timestamps in a video. Read-only. Returns seconds and HH
 | `timeout_s` | integer |  | Kill FFmpeg after this many seconds. Default: `600`. |
 | `threshold` | number |  | Scene-change sensitivity 0.01-1. Lower = more cuts found. Default 0.3. Default: `0.3`. |
 
-### `ve_extract_frame`
+### `lk_extract_frame`
 
-Save one still image (png or jpg) from a video at a given time. Use ve_contact_sheet for many frames at once.
+Save one still image (png or jpg) from a video at a given time. Use lk_contact_sheet for many frames at once.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -60,9 +60,9 @@ Save one still image (png or jpg) from a video at a given time. Use ve_contact_s
 
 ## B. Cut & time
 
-### `ve_trim`
+### `lk_trim`
 
-Keep one section of a video: from 'start' to 'end' (or start + 'duration'), all in seconds or MM:SS / HH:MM:SS. mode 'accurate' (default) re-encodes with frame-exact cuts; mode 'fast' stream-copies (instant, lossless, but cuts snap to keyframes). Use ve_split to cut into several parts and ve_remove_segments to delete middle sections.
+Keep one section of a video: from 'start' to 'end' (or start + 'duration'), all in seconds or MM:SS / HH:MM:SS. mode 'accurate' (default) re-encodes with frame-exact cuts; mode 'fast' stream-copies (instant, lossless, but cuts snap to keyframes). Use lk_split to cut into several parts and lk_remove_segments to delete middle sections.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -77,9 +77,9 @@ Keep one section of a video: from 'start' to 'end' (or start + 'duration'), all 
 | `mode` | string (accurate|fast) |  | accurate = re-encode, frame-exact; fast = stream copy, keyframe-snapped. Default: `accurate`. |
 | `crf` | integer |  | H.264 quality for accurate mode (lower = better/larger). Default 20. Default: `20`. |
 
-### `ve_split`
+### `lk_split`
 
-Cut one video into consecutive parts at the given timestamps (N split points -> N+1 files named <name>_part1, _part2...). Result 'output' is the first part; all files are in info.outputs. To keep only one section use ve_trim instead.
+Cut one video into consecutive parts at the given timestamps (N split points -> N+1 files named <name>_part1, _part2...). Result 'output' is the first part; all files are in info.outputs. To keep only one section use lk_trim instead.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -91,7 +91,7 @@ Cut one video into consecutive parts at the given timestamps (N split points -> 
 | `mode` | string (accurate|fast) |  | accurate = re-encode (frame-exact); fast = stream copy (keyframe-snapped). Default: `accurate`. |
 | `crf` | integer |  | H.264 quality (lower = better/larger file). Default 20. Default: `20`. |
 
-### `ve_join`
+### `lk_join`
 
 Concatenate clips in the order given. If all clips share codec/size/fps/audio format they are joined by stream copy (instant); otherwise they are re-encoded to the first clip's size (letterboxed) and fps. Clips without audio get silence when others have audio.
 
@@ -105,9 +105,9 @@ Concatenate clips in the order given. If all clips share codec/size/fps/audio fo
 | `mode` | string (auto|copy|reencode) |  | auto = copy when compatible else re-encode. Default: `auto`. |
 | `crf` | integer |  | H.264 quality (lower = better/larger file). Default 20. Default: `20`. |
 
-### `ve_remove_silence`
+### `lk_remove_silence`
 
-Automatically cut silent stretches out of a clip with a little padding so speech is not clipped (tighten talking-head/podcast videos). Needs an audio track. Returns the input path unchanged if no silence is found. Use ve_detect_silence first to preview.
+Automatically cut silent stretches out of a clip with a little padding so speech is not clipped (tighten talking-head/podcast videos). Needs an audio track. Returns the input path unchanged if no silence is found. Use lk_detect_silence first to preview.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -121,9 +121,9 @@ Automatically cut silent stretches out of a clip with a little padding so speech
 | `padding_s` | number |  | Seconds of silence kept around speech on each side. Default: `0.1`. |
 | `crf` | integer |  | H.264 quality (lower = better/larger file). Default 20. Default: `20`. |
 
-### `ve_remove_segments`
+### `lk_remove_segments`
 
-Delete one or more time ranges from the middle of a clip and keep the rest (joined seamlessly). To keep ONE range use ve_trim.
+Delete one or more time ranges from the middle of a clip and keep the rest (joined seamlessly). To keep ONE range use lk_trim.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -135,7 +135,7 @@ Delete one or more time ranges from the middle of a clip and keep the rest (join
 | `segments` | array | yes | Ranges to REMOVE. |
 | `crf` | integer |  | H.264 quality (lower = better/larger file). Default 20. Default: `20`. |
 
-### `ve_change_speed`
+### `lk_change_speed`
 
 Speed up or slow down video and audio together (0.25x-4x). Audio pitch is preserved. factor 2 = twice as fast, 0.5 = half speed.
 
@@ -149,7 +149,7 @@ Speed up or slow down video and audio together (0.25x-4x). Audio pitch is preser
 | `factor` | number | yes | Speed multiplier. 2 = 2x faster, 0.5 = slow motion. |
 | `crf` | integer |  | H.264 quality (lower = better/larger file). Default 20. Default: `20`. |
 
-### `ve_reverse`
+### `lk_reverse`
 
 Play a clip backwards (video and audio). Whole clip is held in RAM, so it refuses clips over 300 s: trim first.
 
@@ -162,7 +162,7 @@ Play a clip backwards (video and audio). Whole clip is held in RAM, so it refuse
 | `timeout_s` | integer |  | Kill FFmpeg after this many seconds. Default: `600`. |
 | `crf` | integer |  | H.264 quality (lower = better/larger file). Default 20. Default: `20`. |
 
-### `ve_loop`
+### `lk_loop`
 
 Repeat a clip. Give 'count' (total number of plays, e.g. 3 = original + 2 repeats) OR 'target_duration_s' (loop and cut to this length). Exactly one of them.
 
@@ -179,9 +179,9 @@ Repeat a clip. Give 'count' (total number of plays, e.g. 3 = original + 2 repeat
 
 ## C. Picture
 
-### `ve_crop`
+### `lk_crop`
 
-Cut out a rectangle of the picture. x,y = top-left corner in pixels, width/height in pixels (measured on the displayed frame, rotation already applied). For 9:16/1:1/4:5 use ve_crop_to_aspect instead; to hide something use ve_blur_region.
+Cut out a rectangle of the picture. x,y = top-left corner in pixels, width/height in pixels (measured on the displayed frame, rotation already applied). For 9:16/1:1/4:5 use lk_crop_to_aspect instead; to hide something use lk_blur_region.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -196,9 +196,9 @@ Cut out a rectangle of the picture. x,y = top-left corner in pixels, width/heigh
 | `y` | integer |  | Top edge in pixels. Default: `0`. |
 | `crf` | integer |  | H.264 quality (lower = better/larger file). Default 20. Default: `20`. |
 
-### `ve_crop_to_aspect`
+### `lk_crop_to_aspect`
 
-Crop to a standard aspect ratio, keeping as much picture as possible (no black bars, no stretching). 9:16 for Reels/TikTok/Shorts, 1:1 square, 4:5 feed, 16:9 landscape. anchor picks which part is kept. To KEEP the whole landscape picture in a vertical frame use ve_pad_blur_background instead.
+Crop to a standard aspect ratio, keeping as much picture as possible (no black bars, no stretching). 9:16 for Reels/TikTok/Shorts, 1:1 square, 4:5 feed, 16:9 landscape. anchor picks which part is kept. To KEEP the whole landscape picture in a vertical frame use lk_pad_blur_background instead.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -212,7 +212,7 @@ Crop to a standard aspect ratio, keeping as much picture as possible (no black b
 | `output_width` | integer |  | Optional: scale the result to this width in pixels (e.g. 1080). |
 | `crf` | integer |  | H.264 quality (lower = better/larger file). Default 20. Default: `20`. |
 
-### `ve_resize`
+### `lk_resize`
 
 Scale the video. Use 'preset' (480p/720p/1080p/1440p/2160p = SHORT side in pixels, so it works for vertical clips too; or 1080x1920 / 1920x1080 / 1080x1080 = fit inside that box) or 'width' and/or 'height' in pixels. Aspect ratio is kept by default; sizes are made even.
 
@@ -229,7 +229,7 @@ Scale the video. Use 'preset' (480p/720p/1080p/1440p/2160p = SHORT side in pixel
 | `keep_aspect` | boolean |  | When both width and height are given: fit inside the box (true) or stretch to it (false). Default: `True`. |
 | `crf` | integer |  | H.264 quality (lower = better/larger file). Default 20. Default: `20`. |
 
-### `ve_rotate_flip`
+### `lk_rotate_flip`
 
 Rotate by 90/180/270 degrees clockwise and/or mirror horizontally/vertically.
 
@@ -245,7 +245,7 @@ Rotate by 90/180/270 degrees clockwise and/or mirror horizontally/vertically.
 | `vflip` | boolean |  | Mirror top-bottom (after rotating). Default: `False`. |
 | `crf` | integer |  | H.264 quality (lower = better/larger file). Default 20. Default: `20`. |
 
-### `ve_pad_blur_background`
+### `lk_pad_blur_background`
 
 Reels/TikTok style: fit the WHOLE clip inside a frame (default 1080x1920 vertical) and fill the empty areas with a blurred, enlarged copy of the same video. Use this instead of cropping when you do not want to lose any of the picture.
 
@@ -261,7 +261,7 @@ Reels/TikTok style: fit the WHOLE clip inside a frame (default 1080x1920 vertica
 | `blur_strength` | integer |  | Blur radius of the background in pixels. Default 25. Default: `25`. |
 | `crf` | integer |  | H.264 quality (lower = better/larger file). Default 20. Default: `20`. |
 
-### `ve_color_adjust`
+### `lk_color_adjust`
 
 Basic colour correction. brightness -1..1 (0 = unchanged), contrast 0..3 (1 = unchanged), saturation 0..3 (1 = unchanged, 0 = black&white), gamma 0.1..10 (1 = unchanged). Set only what you want to change.
 
@@ -278,9 +278,9 @@ Basic colour correction. brightness -1..1 (0 = unchanged), contrast 0..3 (1 = un
 | `gamma` | number |  | Gamma (>1 brightens midtones). Default: `1`. |
 | `crf` | integer |  | H.264 quality (lower = better/larger file). Default 20. Default: `20`. |
 
-### `ve_denoise_video`
+### `lk_denoise_video`
 
-Reduce grain/noise in the picture (hqdn3d). For audio noise use ve_denoise_audio. Can soften fine detail at 'strong'.
+Reduce grain/noise in the picture (hqdn3d). For audio noise use lk_denoise_audio. Can soften fine detail at 'strong'.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -292,9 +292,9 @@ Reduce grain/noise in the picture (hqdn3d). For audio noise use ve_denoise_audio
 | `strength` | string (light|medium|strong) |  | Denoise amount. Default: `medium`. |
 | `crf` | integer |  | H.264 quality (lower = better/larger file). Default 20. Default: `20`. |
 
-### `ve_fade_video`
+### `lk_fade_video`
 
-Fade the picture in from black at the start and/or out to black at the end. Seconds. Optionally fades the audio too (audio=true, default). For audio-only fades use ve_fade_audio.
+Fade the picture in from black at the start and/or out to black at the end. Seconds. Optionally fades the audio too (audio=true, default). For audio-only fades use lk_fade_audio.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -308,7 +308,7 @@ Fade the picture in from black at the start and/or out to black at the end. Seco
 | `audio` | boolean |  | Also fade the audio track. Default: `True`. |
 | `crf` | integer |  | H.264 quality (lower = better/larger file). Default 20. Default: `20`. |
 
-### `ve_stabilize`
+### `lk_stabilize`
 
 Reduce camera shake with FFmpeg's built-in 'deshake' filter (single pass; moderate quality, may crop/mirror the edges). Not a replacement for gimbal footage.
 
@@ -325,9 +325,9 @@ Reduce camera shake with FFmpeg's built-in 'deshake' filter (single pass; modera
 
 ## D. Overlays & text
 
-### `ve_add_text`
+### `lk_add_text`
 
-Draw text on the video (title, lower third, label). Position by preset, size in pixels, optional outline and background box, optional time window. Supports multi-line text and any language. For subtitles from an SRT file use ve_burn_captions.
+Draw text on the video (title, lower third, label). Position by preset, size in pixels, optional outline and background box, optional time window. Supports multi-line text and any language. For subtitles from an SRT file use lk_burn_captions.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -350,9 +350,9 @@ Draw text on the video (title, lower third, label). Position by preset, size in 
 | `end` | number/string |  | When the effect disappears. Default: until the end. Seconds (12.5), MM:SS or HH:MM:SS(.ms). |
 | `crf` | integer |  | H.264 quality (lower = better/larger file). Default 20. Default: `20`. |
 
-### `ve_burn_captions`
+### `lk_burn_captions`
 
-Burn (hard-code) subtitles from an .srt, .vtt or .ass file into the picture. Style: size/outline/margin in pixels of the output video. reels_safe=true lifts the captions above the Reels/TikTok/Shorts interface (bottom ~18%). A .ass file keeps its own styling unless you pass style options. Make the captions first with ve_transcribe_captions if you have none.
+Burn (hard-code) subtitles from an .srt, .vtt or .ass file into the picture. Style: size/outline/margin in pixels of the output video. reels_safe=true lifts the captions above the Reels/TikTok/Shorts interface (bottom ~18%). A .ass file keeps its own styling unless you pass style options. Make the captions first with lk_transcribe_captions if you have none.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -371,7 +371,7 @@ Burn (hard-code) subtitles from an .srt, .vtt or .ass file into the picture. Sty
 | `font_name` | string |  | Optional installed font family name. |
 | `crf` | integer |  | H.264 quality (lower = better/larger file). Default 20. Default: `20`. |
 
-### `ve_add_image_overlay`
+### `lk_add_image_overlay`
 
 Place a logo/watermark image (PNG with transparency works best) on the video: corner, size as % of video width, opacity, optional time window.
 
@@ -391,9 +391,9 @@ Place a logo/watermark image (PNG with transparency works best) on the video: co
 | `end` | number/string |  | When the effect disappears. Default: until the end. Seconds (12.5), MM:SS or HH:MM:SS(.ms). |
 | `crf` | integer |  | H.264 quality (lower = better/larger file). Default 20. Default: `20`. |
 
-### `ve_picture_in_picture`
+### `lk_picture_in_picture`
 
-Show a second video as a small inset on top of the main video (reaction/facecam style). Output length follows the main video; the inset disappears when it ends unless loop_pip=true. For two videos next to each other use ve_stack_videos.
+Show a second video as a small inset on top of the main video (reaction/facecam style). Output length follows the main video; the inset disappears when it ends unless loop_pip=true. For two videos next to each other use lk_stack_videos.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -412,9 +412,9 @@ Show a second video as a small inset on top of the main video (reaction/facecam 
 | `end` | number/string |  | When the effect disappears. Default: until the end. Seconds (12.5), MM:SS or HH:MM:SS(.ms). |
 | `crf` | integer |  | H.264 quality (lower = better/larger file). Default 20. Default: `20`. |
 
-### `ve_stack_videos`
+### `lk_stack_videos`
 
-Put two videos side by side (horizontal) or one above the other (vertical). The second is scaled to match the first; output ends with the shorter video. For an inset use ve_picture_in_picture.
+Put two videos side by side (horizontal) or one above the other (vertical). The second is scaled to match the first; output ends with the shorter video. For an inset use lk_picture_in_picture.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -428,7 +428,7 @@ Put two videos side by side (horizontal) or one above the other (vertical). The 
 | `audio` | string (first|second|mix|none) |  | Which audio to keep. Default: `first`. |
 | `crf` | integer |  | H.264 quality (lower = better/larger file). Default 20. Default: `20`. |
 
-### `ve_blur_region`
+### `lk_blur_region`
 
 Blur or pixelate a rectangle (faces, licence plates, passwords) for the whole clip or a time window. The box is fixed on screen: it does NOT track a moving object. x,y = top-left in pixels.
 
@@ -451,7 +451,7 @@ Blur or pixelate a rectangle (faces, licence plates, passwords) for the whole cl
 
 ## E. Audio
 
-### `ve_extract_audio`
+### `lk_extract_audio`
 
 Save the audio track of a video as an audio file (mp3, wav, m4a or flac). The video is untouched. Use before transcription or to reuse the sound elsewhere.
 
@@ -466,9 +466,9 @@ Save the audio track of a video as an audio file (mp3, wav, m4a or flac). The vi
 | `bitrate_kbps` | integer |  | Bitrate for mp3/m4a in kbit/s. Default: `192`. |
 | `audio_track` | integer |  | Which audio stream (0 = first). Default: `0`. |
 
-### `ve_replace_audio`
+### `lk_replace_audio`
 
-Swap the soundtrack of a video for another audio file (voice-over, music). Video is not re-encoded. mode 'trim' (default): result keeps the video length (audio cut, or padded with silence if shorter); 'shortest': ends when the shorter one ends; 'loop': repeats the audio to fill the video. To ADD music under existing sound use ve_mix_music.
+Swap the soundtrack of a video for another audio file (voice-over, music). Video is not re-encoded. mode 'trim' (default): result keeps the video length (audio cut, or padded with silence if shorter); 'shortest': ends when the shorter one ends; 'loop': repeats the audio to fill the video. To ADD music under existing sound use lk_mix_music.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -480,7 +480,7 @@ Swap the soundtrack of a video for another audio file (voice-over, music). Video
 | `audio` | string | yes | Path to the new audio (or a video whose audio to use). |
 | `mode` | string (trim|shortest|loop) |  | How to fit audio length to the video. Default: `trim`. |
 
-### `ve_mix_music`
+### `lk_mix_music`
 
 Add background music under the video's own sound. Music is looped to the video length, lowered by music_volume_db, faded out at the end, and with ducking=true it automatically gets quieter while someone speaks. Works for silent clips too (music only). Video is not re-encoded.
 
@@ -497,9 +497,9 @@ Add background music under the video's own sound. Music is looped to the video l
 | `duck_strength` | string (light|medium|strong) |  | How strongly the music dips. Default: `medium`. |
 | `fade_out_s` | number |  | Fade the music out over the last N seconds (0 = none). Default: `2`. |
 
-### `ve_normalize_loudness`
+### `lk_normalize_loudness`
 
-Make the loudness consistent using two-pass EBU R128 loudnorm. target_lufs default -14 (YouTube/Reels/TikTok-style streaming level); -16 for podcasts. Reports before/after LUFS. Video is not re-encoded. For a simple gain change use ve_adjust_volume.
+Make the loudness consistent using two-pass EBU R128 loudnorm. target_lufs default -14 (YouTube/Reels/TikTok-style streaming level); -16 for podcasts. Reports before/after LUFS. Video is not re-encoded. For a simple gain change use lk_adjust_volume.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -513,7 +513,7 @@ Make the loudness consistent using two-pass EBU R128 loudnorm. target_lufs defau
 | `lra` | number |  | Target loudness range. Default: `11`. |
 | `verify` | boolean |  | Measure the result again and report it. Default: `True`. |
 
-### `ve_sync_audio_offset`
+### `lk_sync_audio_offset`
 
 Fix lip-sync: shift the audio relative to the picture by offset_ms milliseconds. Positive = audio plays LATER (use when sound comes too early); negative = audio plays EARLIER. Video is not re-encoded.
 
@@ -526,9 +526,9 @@ Fix lip-sync: shift the audio relative to the picture by offset_ms milliseconds.
 | `timeout_s` | integer |  | Kill FFmpeg after this many seconds. Default: `600`. |
 | `offset_ms` | number | yes | Milliseconds to shift the audio (+ later, - earlier). |
 
-### `ve_adjust_volume`
+### `lk_adjust_volume`
 
-Make the audio louder or quieter by 'db' (e.g. 6 or -3) OR by a 'factor' (2 = double, 0.5 = half). A limiter prevents clipping. For consistent loudness use ve_normalize_loudness instead.
+Make the audio louder or quieter by 'db' (e.g. 6 or -3) OR by a 'factor' (2 = double, 0.5 = half). A limiter prevents clipping. For consistent loudness use lk_normalize_loudness instead.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -541,9 +541,9 @@ Make the audio louder or quieter by 'db' (e.g. 6 or -3) OR by a 'factor' (2 = do
 | `factor` | number |  | Linear multiplier (1 = unchanged). |
 | `prevent_clipping` | boolean |  | Apply a peak limiter. Default: `True`. |
 
-### `ve_fade_audio`
+### `lk_fade_audio`
 
-Fade the audio in and/or out (seconds) without touching the picture. For picture fades use ve_fade_video.
+Fade the audio in and/or out (seconds) without touching the picture. For picture fades use lk_fade_video.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -555,7 +555,7 @@ Fade the audio in and/or out (seconds) without touching the picture. For picture
 | `fade_in_s` | number |  | Fade-in length in seconds. Default: `0`. |
 | `fade_out_s` | number |  | Fade-out length in seconds. Default: `0`. |
 
-### `ve_denoise_audio`
+### `lk_denoise_audio`
 
 Reduce steady background noise (hiss, hum, fans) with a spectral denoiser. preset 'voice' also cuts rumble below 90 Hz and hiss above 9 kHz for speech. Strong settings can make voices sound watery.
 
@@ -570,9 +570,9 @@ Reduce steady background noise (hiss, hum, fans) with a spectral denoiser. prese
 
 ## F. Export & check
 
-### `ve_export_preset`
+### `lk_export_preset`
 
-Final export for a platform: H.264 + AAC, yuv420p, fast-start MP4, with the platform's size and fps cap. Presets: reels, tiktok, shorts (1080x1920), youtube_1080p, youtube_4k, x_twitter (1280x720), discord_8mb (auto-compressed to ~7.6 MB), web_mp4 (keeps size). fit=contain adds black bars, fit=cover crops to fill; for vertical from landscape first use ve_crop_to_aspect or ve_pad_blur_background. Follow with ve_platform_check.
+Final export for a platform: H.264 + AAC, yuv420p, fast-start MP4, with the platform's size and fps cap. Presets: reels, tiktok, shorts (1080x1920), youtube_1080p, youtube_4k, x_twitter (1280x720), discord_8mb (auto-compressed to ~7.6 MB), web_mp4 (keeps size). fit=contain adds black bars, fit=cover crops to fill; for vertical from landscape first use lk_crop_to_aspect or lk_pad_blur_background. Follow with lk_platform_check.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -585,9 +585,9 @@ Final export for a platform: H.264 + AAC, yuv420p, fast-start MP4, with the plat
 | `fit` | string (contain|cover) |  | contain = fit inside (black bars), cover = fill and crop. Default: `contain`. |
 | `crf` | integer |  | Override the preset's quality (lower = better/larger). |
 
-### `ve_platform_check`
+### `lk_platform_check`
 
-Check a finished file against a platform's rules: duration, resolution, aspect ratio, fps, file size, codecs, pixel format and loudness. Returns pass/fail per check plus concrete fixes (which ve_* tool to run). ALWAYS run this last for social clips. Limits are editable defaults: verify current platform limits. Does not create a file.
+Check a finished file against a platform's rules: duration, resolution, aspect ratio, fps, file size, codecs, pixel format and loudness. Returns pass/fail per check plus concrete fixes (which lk_* tool to run). ALWAYS run this last for social clips. Limits are editable defaults: verify current platform limits. Does not create a file.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -596,7 +596,7 @@ Check a finished file against a platform's rules: duration, resolution, aspect r
 | `platform` | string (reels|tiktok|shorts|youtube_1080p|youtube_4k|x_twitter|discord_8mb|web_mp4) | yes | Platform to check against. |
 | `check_loudness` | boolean |  | Also measure LUFS (needs audio; a bit slower). Default: `True`. |
 
-### `ve_compress_to_size`
+### `lk_compress_to_size`
 
 Shrink a video to fit under target_mb megabytes (decimal MB) using two-pass H.264 bitrate planning; downscales automatically if the size budget is too low for the resolution. Use for Discord/email limits. Fails with a clear message if the target is unrealistic for the duration.
 
@@ -611,7 +611,7 @@ Shrink a video to fit under target_mb megabytes (decimal MB) using two-pass H.26
 | `audio_kbps` | integer |  | Audio bitrate in kbit/s. Default: `96`. |
 | `allow_downscale` | boolean |  | Reduce resolution when bitrate would otherwise look blocky. Default: `True`. |
 
-### `ve_to_gif`
+### `lk_to_gif`
 
 Convert a section of a video to an animated GIF with an optimised palette (no audio). Max 60 s. GIFs are large: keep it short, width <= 480, fps 10-15.
 
@@ -631,7 +631,7 @@ Convert a section of a video to an animated GIF with an optimised palette (no au
 | `loop` | integer |  | Repeats; 0 = loop forever. Default: `0`. |
 | `dither` | string (bayer|sierra2_4a|none) |  | bayer = smaller files, sierra2_4a = smoother gradients. Default: `bayer`. |
 
-### `ve_contact_sheet`
+### `lk_contact_sheet`
 
 Make one image with a grid of evenly spaced frames from the video (overview / thumbnail picking). columns x rows frames.
 
@@ -647,9 +647,9 @@ Make one image with a grid of evenly spaced frames from the video (overview / th
 | `thumb_width` | integer |  | Width of each frame in pixels. Default: `320`. |
 | `format` | string (png|jpg) |  | Image format. Default: `jpg`. |
 
-### `ve_transcribe_captions`
+### `lk_transcribe_captions`
 
-OPTIONAL. Transcribe speech to an .srt file with local faster-whisper (no cloud). Needs `pip install faster-whisper` and a model already on disk (the plugin never downloads). Returns ok:false with install hints otherwise. Feed the .srt to ve_burn_captions. Slow on CPU for long videos.
+OPTIONAL. Transcribe speech to an .srt file with local faster-whisper (no cloud). Needs `pip install faster-whisper` and a model already on disk (the plugin never downloads). Returns ok:false with install hints otherwise. Feed the .srt to lk_burn_captions. Slow on CPU for long videos.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|

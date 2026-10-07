@@ -51,64 +51,64 @@ def evaluate(info: Dict[str, Any], rules: Dict[str, Any], loudness: Optional[Dic
     if rules.get("max_duration_s") is not None and dur is not None:
         ok_ = dur <= rules["max_duration_s"]
         add("duration_max", "pass" if ok_ else "fail", round(dur, 2), rules["max_duration_s"],
-            "" if ok_ else "Shorten with ve_trim (or ve_remove_silence / ve_change_speed).")
+            "" if ok_ else "Shorten with lk_trim (or lk_remove_silence / lk_change_speed).")
     if rules.get("min_duration_s") is not None and dur is not None:
         ok_ = dur >= rules["min_duration_s"]
         add("duration_min", "pass" if ok_ else "fail", round(dur, 2), rules["min_duration_s"],
-            "" if ok_ else "Clip is too short; use ve_loop or a longer take.")
+            "" if ok_ else "Clip is too short; use lk_loop or a longer take.")
     if rules.get("aspects"):
         ratio = w / float(h)
         names = list(rules["aspects"])
         match = any(abs(ratio / (int(a.split(":")[0]) / float(a.split(":")[1])) - 1) <= 0.02 for a in names)
         first = names[0]
         add("aspect_ratio", "pass" if match else "fail", "%dx%d (%.3f)" % (w, h, ratio), names,
-            "" if match else "Use ve_crop_to_aspect aspect=%s, or ve_pad_blur_background to keep the whole picture." % first)
+            "" if match else "Use lk_crop_to_aspect aspect=%s, or lk_pad_blur_background to keep the whole picture." % first)
     for key, label, val in (("min_width", "width_min", w), ("min_height", "height_min", h)):
         if rules.get(key):
             ok_ = val >= rules[key]
-            add(label, "pass" if ok_ else "fail", val, rules[key], "" if ok_ else "Source is too small; re-shoot or upscale with ve_resize.")
+            add(label, "pass" if ok_ else "fail", val, rules[key], "" if ok_ else "Source is too small; re-shoot or upscale with lk_resize.")
     for key, label, val in (("max_width", "width_max", w), ("max_height", "height_max", h)):
         if rules.get(key):
             ok_ = val <= rules[key]
-            add(label, "pass" if ok_ else "fail", val, rules[key], "" if ok_ else "Downscale with ve_resize.")
+            add(label, "pass" if ok_ else "fail", val, rules[key], "" if ok_ else "Downscale with lk_resize.")
     rec = rules.get("recommended_size")
     if rec and (w, h) != tuple(rec) and not any(c["status"] == "fail" and c["check"].startswith(("aspect", "width", "height")) for c in checks):
         add("recommended_size", "warn", "%dx%d" % (w, h), "%dx%d" % tuple(rec),
-            "Optional: ve_export_preset gives the recommended size.")
+            "Optional: lk_export_preset gives the recommended size.")
     fps = v.get("fps")
     if rules.get("max_fps") and fps:
         ok_ = fps <= rules["max_fps"] + 0.01
-        add("fps_max", "pass" if ok_ else "fail", fps, rules["max_fps"], "" if ok_ else "Re-export with ve_export_preset (caps fps).")
+        add("fps_max", "pass" if ok_ else "fail", fps, rules["max_fps"], "" if ok_ else "Re-export with lk_export_preset (caps fps).")
     if rules.get("max_size_mb") and info.get("size_bytes") is not None:
         mb = info["size_bytes"] / 1e6
         ok_ = mb <= rules["max_size_mb"]
         add("file_size", "pass" if ok_ else "fail", round(mb, 2), rules["max_size_mb"],
-            "" if ok_ else "Use ve_compress_to_size target_mb=%s." % rules["max_size_mb"])
+            "" if ok_ else "Use lk_compress_to_size target_mb=%s." % rules["max_size_mb"])
     if rules.get("video_codecs"):
         ok_ = v.get("codec") in rules["video_codecs"]
         add("video_codec", "pass" if ok_ else "fail", v.get("codec"), rules["video_codecs"],
-            "" if ok_ else "Re-encode with ve_export_preset (H.264).")
+            "" if ok_ else "Re-encode with lk_export_preset (H.264).")
     if v.get("pix_fmt") and v["pix_fmt"] != "yuv420p":
-        add("pixel_format", "warn", v["pix_fmt"], "yuv420p", "Re-encode with ve_export_preset for maximum compatibility.")
+        add("pixel_format", "warn", v["pix_fmt"], "yuv420p", "Re-encode with lk_export_preset for maximum compatibility.")
     if rules.get("audio_codecs"):
         if not info.get("has_audio"):
-            add("audio_stream", "warn", "none", "recommended", "Clip is silent; add sound with ve_mix_music or ve_replace_audio.")
+            add("audio_stream", "warn", "none", "recommended", "Clip is silent; add sound with lk_mix_music or lk_replace_audio.")
         else:
             codec = info["audio"][0].get("codec")
             ok_ = codec in rules["audio_codecs"]
             add("audio_codec", "pass" if ok_ else "fail", codec, rules["audio_codecs"],
-                "" if ok_ else "Re-encode with ve_export_preset (AAC).")
+                "" if ok_ else "Re-encode with lk_export_preset (AAC).")
     if loudness is not None and rules.get("loudness_lufs") is not None:
         target, tol = rules["loudness_lufs"], rules.get("loudness_tolerance") or 2
         lufs = loudness["input_i"]
         ok_ = abs(lufs - target) <= tol
         add("loudness", "pass" if ok_ else "fail", round(lufs, 1), "%s +/- %s LUFS" % (target, tol),
-            "" if ok_ else "Run ve_normalize_loudness target_lufs=%s." % target)
+            "" if ok_ else "Run lk_normalize_loudness target_lufs=%s." % target)
         tp_max = rules.get("max_true_peak_db")
         if tp_max is not None:
             ok_ = loudness["input_tp"] <= tp_max
             add("true_peak", "pass" if ok_ else "warn", round(loudness["input_tp"], 1), "<= %s dBTP" % tp_max,
-                "" if ok_ else "Run ve_normalize_loudness (limits the peak).")
+                "" if ok_ else "Run lk_normalize_loudness (limits the peak).")
     return checks
 
 
@@ -207,7 +207,7 @@ def _compress(job: Job, args: Dict[str, Any], target_mb: float, audio_kbps: int,
     vk = plan_video_kbps(dur, target_mb, a_kbps)
     if vk < 40:
         raise ToolError("Target %.1f MB is too small for %.0f s of video." % (target_mb, dur),
-                        hint="Raise target_mb, or shorten the clip with ve_trim first.")
+                        hint="Raise target_mb, or shorten the clip with lk_trim first.")
     if has_a and vk < 250 and a_kbps > 48:
         a_kbps = 48
         vk = plan_video_kbps(dur, target_mb, a_kbps)
@@ -366,18 +366,18 @@ def transcribe_captions(args: Dict[str, Any]) -> Any:
     job.out.write_text(segments_to_srt(segments), encoding="utf-8")
     return {"output": str(job.out), "duration_s": job.info["duration_s"],
             "info": {"op": "transcribe_captions", "segments": len(segments), "model": str(model_path or model_name),
-                     "language": getattr(tinfo, "language", lang), "next_step": "ve_burn_captions with this .srt"}}
+                     "language": getattr(tinfo, "language", lang), "next_step": "lk_burn_captions with this .srt"}}
 
 
 # --------------------------------------------------------------------------- specs
 SPECS = [
     ToolSpec(
-        name="ve_export_preset",
+        name="lk_export_preset",
         description=("Final export for a platform: H.264 + AAC, yuv420p, fast-start MP4, with the platform's size and fps cap. "
                      "Presets: reels, tiktok, shorts (1080x1920), youtube_1080p, youtube_4k, x_twitter (1280x720), "
                      "discord_8mb (auto-compressed to ~7.6 MB), web_mp4 (keeps size). fit=contain adds black bars, "
-                     "fit=cover crops to fill; for vertical from landscape first use ve_crop_to_aspect or "
-                     "ve_pad_blur_background. Follow with ve_platform_check."),
+                     "fit=cover crops to fill; for vertical from landscape first use lk_crop_to_aspect or "
+                     "lk_pad_blur_background. Follow with lk_platform_check."),
         handler=export_preset, required=["preset"],
         properties={"preset": {"type": "string", "enum": list(EXPORT_PRESETS), "description": "Target platform preset."},
                     "fit": {"type": "string", "enum": ["contain", "cover"], "default": "contain",
@@ -385,16 +385,16 @@ SPECS = [
                     "crf": {"type": "integer", "minimum": 0, "maximum": 51,
                             "description": "Override the preset's quality (lower = better/larger)."}}),
     ToolSpec(
-        name="ve_platform_check",
+        name="lk_platform_check",
         description=("Check a finished file against a platform's rules: duration, resolution, aspect ratio, fps, file size, "
-                     "codecs, pixel format and loudness. Returns pass/fail per check plus concrete fixes (which ve_* tool to "
+                     "codecs, pixel format and loudness. Returns pass/fail per check plus concrete fixes (which lk_* tool to "
                      "run). ALWAYS run this last for social clips. Limits are editable defaults: verify current platform "
                      "limits. Does not create a file."),
         handler=platform_check, common=("input", "timeout_s"), required=["platform"],
         properties={"platform": {"type": "string", "enum": list(PLATFORM_RULES), "description": "Platform to check against."},
                     "check_loudness": {"type": "boolean", "default": True, "description": "Also measure LUFS (needs audio; a bit slower)."}}),
     ToolSpec(
-        name="ve_compress_to_size",
+        name="lk_compress_to_size",
         description=("Shrink a video to fit under target_mb megabytes (decimal MB) using two-pass H.264 bitrate planning; "
                      "downscales automatically if the size budget is too low for the resolution. Use for Discord/email "
                      "limits. Fails with a clear message if the target is unrealistic for the duration."),
@@ -404,7 +404,7 @@ SPECS = [
                     "allow_downscale": {"type": "boolean", "default": True,
                                         "description": "Reduce resolution when bitrate would otherwise look blocky."}}),
     ToolSpec(
-        name="ve_to_gif",
+        name="lk_to_gif",
         description=("Convert a section of a video to an animated GIF with an optimised palette (no audio). Max 60 s. "
                      "GIFs are large: keep it short, width <= 480, fps 10-15."),
         handler=to_gif,
@@ -417,7 +417,7 @@ SPECS = [
                     "dither": {"type": "string", "enum": ["bayer", "sierra2_4a", "none"], "default": "bayer",
                                "description": "bayer = smaller files, sierra2_4a = smoother gradients."}}),
     ToolSpec(
-        name="ve_contact_sheet",
+        name="lk_contact_sheet",
         description="Make one image with a grid of evenly spaced frames from the video (overview / thumbnail picking). columns x rows frames.",
         handler=contact_sheet,
         properties={"columns": {"type": "integer", "default": 4, "description": "Frames per row (1-12)."},
@@ -425,10 +425,10 @@ SPECS = [
                     "thumb_width": {"type": "integer", "default": 320, "description": "Width of each frame in pixels."},
                     "format": {"type": "string", "enum": ["png", "jpg"], "default": "jpg", "description": "Image format."}}),
     ToolSpec(
-        name="ve_transcribe_captions",
+        name="lk_transcribe_captions",
         description=("OPTIONAL. Transcribe speech to an .srt file with local faster-whisper (no cloud). Needs "
                      "`pip install faster-whisper` and a model already on disk (the plugin never downloads). Returns "
-                     "ok:false with install hints otherwise. Feed the .srt to ve_burn_captions. Slow on CPU for long videos."),
+                     "ok:false with install hints otherwise. Feed the .srt to lk_burn_captions. Slow on CPU for long videos."),
         handler=transcribe_captions,
         properties={"model": {"type": "string", "enum": list(MODELS), "default": "base",
                               "description": "Whisper model size: bigger = more accurate and slower."},

@@ -131,7 +131,7 @@ def api_prepare(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
 def api_silence(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
     from ..schemas import TOOLS
     src = safe_media_file(body.get("path"), srv.roots)
-    handler = {t["name"]: t["handler"] for t in TOOLS}["ve_detect_silence"]
+    handler = {t["name"]: t["handler"] for t in TOOLS}["lk_detect_silence"]
     res = json.loads(handler({"input": str(src), "noise_db": body.get("noise_db", -35),
                               "min_duration_s": body.get("min_silence_s", 0.5), "timeout_s": 600}))
     if not res.get("ok"):
@@ -159,7 +159,8 @@ def api_export(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
     if body.get("clips") is not None:                       # timeline export
         body = dict(body, clips_info=project_mod.sanitize_clips(body["clips"], srv.roots), cuts=[],
                     canvas=project_mod.sanitize_canvas(body.get("canvas")), bg=project_mod.sanitize_bg(body.get("bg")),
-                    texts=project_mod.sanitize_texts(body.get("texts")), audios_info=project_mod.sanitize_audios(body.get("audios"), srv.roots))
+                    texts=project_mod.sanitize_texts(body.get("texts")), audios_info=project_mod.sanitize_audios(body.get("audios"), srv.roots),
+                    overlays_info=project_mod.sanitize_overlays(body.get("overlays"), srv.roots))
         src = Path(body["clips_info"][0]["path"])
         default_dir = Path(api_config(srv)["videos_dir"]) if inside(str(src), [str(jobs_mod.UPLOAD_DIR)]) else src.parent
     else:

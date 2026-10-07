@@ -1,4 +1,4 @@
-"""Platform limits used by ve_platform_check (and warnings in ve_export_preset).
+"""Platform limits used by lk_platform_check (and warnings in lk_export_preset).
 
 !!! VERIFY CURRENT LIMITS !!!  Platforms change these without notice. The numbers below are best-effort
 defaults from public documentation at the time of writing. Edit this dict freely: every key is optional
@@ -9,7 +9,7 @@ Keys
   max_duration_s / min_duration_s
   aspects               allowed aspect ratios as "W:H" strings (2 % tolerance)
   min_width / min_height / max_width / max_height   pixels
-  recommended_size      [W, H] used by ve_export_preset and as a soft hint
+  recommended_size      [W, H] used by lk_export_preset and as a soft hint
   max_fps
   max_size_mb           decimal megabytes (1 MB = 1,000,000 bytes)
   video_codecs / audio_codecs   accepted ffprobe codec names
