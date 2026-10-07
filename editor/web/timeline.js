@@ -139,6 +139,9 @@
   // ---- text layer and audio track: items on their own lanes, positioned in absolute timeline seconds
   var HEXC = /^#[0-9a-fA-F]{6}$/;
   function clampN(v, d, lo, hi) { v = Number(v); return isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; }
+  var MAX_TRACKS = 12, TRACK_KINDS = ["scene", "shape", "text", "overlay", "audio"], SHAPE_KINDS = ["rect", "rounded", "ellipse"];
+  function trackOf(v) { return Math.floor(clampN(v, 0, 0, MAX_TRACKS - 1)); }
+  function cleanTracks(raw) { var r = raw || {}, o = {}; TRACK_KINDS.forEach(function (k) { o[k] = Math.floor(clampN(r[k], 1, 1, MAX_TRACKS)); }); return o; }
   function newText(start, dur, id) {
     return { id: id || uid("t"), text: "Your text", start: round(Math.max(0, start || 0)), dur: dur || 3, x: 0.5, y: 0.82, size: 0.07,
       color: "#ffffff", box: false, boxColor: "#000000", boxOpacity: 0.55, outline: true };
@@ -149,7 +152,7 @@
       start: round(clampN(t.start, 0, 0, 86400)), dur: round(clampN(t.dur, 3, 0.1, 3600)),
       x: clampN(t.x, 0.5, -0.5, 1.5), y: clampN(t.y, 0.82, -0.5, 1.5), size: clampN(t.size, 0.07, 0.01, 0.5),
       color: HEXC.test(t.color || "") ? t.color : "#ffffff", box: !!t.box, boxColor: HEXC.test(t.boxColor || "") ? t.boxColor : "#000000",
-      boxOpacity: clampN(t.boxOpacity, 0.55, 0, 1), outline: t.outline !== false };
+      boxOpacity: clampN(t.boxOpacity, 0.55, 0, 1), outline: t.outline !== false, track: trackOf(t.track) };
   }
   function patch(item, changes) { var o = {}, k; for (k in item) o[k] = item[k]; for (k in changes) o[k] = changes[k]; return o; }
   function trimText(t, edge, delta) {
@@ -164,7 +167,7 @@
   function cleanAudio(a) {
     a = a || {};
     return { id: String(a.id || uid("m")).slice(0, 40), asset: String(a.asset), "in": round(Math.max(0, Number(a["in"]) || 0)), out: round(Math.max(0, Number(a.out) || 0)),
-      start: round(clampN(a.start, 0, 0, 86400)), vol: clampN(a.vol, -10, -60, 24), fi: clampN(a.fi, 0, 0, 60), fo: clampN(a.fo, 0, 0, 60), duck: !!a.duck };
+      start: round(clampN(a.start, 0, 0, 86400)), vol: clampN(a.vol, -10, -60, 24), fi: clampN(a.fi, 0, 0, 60), fo: clampN(a.fo, 0, 0, 60), duck: !!a.duck, track: trackOf(a.track) };
   }
   function trimAudio(a, edge, delta, assetDur) {            // the picture of the sound stays where it is: trimming the left edge moves the start with it
     if (edge === "left") { var ni = clampN(a["in"] + delta, a["in"], 0, a.out - 0.2); return patch(a, { "in": round(ni), start: round(a.start + (ni - a["in"])) }); }
@@ -184,9 +187,34 @@
   function cleanOverlay(o) {          // same limits as clean_overlay_fields() in editor/project.py
     o = o || {};
     return { id: String(o.id || uid("o")).slice(0, 40), asset: String(o.asset), "in": round(Math.max(0, Number(o["in"]) || 0)), out: round(Math.max(0, Number(o.out) || 0)),
-      start: round(clampN(o.start, 0, 0, 86400)), tf: cleanTf(o.tf || { s: 0.4, x: 0.27, y: -0.27 }), op: clampN(o.op, 1, 0, 1), sound: !!o.sound, vol: clampN(o.vol, 0, -60, 24) };
+      start: round(clampN(o.start, 0, 0, 86400)), tf: cleanTf(o.tf || { s: 0.4, x: 0.27, y: -0.27 }), op: clampN(o.op, 1, 0, 1), sound: !!o.sound, vol: clampN(o.vol, 0, -60, 24), track: trackOf(o.track) };
   }
   function activeOverlays(list, t) { return list.filter(function (o) { return t >= o.start && t < audioEnd(o); }); }
+  // ---- shapes (coloured backing for text, bars, frames) and scenes (items that move together)
+  function newShape(start, dur, id) {
+    return { id: id || uid("s"), kind: "rounded", start: round(Math.max(0, start || 0)), dur: dur || 3, x: 0.5, y: 0.82, w: 0.7, h: 0.14,
+      color: "#000000", op: 0.6, radius: 0.3, track: 0 };
+  }
+  function cleanShape(s) {          // same limits as clean_shape() in editor/project.py
+    s = s || {};
+    return { id: String(s.id || uid("s")).slice(0, 40), kind: SHAPE_KINDS.indexOf(s.kind) >= 0 ? s.kind : "rect",
+      start: round(clampN(s.start, 0, 0, 86400)), dur: round(clampN(s.dur, 3, 0.1, 3600)),
+      x: clampN(s.x, 0.5, -0.5, 1.5), y: clampN(s.y, 0.5, -0.5, 1.5), w: clampN(s.w, 0.5, 0.02, 3), h: clampN(s.h, 0.2, 0.02, 3),
+      color: HEXC.test(s.color || "") ? s.color : "#000000", op: clampN(s.op, 0.6, 0, 1), radius: clampN(s.radius, 0.25, 0, 0.5), track: trackOf(s.track) };
+  }
+  function activeShapes(list, t) { return list.filter(function (x) { return t >= x.start && t < x.start + x.dur; }); }
+  function newScene(start, dur, name, items, id) {
+    return { id: id || uid("sc"), name: name || "Scene", start: round(Math.max(0, start || 0)), dur: round(dur || 3), color: "#8b6cf0", items: items || [], track: 0 };
+  }
+  function cleanScene(s) {
+    s = s || {};
+    return { id: String(s.id || uid("sc")).slice(0, 40), name: String(s.name == null ? "Scene" : s.name).replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "").slice(0, 60),
+      start: round(clampN(s.start, 0, 0, 86400)), dur: round(clampN(s.dur, 3, 0.1, 3600)), color: HEXC.test(s.color || "") ? s.color : "#8b6cf0",
+      items: (Array.isArray(s.items) ? s.items : []).map(function (i) { return String(i).slice(0, 40); }).slice(0, 400), track: trackOf(s.track) };
+  }
+  // an item's time window, whatever kind it is (texts and shapes use start+dur, audio and overlays use in/out)
+  function span(item) { return item.dur != null ? [item.start, item.start + item.dur] : [item.start, item.start + (item.out - item["in"])]; }
+  function shiftItem(item, delta) { return patch(item, { start: round(Math.max(0, item.start + delta)) }); }
   function activeText(texts, t) { return texts.filter(function (x) { return t >= x.start && t < x.start + x.dur; }); }
   function activeAudio(audios, t) { return audios.filter(function (a) { return t >= a.start && t < audioEnd(a); }); }
 
@@ -204,7 +232,8 @@
     deleteRange: deleteRange, subtractRanges: subtractRanges, applySilence: applySilence, trim: trim, move: move, dropIndex: dropIndex,
     insertAt: insertAt, forExport: forExport, createHistory: createHistory, round: round,
     newText: newText, cleanText: cleanText, trimText: trimText, newAudio: newAudio, cleanAudio: cleanAudio, trimAudio: trimAudio,
-    audioDur: audioDur, audioEnd: audioEnd, audioGain: audioGain, activeText: activeText, newOverlay: newOverlay, cleanOverlay: cleanOverlay, activeOverlays: activeOverlays, activeAudio: activeAudio, patch: patch,
+    audioDur: audioDur, audioEnd: audioEnd, audioGain: audioGain, activeText: activeText, trackOf: trackOf, cleanTracks: cleanTracks, MAX_TRACKS: MAX_TRACKS, TRACK_KINDS: TRACK_KINDS, SHAPE_KINDS: SHAPE_KINDS,
+    newShape: newShape, cleanShape: cleanShape, activeShapes: activeShapes, newScene: newScene, cleanScene: cleanScene, span: span, shiftItem: shiftItem, newOverlay: newOverlay, cleanOverlay: cleanOverlay, activeOverlays: activeOverlays, activeAudio: activeAudio, patch: patch,
     ASPECTS: ASPECTS, SHORTS: SHORTS, canvasSize: canvasSize, cleanTf: cleanTf, fgRect: fgRect, fillScale: fillScale, isDefaultTf: isDefaultTf };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.VETimeline = api;
 })(typeof window !== "undefined" ? window : this);

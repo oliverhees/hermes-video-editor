@@ -18,10 +18,10 @@ from ..core.validate import get_num
 from . import jobs as jobs_mod
 from . import project as project_mod
 from . import toolrun
-from .security import MEDIA_EXTS, default_roots, inside, safe_dir, safe_media_file
+from .security import MEDIA_EXTS, default_roots, inside, safe_dir, safe_image_file, safe_media_file
 
 WEB = Path(__file__).resolve().parent / "web"
-STATIC = {"app.js": "text/javascript; charset=utf-8", "timeline.js": "text/javascript; charset=utf-8", "layers.js": "text/javascript; charset=utf-8", "overlays.js": "text/javascript; charset=utf-8", "help.js": "text/javascript; charset=utf-8",
+STATIC = {"app.js": "text/javascript; charset=utf-8", "timeline.js": "text/javascript; charset=utf-8", "layers.js": "text/javascript; charset=utf-8", "overlays.js": "text/javascript; charset=utf-8", "tracks.js": "text/javascript; charset=utf-8", "shapes.js": "text/javascript; charset=utf-8", "scenes.js": "text/javascript; charset=utf-8", "pick.js": "text/javascript; charset=utf-8", "help.js": "text/javascript; charset=utf-8",
           "app.css": "text/css; charset=utf-8"}
 DOCS = Path(__file__).resolve().parents[1] / "docs"
 HELP_DOCS = {"/help/en.md": DOCS / "en" / "GUIDE.md", "/help/de.md": DOCS / "de" / "GUIDE.md"}
@@ -141,6 +141,16 @@ def api_silence(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
     return res["info"]
 
 
+def api_mkdir(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
+    """Create one new folder inside a folder the editor may access (used by the folder picker)."""
+    name = str(body.get("name") or "").strip()
+    if not name or name in (".", "..") or any(c in name for c in '/\\:*?"<>|\x00') or name.startswith("."):
+        raise ToolError("Folder names cannot be empty, start with a dot or contain / \\ : * ? \" < > |")
+    parent = safe_dir(body.get("parent"), srv.roots)
+    target = safe_dir(str(parent / name), srv.roots, create=True)
+    return {"ok": True, "path": str(target)}
+
+
 def api_project_save(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
     saved = project_mod.save_project(body.get("path"), body.get("project"), srv.roots)
     jobs_mod.remember(Path(saved), "project")
@@ -162,9 +172,10 @@ def api_tool(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
 def api_export(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
     if body.get("clips") is not None:                       # timeline export
         body = dict(body, clips_info=project_mod.sanitize_clips(body["clips"], srv.roots), cuts=[],
-                    canvas=project_mod.sanitize_canvas(body.get("canvas")), bg=project_mod.sanitize_bg(body.get("bg")),
+                    canvas=project_mod.sanitize_canvas(body.get("canvas")), bg=project_mod.sanitize_bg(body.get("bg"), srv.roots),
                     texts=project_mod.sanitize_texts(body.get("texts")), audios_info=project_mod.sanitize_audios(body.get("audios"), srv.roots),
-                    overlays_info=project_mod.sanitize_overlays(body.get("overlays"), srv.roots))
+                    overlays_info=project_mod.sanitize_overlays(body.get("overlays"), srv.roots),
+                    shapes=project_mod.sanitize_shapes(body.get("shapes")))
         src = Path(body["clips_info"][0]["path"])
         default_dir = Path(api_config(srv)["videos_dir"]) if inside(str(src), [str(jobs_mod.UPLOAD_DIR)]) else src.parent
     else:
@@ -369,6 +380,8 @@ def make_handler(srv: EditorServer):
                 self._json(api_recent(srv, first("kind")))
             elif route == "/api/media":
                 self._serve_file(safe_media_file(first("path"), srv.roots))
+            elif route == "/api/image":                                # a picture used as the background
+                self._serve_file(safe_image_file(first("path"), srv.roots))
             elif route == "/api/cache":
                 cid, name = first("id") or "", first("name") or ""
                 if not HASH_RE.match(cid) or name not in CACHE_FILES:
@@ -408,6 +421,8 @@ def make_handler(srv: EditorServer):
                 self._json(api_export(srv, body))
             elif route == "/api/tool":
                 self._json(api_tool(srv, body))
+            elif route == "/api/mkdir":
+                self._json(api_mkdir(srv, body))
             elif route == "/api/project/save":
                 self._json(api_project_save(srv, body))
             else:

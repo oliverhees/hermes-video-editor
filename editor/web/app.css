@@ -61,7 +61,7 @@ background:#000c;color:var(--text)}
 #time{font:12px ui-monospace,monospace;color:var(--muted)}
 .spacer{flex:1}
 #timeline{grid-area:tl;background:var(--panel);border-top:1px solid var(--line);min-width:0}
-#tl-scroll{height:100%;overflow-x:auto;overflow-y:hidden;position:relative}
+#tl-scroll{height:100%;overflow-x:auto;overflow-y:auto;position:relative}
 #track{position:relative;height:100%;min-width:100%}
 #ruler{position:absolute;left:0;top:0;height:26px}
 .lane{position:absolute;left:0;right:0}
@@ -120,7 +120,6 @@ details.adv{margin:10px 0;color:var(--muted)}details.adv summary{cursor:pointer}
 .clip:hover .h,.clip.sel .h{background:color-mix(in srgb,var(--accent) 70%,transparent)}
 #drop-ind{position:absolute;top:26px;height:72px;width:3px;margin-left:-1px;background:var(--accent);border-radius:2px;pointer-events:none}
 #drop-ind[hidden]{display:none}
-#mark-range{top:26px;height:308px}
 #stage video{position:absolute;inset:0;width:100%;height:100%;background:#000}
 #header-spacer{flex:1}
 .row .btn{white-space:nowrap;padding:6px 6px}
@@ -157,10 +156,6 @@ background:color-mix(in srgb,var(--accent) 14%,var(--panel2));box-shadow:inset 0
 .hero .list{text-align:left}
 .empty-mode #stage,.empty-mode #transport{display:none}
 
-#texts{top:176px;height:30px;background:color-mix(in srgb,var(--panel2) 70%,transparent);border-radius:6px}
-#audios{top:212px;height:62px;background:color-mix(in srgb,var(--panel2) 70%,transparent);border-radius:6px}
-#awave{top:212px;height:62px;pointer-events:none}
-#ovs{top:282px;height:34px;background:color-mix(in srgb,var(--panel2) 70%,transparent);border-radius:6px}
 .oitem{position:absolute;top:3px;bottom:3px;border-radius:6px;cursor:grab;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:11px;line-height:28px;padding:0 10px;border:2px solid transparent;user-select:none;background:color-mix(in srgb,var(--accent) 55%,var(--bg));color:var(--text)}
 .oitem.sel{border-color:var(--text)}
 .oitem .h{position:absolute;top:0;bottom:0;width:8px;cursor:ew-resize;background:transparent}
@@ -203,3 +198,24 @@ input[type=color]{width:100%;min-width:36px;height:32px;padding:2px;background:v
 .help-body code{font:12px ui-monospace,monospace;background:var(--deep);border:1px solid var(--line);border-radius:4px;padding:0 4px}
 .help-body a{color:var(--accent)}
 #brand .soon{display:block;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);font-size:11px;color:var(--muted)}
+
+/* tracks: any number of rows per kind */
+.trow{position:absolute;left:0;right:0;background:color-mix(in srgb,var(--panel2) 70%,transparent);border-radius:6px}
+.trow.lane-scene{background:color-mix(in srgb,var(--panel2) 45%,transparent)}
+#awave{pointer-events:none}
+.litem{position:absolute;top:3px;bottom:3px;border-radius:6px;cursor:grab;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:11px;line-height:24px;padding:0 10px;border:2px solid transparent;user-select:none}
+.litem .h{position:absolute;top:0;bottom:0;width:8px;cursor:ew-resize;background:transparent}
+.litem .h.l{left:0}.litem .h.r{right:0}
+.litem:hover .h,.litem.sel .h{background:color-mix(in srgb,var(--accent) 70%,transparent)}
+.litem.sel{border-color:var(--text)}
+.sitem{background:color-mix(in srgb,var(--accent) 30%,var(--bg));color:var(--text)}
+.scitem{background:color-mix(in srgb,var(--accent) 45%,var(--bg));color:var(--text);line-height:20px;font-weight:600}
+.oitem{line-height:28px}
+.aitem{line-height:16px;padding-top:2px}
+#sgizmo{position:absolute;border:2px dashed var(--accent);cursor:move;border-radius:3px}
+#sgizmo[hidden]{display:none}
+#tabs{flex-wrap:wrap}
+#tabs button{flex:1 0 auto;padding:8px 6px}
+#add-track{max-width:120px;font-size:12px;padding:4px 6px}
+#in-bgcolor2{flex:0 0 44px;height:34px;padding:2px;background:var(--panel2);border:1px solid var(--line);border-radius:8px}
+#sc-name{width:100%}

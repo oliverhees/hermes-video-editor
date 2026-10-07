@@ -138,7 +138,7 @@ def test_text_and_audio_items(tmp_path):
     assert.ok(typeof c.id === 'string' && c.id.length > 0)
     delete c.id
     assert.deepStrictEqual(c, {text: 'a'.repeat(500), start: 0, dur: 0.1, x: 1.5, y: 0.82, size: 0.5, color: '#ffffff', box: true,
-      boxColor: '#000000', boxOpacity: 1, outline: true})
+      boxColor: '#000000', boxOpacity: 1, outline: true, track: 0})
     assert.strictEqual(T.cleanText({id:'k', text:'x', outline:false}).outline, false)
     // trimming
     let a = T.trimText(t, 'left', 1)                                   // start moves, end stays
@@ -154,7 +154,7 @@ def test_text_and_audio_items(tmp_path):
     assert.strictEqual(T.trimAudio(m, 'right', 5, 10).out, 10); assert.strictEqual(T.trimAudio(m, 'right', -99, 10).out, 0.2)
     assert.strictEqual(T.trimAudio(m, 'left', 99, 10).in, 9.8)
     assert.deepStrictEqual(T.cleanAudio({id:'z', asset: 'a', in: -3, out: 5, vol: 99, fi: -1, fo: 999, start: -1, duck: 1}),
-      {id:'z', asset:'a', in:0, out:5, start:0, vol:24, fi:0, fo:60, duck:true})
+      {id:'z', asset:'a', in:0, out:5, start:0, vol:24, fi:0, fo:60, duck:true, track:0})
     // gain: -6 dB, 1 s fades
     const g = T.patch(m, {vol: -6, fi: 1, fo: 1})
     assert.ok(Math.abs(T.audioGain(g, 8) - 0.5012) < 1e-3)              // middle
@@ -175,4 +175,20 @@ def test_overlay_items(tmp_path):
     assert.deepStrictEqual(T.cleanOverlay({asset: 'a', in: 0, out: 1}).tf, {s: 0.4, x: 0.27, y: -0.27})
     assert.strictEqual(T.activeOverlays([o], 2.4).length, 0); assert.strictEqual(T.activeOverlays([o], 3).length, 1); assert.strictEqual(T.activeOverlays([o], 8.6).length, 0)
     const t = T.trimAudio(o, 'left', 1, 6); assert.strictEqual(t.in, 1); assert.strictEqual(t.start, 3.5)
+    """, tmp_path)
+
+
+def test_shapes_scenes_and_tracks(tmp_path):
+    run("""
+    const s = T.cleanShape({kind: 'star', x: 9, w: 0, color: 'red', op: 7, track: 99, dur: 0})
+    assert.strictEqual(s.kind, 'rect'); assert.strictEqual(s.x, 1.5); assert.strictEqual(s.w, 0.02); assert.strictEqual(s.color, '#000000')
+    assert.strictEqual(s.op, 1); assert.strictEqual(s.track, 11); assert.strictEqual(s.dur, 0.1)
+    assert.deepStrictEqual(T.cleanTracks({text: 99, audio: 0, bogus: 3}), {scene: 1, shape: 1, text: 12, overlay: 1, audio: 1})
+    const sh = T.newShape(2, 3, 'x'); assert.strictEqual(sh.start, 2); assert.strictEqual(sh.kind, 'rounded')
+    assert.strictEqual(T.activeShapes([sh], 1.9).length, 0); assert.strictEqual(T.activeShapes([sh], 4).length, 1); assert.strictEqual(T.activeShapes([sh], 5).length, 0)
+    const sc = T.cleanScene({name: 'In\\u0000tro', items: [1, 'b'], start: -1})
+    assert.strictEqual(sc.name, 'Intro'); assert.deepStrictEqual(sc.items, ['1', 'b']); assert.strictEqual(sc.start, 0)
+    assert.deepStrictEqual(T.span({start: 1, dur: 2}), [1, 3]); assert.deepStrictEqual(T.span({start: 1, in: 0, out: 3}), [1, 4])
+    assert.strictEqual(T.shiftItem({start: 0.5, dur: 1}, -2).start, 0)                      // never before zero
+    assert.strictEqual(T.cleanText({track: 5}).track, 5); assert.strictEqual(T.cleanAudio({asset: 'a', track: -3}).track, 0); assert.strictEqual(T.cleanOverlay({asset: 'a', track: 2}).track, 2)
     """, tmp_path)

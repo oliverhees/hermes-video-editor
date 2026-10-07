@@ -14,9 +14,11 @@ Der Editor verändert nie deine Originaldateien. Jeder Export erzeugt eine neue 
 
 | Bereich | Was es ist |
 |---|---|
-| Links | Tabs: **Edit, Picture, Text, Overlay, Sound, Tools, Export** |
-| Mitte | Vorschau deiner Leinwand. Bild, Text oder Overlay direkt hier ziehen |
-| Unten | Zeitleiste: Clips, Wellenform, Spur **Text**, Spur **Audio**, Spur **Overlay** |
+| Links | Tabs: **Edit, Picture, Text, Shape, Overlay, Sound, Scene, Tools, Export** |
+| Mitte | Vorschau deiner Leinwand. **Klicke auf das, was du siehst** (Text, Form, Video obendrauf oder Clip), um es auszuwählen, dann ziehen |
+| Unten | Zeitleiste: Clips und Wellenform, darunter Spuren für **Scene, Text, Overlay, Shape und Audio** |
+
+**Spuren.** Jede Art kann mehrere Spuren haben. So legst du mehrere Texte, Formen, Videos oder Töne übereinander: Ein neues Element kommt auf die erste freie Spur, und das Menü **Tracks...** über der Zeitleiste fügt eine Spur hinzu oder entfernt sie. Ziehe ein Element nach oben oder unten, um die Spur zu wechseln. Eine höhere Spur liegt weiter vorn. Reihenfolge von hinten nach vorn: Video, Formen, Videos obendrauf, Texte.
 
 ## 3. Schneiden (Tab Edit)
 
@@ -33,7 +35,7 @@ Der Editor verändert nie deine Originaldateien. Jeder Export erzeugt eine neue 
 ## 4. Bild (Tab Picture)
 
 - **Leinwand**: 16:9, 9:16, 1:1, 4:5 oder automatisch, plus Auflösung. Die Ausgabe hat genau diese Größe.
-- **Hintergrund** hinter Bildern, die die Leinwand nicht füllen: unscharfe Kopie, Schwarz oder eine Farbe.
+- **Hintergrund** hinter Bildern, die die Leinwand nicht füllen (zum Beispiel wenn du das Video kleiner machst oder 9:16 nutzt): unscharfe Kopie, Schwarz, eine Farbe, ein Verlauf von oben nach unten oder **ein eigenes Bild**.
 - **Position und Größe jedes Clips**: Clip auswählen, dann in der Vorschau ziehen, mit dem Mausrad zoomen, oder die Regler und **Fit / Fill / Center / Reset** nutzen.
   Teile einen Clip zuerst, um jeden Teil anders zu platzieren (z. B. wenn sich die Person bewegt).
   **Fill** lässt einen 16:9-Clip eine 9:16-Leinwand ausfüllen.
@@ -53,6 +55,15 @@ Eine zweite Videospur über dem Hauptbild: Reaktions-Clip, Logo-Animation, B-Rol
 1. Abspielkopf setzen, **Add text at the playhead** klicken und tippen.
 2. Größe, Farbe, Umriss und Box. Vorlagen: **Title, Lower third, Caption**.
 3. Text in der Vorschau ziehen. In der Spur **Text** verschieben, an den Rändern ändern, wie lange er sichtbar ist.
+4. Mehrere Texte nacheinander: den nächsten an einer späteren Position des Abspielkopfs hinzufügen. Mehrere zur selben Zeit liegen auf getrennten Spuren.
+
+### Formen
+
+Im Tab **Shape** fügst du ein farbiges Rechteck, eine abgerundete Box oder eine Ellipse für ein Zeitfenster hinzu: ein Hintergrund unter einer Zeile (**Caption bar**), eine **Card**, einen **Circle** oder ein **Full colour**-Feld. Farbe, Deckkraft, Breite, Höhe und Rundung einstellen, in der Vorschau ziehen, mit dem Mausrad skalieren. Text auf einer höheren Spur steht vor der Form.
+
+### Szenen
+
+Eine Szene bündelt Texte, Formen, Videos obendrauf und Töne. Bereich mit **I** und **O** markieren (oder den Abspielkopf auf das erste Element setzen), den Tab **Scene** öffnen und **Bundle items into a scene** klicken. Ziehst du die Szene in ihrer Spur, wandert alles darin mit. **Copy scene** dupliziert sie samt Inhalt, **Ungroup** behält die Elemente, der rote Knopf löscht sie mit. Die Hauptclips gehören nicht zu einer Szene.
 
 ## 7. Ton (Tab Sound)
 
@@ -64,8 +75,8 @@ Eine zweite Videospur über dem Hauptbild: Reaktions-Clip, Logo-Animation, B-Rol
 ## 8. Export und Projekte (Tab Export)
 
 - **Voreinstellung** (Reels, TikTok, Shorts, YouTube, X, Discord), Tempo, Lautheit und Ausgabeordner wählen, dann **Export**.
-  Ohne Ordner landet die Datei neben dem Original (hineingezogene Dateien landen in `~/Videos`).
-- **Save** / **Save as** speichern ein `.vproj.json`-Projekt (Clips, Leinwand, Texte, Audio, Overlays). **Open project** holt es zurück.
+  Klicke das Ordnerfeld (oder **Choose...**), um deine Ordner zu durchsuchen und einen neuen anzulegen. Ohne Ordner landet die Datei neben dem Original (hineingezogene Dateien landen in `~/Videos`).
+- **Save** / **Save as** speichern ein `.vproj.json`-Projekt (Clips, Leinwand, Hintergrund, Texte, Formen, Szenen, Spuren, Audio, Overlays). Der Speichern-Dialog startet neben deinem Video und kann Ordner anlegen. **Open project** holt es zurück.
 
 ## 9. Alle Werkzeuge (Tab Tools)
 
@@ -85,7 +96,7 @@ Nachschlagewerk: [Werkzeug-Referenz](TOOLS.md).
 | Leertaste | Abspielen / Pause |
 | S | Am Abspielkopf teilen |
 | I / O / X | Anfang setzen / Ende setzen / Bereich entfernen |
-| Entf | Gewählten Clip, Text, Ton oder Overlay löschen |
+| Entf | Gewählten Clip, Text, Form, Szene, Ton oder Overlay löschen |
 | Links / Rechts | Ein Bild zurück / vor (mit Umschalt: eine Sekunde) |
 | Hoch / Runter | Voriger / nächster Schnittpunkt |
 | Pos1 / Ende | Anfang / Ende |
@@ -97,7 +108,7 @@ Nachschlagewerk: [Werkzeug-Referenz](TOOLS.md).
 - Die Vorschau ist eine schnelle Kopie in niedriger Auflösung. Der Export nutzt deine Original-Qualität.
 - Die Vorschau spielt kein Ducking ab und kann Ton nicht lauter machen als die Quelle. Der Export kann beides.
 - Text sieht in der Vorschau etwas anders aus als im Export (andere Schrift).
-- Texte, Overlays und Audio-Elemente liegen auf festen Zeiten. Schneidest du danach die Hauptclips, verschiebe sie von Hand.
+- Texte, Formen, Overlays und Audio-Elemente liegen auf festen Zeiten. Schneidest du danach die Hauptclips, verschiebe sie von Hand (oder bündle sie in einer Szene und verschiebe diese).
 - Die Vorschau braucht H.264- oder VP8-Wiedergabe in der Browser-Engine der App. Schneiden und Export gehen auch ohne.
 
 ## 12. Probleme lösen

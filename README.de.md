@@ -1,6 +1,6 @@
 [🇬🇧 English](README.md) · **🇩🇪 Deutsch**
 
-**🚧 STATUS: BETA v0.2**
+**🚧 STATUS: BETA v0.3**
 
 ![Video Editor](docs/banner.png)
 
@@ -54,8 +54,8 @@ Es gibt dem Hermes-Agenten 45 präzise FFmpeg-Werkzeuge und dir einen visuellen 
 
 - **45 Werkzeuge** für den Agenten: prüfen, schneiden und Zeit, Bild, Overlays und Text, Ton, Export und Prüfung.
 - **Visueller Editor** in Hermes Desktop: Videos hineinziehen, teilen, löschen, umsortieren, kürzen, Stille entfernen, Rückgängig/Wiederholen.
-- **Leinwand** 16:9, 9:16, 1:1, 4:5 mit unscharfem, schwarzem oder farbigem Hintergrund; jeden Clip frei positionieren und skalieren (ein 16:9-Clip passt in eine 9:16-Leinwand, du rahmst neu, wenn sich die Person bewegt).
-- **Ebenen**: eine **Video-Overlay-Spur** (Bild-in-Bild), eine **Textebene** und eine **Audiospur** (Musik oder Sprecher mit Ein-/Ausblenden und Ducking).
+- **Leinwand** 16:9, 9:16, 1:1, 4:5 mit unscharfem, schwarzem oder farbigem Hintergrund; jeden Clip frei positionieren und skalieren (ein 16:9-Clip passt in eine 9:16-Leinwand, du rahmst neu, wenn sich die Person bewegt), mit unscharfem, schwarzem, farbigem, Verlauf- oder Bild-Hintergrund.
+- **Ebenen auf beliebig vielen Spuren**: **Video-Overlays** (Bild-in-Bild), **Text**, **Formen** (Farbboxen, Balken, Karten, Ellipsen), **Audio** (Musik oder Sprecher mit Ein-/Ausblenden und Ducking) und **Szenen**, die Elemente bündeln, damit sie zusammen wandern. Klicke in der Vorschau auf das, was du siehst, um es auszuwählen und zu ziehen.
 - **Wellenform**, Vorschaubilder, Projekte (`.vproj.json`), Export-Voreinstellungen für Reels, TikTok, Shorts, YouTube, X und Discord sowie eine Plattform-Regelprüfung.
 - **Folgt deinem Hermes-Theme** (hell/dunkel und Akzentfarbe).
 - **100 % lokal**: keine Cloud, kein API-Key, keine Telemetrie. Originale bleiben unberührt.
@@ -109,7 +109,10 @@ python scripts/editor.py my-video.mp4    # mit vorgeladener Datei
 | Schneiden | `S` teilen, `Entf` Clip löschen (Lücke schließt sich), `I` `O` `X` Bereich entfernen, Ränder ziehen zum Kürzen, Clips ziehen zum Umsortieren, `Strg+Z` rückgängig |
 | Stille entfernen | Tab *Edit* -> **Remove silences** |
 | Leinwand, Hintergrund, Position, Größe | Tab *Picture*; Bild in der Vorschau ziehen, Mausrad zoomt, **Fit / Fill / Center / Reset** |
-| **Video obendrauf** | Tab *Overlay*: zweite Videospur über dem Bild (Position, Größe, Deckkraft, eigener Ton) |
+| **Video obendrauf** | Tab *Overlay*: Videos über dem Bild (Position, Größe, Deckkraft, eigener Ton), beliebig viele Spuren |
+| **Formen** | Tab *Shape*: Rechteck, abgerundete Box, Ellipse, Caption bar, Card, Farbfeld (Farbe, Deckkraft, Größe, Zeit) |
+| **Szenen** | Tab *Scene*: Texte, Formen, Videos und Töne bündeln; Szene ziehen, alles wandert mit |
+| **Spuren** | Menü *Tracks...* über der Zeitleiste: Spuren hinzufügen oder entfernen; Elemente zwischen Spuren hoch und runter ziehen |
 | **Text** | Tab *Text*: Größe, Farbe, Umriss, Box, Vorlagen (Title, Lower third, Caption); in der Vorschau ziehen |
 | **Musik / Sprecher** | Tab *Sound*: Lautstärke, Ein-/Ausblenden, Startzeit, **Ducking** (Musik wird leiser, solange das Video spricht) |
 | Eines der 45 Werkzeuge | Tab *Tools*: jedes Werkzeug als Formular |

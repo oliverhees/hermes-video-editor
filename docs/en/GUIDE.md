@@ -14,9 +14,11 @@ The editor never changes your original files. Every export creates a new file.
 
 | Area | What it is |
 |---|---|
-| Left | Tabs: **Edit, Picture, Text, Overlay, Sound, Tools, Export** |
-| Centre | Preview of your canvas. Drag the picture, text or overlay right here |
-| Bottom | Timeline: clips, waveform, **Text** lane, **Audio** lane, **Overlay** lane |
+| Left | Tabs: **Edit, Picture, Text, Shape, Overlay, Sound, Scene, Tools, Export** |
+| Centre | Preview of your canvas. **Click what you see** (a text, a shape, a video on top or the clip) to select it, then drag it |
+| Bottom | Timeline: clips and waveform, then lanes for **Scene, Text, Overlay, Shape and Audio** |
+
+**Tracks.** Every lane can have several tracks. Put several texts, shapes, videos or sounds on top of each other: a new item goes to the first free track, and the **Tracks...** menu above the timeline adds or removes a track. Drag an item up or down to change its track. A higher track is in front. Order from back to front: video, shapes, videos on top, texts.
 
 ## 3. Cut (tab Edit)
 
@@ -33,7 +35,7 @@ The editor never changes your original files. Every export creates a new file.
 ## 4. Picture (tab Picture)
 
 - **Canvas**: 16:9, 9:16, 1:1, 4:5 or auto, plus the resolution. The output has exactly this size.
-- **Background** behind pictures that do not fill the canvas: blurred copy, black or a colour.
+- **Background** behind pictures that do not fill the canvas (for example when you make the video smaller or use 9:16): blurred copy, black, one colour, a gradient from top to bottom, or **a picture of your own**.
 - **Position and size of each clip**: select a clip, then drag it in the preview, use the mouse wheel, or the sliders and **Fit / Fill / Center / Reset**.
   Split a clip first to place each part differently (for example when the speaker moves).
   **Fill** makes a 16:9 clip cover a 9:16 canvas.
@@ -53,6 +55,15 @@ A second video track above the main picture: reaction clip, logo animation, b-ro
 1. Move the playhead and click **Add text at the playhead**, then type.
 2. Size, colour, outline and box. Presets: **Title, Lower third, Caption**.
 3. Drag the text in the preview. On the **Text** lane drag it to move, drag its edges to change how long it is visible.
+4. Several texts one after another: add the next one at a later playhead position. Several at the same time land on separate tracks.
+
+### Shapes
+
+The **Shape** tab adds a coloured rectangle, rounded box or ellipse for a time window: a backing under a caption (**Caption bar**), a **Card**, a **Circle** or a **Full colour** field. Set colour, opacity, width, height and roundness, drag it in the preview, use the mouse wheel to resize. Text on a higher track is shown in front of the shape.
+
+### Scenes
+
+A scene bundles texts, shapes, videos on top and sounds. Mark a range with **I** and **O** (or put the playhead on the first item), open the **Scene** tab and click **Bundle items into a scene**. Drag the scene on its lane and everything inside moves along. **Copy scene** duplicates it with its items, **Ungroup** keeps the items, the red button deletes them too. The main clips are not part of a scene.
 
 ## 7. Sound (tab Sound)
 
@@ -64,8 +75,8 @@ A second video track above the main picture: reaction clip, logo animation, b-ro
 ## 8. Export and projects (tab Export)
 
 - Choose a **preset** (Reels, TikTok, Shorts, YouTube, X, Discord), speed, loudness and the output folder, then **Export**.
-  Without a folder the file goes next to the original (dropped files go to `~/Videos`).
-- **Save** / **Save as** write a `.vproj.json` project (clips, canvas, texts, audio, overlays). **Open project** brings it back.
+  Click the folder field (or **Choose...**) to browse your folders and create a new one. Without a folder the file goes next to the original (dropped files go to `~/Videos`).
+- **Save** / **Save as** write a `.vproj.json` project (clips, canvas, background, texts, shapes, scenes, tracks, audio, overlays). The save dialog starts next to your video and can create folders. **Open project** brings it back.
 
 ## 9. Tools (tab Tools)
 
@@ -85,7 +96,7 @@ Reference: [Tool reference](TOOLS.md).
 | Space | Play / pause |
 | S | Split at the playhead |
 | I / O / X | Set in / set out / remove the range |
-| Delete | Delete the selected clip, text, audio or overlay |
+| Delete | Delete the selected clip, text, shape, scene, audio or overlay |
 | Left / Right | One frame back / forward (with Shift: one second) |
 | Up / Down | Previous / next cut point |
 | Home / End | Start / end |
@@ -97,7 +108,7 @@ Reference: [Tool reference](TOOLS.md).
 - The preview is a fast low-resolution copy. The export uses your original quality.
 - The preview does not play ducking and cannot make audio louder than the source. The export does both.
 - Text looks slightly different in the preview than in the export (different font).
-- Texts, overlays and audio items sit at fixed times. If you cut the main clips afterwards, move them by hand.
+- Texts, shapes, overlays and audio items sit at fixed times. If you cut the main clips afterwards, move them by hand (or bundle them in a scene and move that).
 - The preview needs H.264 or VP8 playback in the app's browser engine. Cutting and export work without it.
 
 ## 12. Troubleshooting
