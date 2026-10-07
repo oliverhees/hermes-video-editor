@@ -71,7 +71,7 @@ class Proc:
 
 
 def run_binary(binary: str, args: List[str], timeout_s: float, check: bool = True) -> Proc:
-    """subprocess.run with a list (never shell=True); kills the process on timeout."""
+    """subprocess.run with an argument list (never through a shell); kills the process on timeout."""
     cmd = [find_binary(binary)] + [str(a) for a in args]
     try:
         cp = subprocess.run(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,

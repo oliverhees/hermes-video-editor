@@ -67,7 +67,9 @@ def test_output_never_equals_input(tmp_path):
 @pytest.mark.parametrize("name", ["a b.srt", "it's.srt", "a:b.srt", "a,b[1];c=d.srt", "ünï äö.srt"])
 def test_escape_works_in_real_ffmpeg(tmp_path, name):
     """Real ffmpeg must accept the escaped path inside a subtitles filter."""
-    import shutil, subprocess
+    import shutil, subprocess, sys
+    if sys.platform.startswith("win") and ":" in name:
+        pytest.skip("':' is not allowed in Windows file names")
     if not shutil.which("ffmpeg"):
         pytest.skip("ffmpeg not installed")
     filters = subprocess.run(["ffmpeg", "-hide_banner", "-filters"], capture_output=True, text=True).stdout

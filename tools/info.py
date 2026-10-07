@@ -10,6 +10,7 @@ from typing import Any, Dict, List
 import re
 
 from ..core.ffmpeg import INSTALL_HINT, Job, probe, run_ffmpeg, tool_handler
+from ..core.fonts import resolve_font
 from ..core.paths import resolve_input
 from ..core.result import ToolError, fail
 from ..core.spec import ToolSpec
@@ -37,6 +38,7 @@ def media_doctor(args: Dict[str, Any]) -> Any:
     info: Dict[str, Any] = {
         "ffmpeg": ffmpeg, "ffprobe": ffprobe, "python": sys.version.split()[0],
         "platform": platform.platform(),
+        "font_for_text_overlays": resolve_font() or "none found (FFmpeg/fontconfig default will be used)",
         "faster_whisper_installed": importlib.util.find_spec("faster_whisper") is not None,
     }
     if not ffmpeg or not ffprobe:
