@@ -37,7 +37,7 @@ def ffprobe(path):
     data = json.loads(out)
     v = next((s for s in data["streams"] if s["codec_type"] == "video"), None)
     a = next((s for s in data["streams"] if s["codec_type"] == "audio"), None)
-    return {"duration": float(data["format"]["duration"]), "video": v, "audio": a}
+    return {"duration": float(data["format"].get("duration") or 0), "video": v, "audio": a}
 
 
 def sha(path):
@@ -63,11 +63,19 @@ def media(tmp_path_factory):
     odd = d / "odd.mp4"        # odd dimensions (needs yuv444p for libx264)
     _ff("-f", "lavfi", "-i", "testsrc=duration=2:size=321x241:rate=25",
         "-c:v", "libx264", "-pix_fmt", "yuv444p", odd)
+    gap = d / "gap.mp4"        # 4 s, tone with digital silence from 1.0 s to 2.5 s
+    _ff("-f", "lavfi", "-i", "testsrc=duration=4:size=320x240:rate=25",
+        "-f", "lavfi", "-i", "sine=frequency=500:duration=4",
+        "-af", "volume=enable='between(t,1,2.5)':volume=0", *enc, gap)
+    other = d / "other.mp4"    # different size/fps/audio rate than clip.mp4 -> forces re-encode join
+    _ff("-f", "lavfi", "-i", "testsrc2=duration=2:size=480x270:rate=30",
+        "-f", "lavfi", "-i", "sine=frequency=300:duration=2:sample_rate=44100", *enc, other)
     tricky_dir = d / "mein Ordner ünï"
     tricky_dir.mkdir()
     tricky = tricky_dir / "clip äöü.mp4"
     shutil.copy(clip, tricky)
-    return {"dir": d, "clip": clip, "silent": silent, "odd": odd, "tricky": tricky}
+    return {"dir": d, "clip": clip, "silent": silent, "odd": odd, "tricky": tricky,
+            "gap": gap, "other": other}
 
 
 @pytest.fixture
