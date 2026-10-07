@@ -30,6 +30,7 @@
 - [Der visuelle Editor](#-der-visuelle-editor)
 - [Oder einfach mit Hermes reden](#-oder-einfach-mit-hermes-reden)
 - [Die 42 Werkzeuge](#-die-42-werkzeuge)
+- [KI-Erzeugung mit Kie.ai (kommt bald)](#-optional-ki-erzeugung-mit-kieai-kommt-bald)
 - [Dokumentation](#-dokumentation)
 - [Wie sich jedes Werkzeug verhält](#-wie-sich-jedes-werkzeug-verhält)
 - [Problemlösung](#-problemlösung)
@@ -141,6 +142,15 @@ Das Plugin bringt einen Skill mit, der dem Agenten die richtige Reihenfolge beib
 | **D. Overlays & Text (6)** | `lk_add_text` `lk_burn_captions` `lk_add_image_overlay` `lk_picture_in_picture` `lk_stack_videos` `lk_blur_region` |
 | **E. Ton (8)** | `lk_extract_audio` `lk_replace_audio` `lk_mix_music` `lk_normalize_loudness` `lk_sync_audio_offset` `lk_adjust_volume` `lk_fade_audio` `lk_denoise_audio` |
 | **F. Export & Prüfung (6)** | `lk_export_preset` `lk_platform_check` `lk_compress_to_size` `lk_to_gif` `lk_contact_sheet` `lk_transcribe_captions` |
+
+## 🤖 Optional: KI-Erzeugung mit Kie.ai (kommt bald)
+
+Der Editor selbst bleibt frei von jedem KI-Dienst. Geplant ist ein **separates, optionales Plugin**, das den Editor mit [Kie.ai](https://kie.ai) verbindet: Video-Szenen, Bilder und Ton per Prompt erzeugen (Seitenverhältnis, Thema und Modell wählbar) und als Ebenen in den Editor legen: Overlays, Übergänge, Ton, Sprecher.
+
+- **Noch nicht verfügbar.** Es gibt weder ein Veröffentlichungsdatum noch einen Link; das hier ist nur eine Ankündigung.
+- Es wird ein **eigenes Plugin**, das du bewusst installierst. Dieses Plugin nimmt nie Kontakt zu Kie.ai auf.
+- Kie.ai ist ein Drittanbieter: Du brauchst **dein eigenes Konto und einen API-Key**, die Kosten der Erzeugung stellt Kie.ai in Rechnung.
+- Falls dieses Plugin einmal einen Empfehlungs- (Affiliate-)Link enthält, ist er **klar gekennzeichnet und freiwillig** und wird nie automatisch geöffnet.
 
 ## 📚 Dokumentation
 

@@ -819,3 +819,16 @@ def test_browser_open_project_differs_from_add_clip(media, tmp_path):
         b.close()
         p.stop()
         srv.stop()
+
+
+def test_kie_announcement_is_neutral_and_everywhere():
+    import re
+    texts = {n: (ROOT / n).read_text(encoding="utf-8") for n in ("README.md", "README.de.md", "docs/en/GUIDE.md", "docs/de/GUIDE.md", "editor/web/index.html")}
+    for name, t in texts.items():
+        assert "Kie.ai" in t, name
+    for name in ("README.md", "README.de.md"):
+        assert "coming soon" in texts[name].lower() or "kommt bald" in texts[name].lower()
+    for name, t in texts.items():                                  # only the plain homepage, no referral/affiliate parameters
+        for url in re.findall(r"https?://[^\s)\"']*kie\.ai[^\s)\"']*", t):
+            assert url.rstrip("/") == "https://kie.ai", (name, url)
+    assert "kie.ai" not in (ROOT / "desktop" / "plugin.js").read_text(encoding="utf-8").lower()   # the page never talks to it

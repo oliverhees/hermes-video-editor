@@ -114,4 +114,8 @@ Nachschlagewerk: [Werkzeug-Referenz](TOOLS.md).
 Läuft lokal. Der Editor hört nur auf `127.0.0.1` und liest nur Mediendateien unterhalb deines Home-Ordners. Er macht keine ausgehenden Netzwerkaufrufe.
 Lizenz: [PolyForm Noncommercial 1.0.0](../../LICENSE): frei für private, schulische, Forschungs- und andere nicht-kommerzielle Nutzung. Kommerzielle Nutzung braucht eine eigene Lizenz: Kontakt über [Lokyy.de](https://lokyy.de).
 
+## 14. Bald: KI-Erzeugung mit Kie.ai
+
+Geplant ist ein separates, optionales Plugin, mit dem du über [Kie.ai](https://kie.ai) Video-Szenen, Bilder und Ton per Prompt erzeugst und als Ebenen in diesen Editor legst. Es ist **noch nicht verfügbar**, und dieser Editor nimmt von sich aus nie Kontakt zu Kie.ai auf. Du bräuchtest ein eigenes Kie.ai-Konto und einen API-Key, und Kie.ai stellt die Erzeugung in Rechnung. Ein Empfehlungslink in diesem Plugin wäre klar gekennzeichnet und freiwillig.
+
 Powered by [Lokyy.de](https://lokyy.de), German Hermes Engineering.

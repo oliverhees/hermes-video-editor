@@ -202,3 +202,4 @@ input[type=color]{width:100%;min-width:36px;height:32px;padding:2px;background:v
 .help-body th{background:var(--panel2)}
 .help-body code{font:12px ui-monospace,monospace;background:var(--deep);border:1px solid var(--line);border-radius:4px;padding:0 4px}
 .help-body a{color:var(--accent)}
+#brand .soon{display:block;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);font-size:11px;color:var(--muted)}
