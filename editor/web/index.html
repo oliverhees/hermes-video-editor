@@ -21,6 +21,7 @@
     <nav id="tabs">
       <button data-tab="cuts" class="on">Edit</button>
       <button data-tab="picture">Picture</button>
+      <button data-tab="text">Text</button>
       <button data-tab="sound">Sound</button>
       <button data-tab="tools">All tools</button>
       <button data-tab="export">Export</button>
@@ -90,12 +91,51 @@
       <select id="in-speed"></select>
     </section>
 
+    <section data-pane="text" class="pane">
+      <button id="btn-text-add" class="btn primary wide">Add text at the playhead</button>
+      <p id="tx-none" class="muted">Texts appear on the picture for the time you choose. Click a text on the timeline to edit it.</p>
+      <div id="tx-edit" hidden>
+        <h3>Text</h3>
+        <textarea id="tx-text" rows="3" placeholder="Your text"></textarea>
+        <h3>Look</h3>
+        <label class="field">Size <span id="v-txsize">7%</span><input id="tx-size" type="range" min="2" max="30" step="0.5" value="7"></label>
+        <div class="row ctl" style="flex-wrap:wrap;gap:8px 12px">
+          <label class="mini">Colour <input id="tx-color" type="color" value="#ffffff"></label>
+          <label class="check"><input id="tx-outline" type="checkbox" checked> Outline</label>
+          <label class="check"><input id="tx-box" type="checkbox"> Box <input id="tx-boxcolor" type="color" value="#000000" title="Box colour"></label>
+        </div>
+        <h3>Position</h3>
+        <div class="row">
+          <button id="tx-p-title" class="btn" title="Big, centred">Title</button>
+          <button id="tx-p-lower" class="btn" title="Lower third">Lower third</button>
+          <button id="tx-p-caption" class="btn" title="Bottom caption">Caption</button>
+        </div>
+        <p class="muted">Or drag the text on the preview (mouse wheel changes the size).</p>
+        <h3>Timing (seconds)</h3>
+        <div class="row ctl"><label class="mini">Start <input id="tx-start" type="number" min="0" step="0.1"></label><label class="mini">Length <input id="tx-dur" type="number" min="0.1" step="0.1"></label></div>
+        <div class="row" style="margin-top:10px"><button id="btn-text-dup" class="btn">Copy</button><button id="btn-text-del" class="btn danger">Delete</button></div>
+      </div>
+    </section>
+
     <section data-pane="sound" class="pane">
       <h3>Loudness</h3>
       <label class="check"><input id="in-loud" type="checkbox"> Normalize loudness (EBU R128)</label>
       <label class="field">Target <span id="v-lufs">-14 LUFS</span>
         <input id="in-lufs" type="range" min="-24" max="-9" step="1" value="-14"></label>
       <p class="muted">-14 LUFS suits Reels, TikTok, Shorts and YouTube. Use -16 for podcasts.</p>
+      <h3>Audio track (music, voice-over)</h3>
+      <button id="btn-audio-add" class="btn wide">Add audio at the playhead&hellip;</button>
+      <p id="au-none" class="muted">Any audio file (or a video with sound). Move it on the audio lane, drag its edges to trim.</p>
+      <div id="au-edit" hidden>
+        <div id="au-name" class="muted"></div>
+        <label class="field">Volume <span id="v-auvol">-10 dB</span><input id="au-vol" type="range" min="-40" max="12" step="1" value="-10"></label>
+        <label class="field">Fade in <span id="v-aufi">0 s</span><input id="au-fi" type="range" min="0" max="10" step="0.5" value="0"></label>
+        <label class="field">Fade out <span id="v-aufo">1 s</span><input id="au-fo" type="range" min="0" max="10" step="0.5" value="1"></label>
+        <label class="check"><input id="au-duck" type="checkbox" checked> Lower it while the video speaks (ducking)</label>
+        <div class="row ctl"><label class="mini">Start (s) <input id="au-start" type="number" min="0" step="0.1"></label></div>
+        <p class="muted">The preview plays the sound but not the ducking; the export applies it. Boosts above 0 dB are only heard in the export.</p>
+        <button id="btn-audio-del" class="btn danger wide">Delete this audio</button>
+      </div>
     </section>
 
     <section data-pane="tools" class="pane">
@@ -131,6 +171,7 @@
   <main id="stage-wrap">
     <div id="stage"><video id="video" playsinline preload="auto"></video><video id="video2" playsinline preload="auto"></video>
       <canvas id="stage-canvas"></canvas>
+      <div id="tgizmo" hidden></div>
       <div id="gizmo" hidden><b class="gh" data-corner="nw"></b><b class="gh" data-corner="ne"></b><b class="gh" data-corner="sw"></b><b class="gh" data-corner="se"></b></div>
       <div id="overlay" class="overlay" hidden></div>
     </div>
@@ -171,6 +212,9 @@
         <canvas id="ruler"></canvas>
         <div id="clips" class="lane"></div>
         <canvas id="wave" class="lane"></canvas>
+        <div id="texts" class="lane"><span class="lane-label">Text</span></div>
+        <canvas id="awave" class="lane"></canvas>
+        <div id="audios" class="lane"><span class="lane-label">Audio</span></div>
         <div id="mark-range" hidden></div>
         <div id="drop-ind" hidden></div>
         <div id="playhead"></div>
@@ -194,5 +238,6 @@
 </div>
 <script src="/static/timeline.js"></script>
 <script src="/static/app.js"></script>
+<script src="/static/layers.js"></script>
 </body>
 </html>
