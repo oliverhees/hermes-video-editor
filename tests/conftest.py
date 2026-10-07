@@ -75,12 +75,14 @@ def media(tmp_path_factory):
         "-vf", "noise=alls=60:allf=t+u", "-c:v", "libx264", "-crf", "14", "-pix_fmt", "yuv420p", "-c:a", "aac", noisy)
     fast = d / "fast.mp4"      # 60 fps for fps-cap tests
     _ff("-f", "lavfi", "-i", "testsrc=duration=1:size=320x180:rate=60", "-c:v", "libx264", "-pix_fmt", "yuv420p", fast)
+    rotated = d / "rotated.mp4"  # stored 640x360 with a 90 degree display rotation (phone footage)
+    _ff("-display_rotation:v", "90", "-i", clip, "-c", "copy", rotated)
     tricky_dir = d / "mein Ordner ünï"
     tricky_dir.mkdir()
     tricky = tricky_dir / "clip äöü.mp4"
     shutil.copy(clip, tricky)
     return {"dir": d, "clip": clip, "silent": silent, "odd": odd, "tricky": tricky,
-            "gap": gap, "other": other, "noisy": noisy, "fast": fast}
+            "gap": gap, "other": other, "noisy": noisy, "fast": fast, "rotated": rotated}
 
 
 @pytest.fixture

@@ -19,7 +19,7 @@ COMMON_PROPERTIES: Dict[str, Dict[str, Any]] = {
     "overwrite": {"type": "boolean", "default": False,
                   "description": "Replace an existing output file instead of adding a _1/_2 suffix."},
     "timeout_s": {"type": "integer", "minimum": 1, "default": 600,
-                  "description": "Kill FFmpeg after this many seconds. Default 600."},
+                  "description": "Kill FFmpeg after this many seconds."},
 }
 
 SPECS: List[ToolSpec] = [*info.SPECS, *cut.SPECS, *picture.SPECS, *overlay.SPECS, *audio.SPECS, *export.SPECS]
