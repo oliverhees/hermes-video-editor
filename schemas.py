@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from .core.spec import ToolSpec
-from .tools import cut, info, picture
+from .tools import cut, info, overlay, picture
 
 TOOLSET = "video_editor"
 
@@ -22,7 +22,7 @@ COMMON_PROPERTIES: Dict[str, Dict[str, Any]] = {
                   "description": "Kill FFmpeg after this many seconds. Default 600."},
 }
 
-SPECS: List[ToolSpec] = [*info.SPECS, *cut.SPECS, *picture.SPECS]
+SPECS: List[ToolSpec] = [*info.SPECS, *cut.SPECS, *picture.SPECS, *overlay.SPECS]
 
 
 def build_schema(spec: ToolSpec) -> Dict[str, Any]:

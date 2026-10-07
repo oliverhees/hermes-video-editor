@@ -45,6 +45,18 @@ def vf_edit(args: Dict[str, Any], op: str, vf: Optional[str], af: Optional[str] 
     return job.done(op=op, **extra_info)
 
 
+def finish_vf(job: Job, args: Dict[str, Any], vf: str, af: Optional[str] = None,
+              **info: Any) -> Dict[str, Any]:
+    """Run an already-created Job with a plain -vf chain (+ optional -af)."""
+    ff = ["-i", str(job.src), "-map", "0:v:0", "-map", "0:a?", "-vf", vchain(vf)]
+    has_a = job.info["has_audio"]
+    if af and has_a:
+        ff += ["-af", af]
+    ff += encode_args(job.out.suffix.lower(), crf=crf_of(args), audio=has_a)
+    job.run(ff)
+    return job.done(**info)
+
+
 def display_size(info: Dict[str, Any]):
     v = info["video"]
     return v["display_width"], v["display_height"]
@@ -61,7 +73,8 @@ def path_prop(desc: str) -> Dict[str, Any]:
 
 
 def run_graph(job: Job, inputs: List[List[str]], graph: str, vlabel: Optional[str] = "[vo]",
-              alabel: Optional[str] = None, crf: int = 20, audio: Optional[bool] = None) -> None:
+              alabel: Optional[str] = None, crf: int = 20, audio: Optional[bool] = None,
+              out_opts: Optional[List[str]] = None) -> None:
     """Run a -filter_complex graph. inputs = list of full arg lists, e.g. [["-i", a], ["-stream_loop", "-1", "-i", b]].
     Audio: mapped from alabel when given, else from input 0 if it has audio (re-encoded to AAC)."""
     from pathlib import Path
@@ -79,5 +92,6 @@ def run_graph(job: Job, inputs: List[List[str]], graph: str, vlabel: Optional[st
             ff += ["-map", alabel]
         elif has_a:
             ff += ["-map", "0:a?"]
+        ff += list(out_opts or [])
         ff += encode_args(job.out.suffix.lower(), crf=crf, audio=has_a)
         job.run(ff)
