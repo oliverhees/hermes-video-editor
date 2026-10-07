@@ -6,4 +6,14 @@ license: MIT
 provides_tools:
   - ve_media_doctor
   - ve_media_probe
+  - ve_detect_silence
+  - ve_detect_scenes
+  - ve_extract_frame
   - ve_trim
+  - ve_split
+  - ve_join
+  - ve_remove_silence
+  - ve_remove_segments
+  - ve_change_speed
+  - ve_reverse
+  - ve_loop

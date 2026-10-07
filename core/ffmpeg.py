@@ -6,6 +6,7 @@ import json
 import re
 import shutil
 import subprocess
+import tempfile
 import time
 import traceback
 from fractions import Fraction
@@ -216,6 +217,8 @@ class Job:
         if need_audio and not self.info["has_audio"]:
             raise ToolError("Input has no audio stream.",
                             hint="This clip is silent; skip audio tools or add audio first (ve_replace_audio).")
+        if ext == "av":
+            ext = output_ext(self.src)
         self.out = plan_output(self.src, op, ext or self.src.suffix, args.get("output"),
                                args.get("output_dir"), self.overwrite)
 
@@ -251,6 +254,54 @@ class Job:
                 "has_audio": out_info.get("has_audio"), "size_bytes": out_info.get("size_bytes")}
         info.update(extra)
         return {"output": str(self.out), "duration_s": out_info.get("duration_s"), "info": info}
+
+
+# --------------------------------------------------------------------------- capabilities
+@functools.lru_cache(maxsize=None)
+def _listing(kind: str, binary_path: str) -> frozenset:
+    out = run_binary("ffmpeg", ["-hide_banner", "-" + kind], 60).stdout
+    names = set()
+    for line in out.splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and len(parts[0]) >= 2 and not line.startswith(("Encoders", "Filters", "-")):
+            names.add(parts[1])
+    return frozenset(names)
+
+
+def has_filter(name: str) -> bool:
+    return name in _listing("filters", find_binary("ffmpeg"))
+
+
+def has_encoder(name: str) -> bool:
+    return name in _listing("encoders", find_binary("ffmpeg"))
+
+
+def require_filter(name: str, what: str) -> None:
+    if not has_filter(name):
+        raise ToolError("This FFmpeg build has no '%s' filter (needed for %s)." % (name, what),
+                        hint="Install a full FFmpeg build (with libass/libfreetype). Run ve_media_doctor.")
+
+
+def filter_complex_args(graph: str, workdir: Path) -> List[str]:
+    """Pass long graphs through a script file so Windows' argv limit is not hit."""
+    if len(graph) < 12000:
+        return ["-filter_complex", graph]
+    script = workdir / "graph.txt"
+    script.write_text(graph, encoding="utf-8")
+    # '-/filter_complex file' exists from FFmpeg 7; older builds only know -filter_complex_script
+    flag = "-/filter_complex" if _major_version() >= 7 else "-filter_complex_script"
+    return [flag, str(script)]
+
+
+@functools.lru_cache(maxsize=None)
+def _major_version() -> int:
+    first = run_ffmpeg(["-version"], 30).stdout.splitlines()[:1]
+    m = re.search(r"version\s+[nN]?(\d+)", first[0]) if first else None
+    return int(m.group(1)) if m else 0
+
+
+def new_tempdir() -> "tempfile.TemporaryDirectory":
+    return tempfile.TemporaryDirectory(prefix="ve_")
 
 
 # --------------------------------------------------------------------------- handler wrapper
