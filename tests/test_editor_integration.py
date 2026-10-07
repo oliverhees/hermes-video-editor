@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import ROOT, needs_ffmpeg
+from conftest import ROOT, ffprobe, needs_ffmpeg
 from hermes_video_editor.editor import jobs as jobs_mod
 
 pytestmark = needs_ffmpeg
@@ -144,10 +144,10 @@ def test_powered_by_link_is_opened_by_the_desktop_page_for_the_frame_only(tmp_pa
 
 def test_powered_by_lokyy_link_in_editor_and_readme():
     html = (ROOT / "editor" / "web" / "index.html").read_text()
-    assert '<a id="powered" href="https://lokyy.de" target="_blank" rel="noopener noreferrer">Powered by lokyy.de</a>' in html
+    assert '<a id="powered" href="https://lokyy.de" target="_blank" rel="noopener noreferrer">Powered by Lokyy.de</a><span class="tag">German Hermes Engineering</span>' in html
     js = (ROOT / "editor" / "web" / "app.js").read_text()
     assert 'type: "ve-open-link"' in js
-    assert "Powered by [lokyy.de](https://lokyy.de)" in (ROOT / "README.md").read_text()
+    assert "Powered by [Lokyy.de](https://lokyy.de) - German Hermes Engineering" in (ROOT / "README.md").read_text()
 
 
 @pytest.mark.skipif(not NODE, reason="node is not installed")
@@ -181,56 +181,170 @@ def test_app_js_syntax():
 
 def test_no_inline_script_or_remote_assets_in_html():
     html = (ROOT / "editor" / "web" / "index.html").read_text()
-    link = '<a id="powered" href="https://lokyy.de" target="_blank" rel="noopener noreferrer">Powered by lokyy.de</a>'
+    link = '<a id="powered" href="https://lokyy.de" target="_blank" rel="noopener noreferrer">Powered by Lokyy.de</a><span class="tag">German Hermes Engineering</span>'
     assert link in html
     rest = html.replace(link, "")                                   # the only external address is the credit link
     assert "<script>" not in rest and "http://" not in rest and "https://" not in rest
 
 
 # ---------------------------------------------------------------- real browser (optional)
-def test_browser_end_to_end(media, tmp_path):
+def browser(pw_mod, viewport=(1500, 900)):
+    p = pw_mod.sync_playwright().start()
+    try:
+        b = p.chromium.launch()
+    except Exception as exc:  # noqa: BLE001
+        p.stop()
+        pytest.skip("no usable chromium: %s" % exc)
+    page = b.new_page(viewport={"width": viewport[0], "height": viewport[1]})
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    return p, b, page, errors
+
+
+def state(page, expr):
+    return page.evaluate("(() => { const s = window.__ve.state; const TL = window.__ve.TL; return %s })()" % expr)
+
+
+def wait_ready(page, n_clips=1):
+    page.wait_for_selector("#video[data-src]", state="attached", timeout=90000)
+    for _ in range(100):
+        if state(page, "s.clips.length") >= n_clips:
+            return
+        page.wait_for_timeout(100)
+    raise AssertionError("clips were not added")
+
+
+def add_clip_via_dialog(page, path):
+    page.click("#btn-open")
+    page.fill("#dlg-path", str(path))
+    page.press("#dlg-path", "Enter")
+
+
+def test_browser_timeline_edit_reorder_trim_undo_and_export(media, tmp_path):
     pw = pytest.importorskip("playwright.sync_api")
     from hermes_video_editor.editor.server import EditorServer
     srv = EditorServer(roots=[str(media["dir"]), str(tmp_path)])
+    p, b, page, errors = browser(pw)
     try:
-        with pw.sync_playwright() as p:
-            try:
-                browser = p.chromium.launch()
-            except Exception as exc:  # noqa: BLE001
-                pytest.skip("no usable chromium: %s" % exc)
-            page = browser.new_page(viewport={"width": 1500, "height": 880})
-            errors = []
-            page.on("pageerror", lambda e: errors.append(str(e)))
-            page.goto(srv.url(str(media["gap"])))
-            page.wait_for_selector("#video[data-src]", state="attached", timeout=90000)
-            page.wait_for_timeout(1500)
-            assert "gap.mp4" in page.inner_text("#file-chip")
-            page.click("#btn-silence")
-            page.wait_for_selector("#cuts-list .item", timeout=20000)
-            assert page.inner_text("#cut-count") == "1"
-            assert "Keeps" in page.inner_text("#summary")
-            # manual cut with the keyboard: mark 0.2 -> 0.6 and press X
-            page.evaluate("document.getElementById('video').currentTime = 0.2")
-            page.keyboard.press("i")
-            page.evaluate("document.getElementById('video').currentTime = 0.6")
-            page.keyboard.press("o")
-            page.keyboard.press("x")
-            assert page.inner_text("#cut-count") == "2"
-            page.click('#cuts-list .item >> nth=0 >> button[title="Remove this cut"]')   # remove the silence cut
-            assert page.inner_text("#cut-count") == "1"
-            page.click("#tabs button[data-tab=picture]")
-            page.select_option("#in-reframe", "crop_1x1")
-            assert page.is_visible("#frame-guide")
-            page.click("#tabs button[data-tab=export]")
-            page.select_option("#in-preset", "web_mp4")
-            page.fill("#in-outdir", str(tmp_path / "ui-out"))
-            page.click("#btn-export")
-            page.wait_for_selector("#result .ok", timeout=120000)
-            out = list((tmp_path / "ui-out").glob("*.mp4"))
-            assert len(out) == 1
-            assert not errors, errors
-            browser.close()
+        page.goto(srv.url(str(media["gap"])))                         # 4 s, silence from 1.0 to 2.5 s
+        wait_ready(page)
+        assert state(page, "s.clips.length") == 1 and abs(state(page, "TL.total(s.clips)") - 4) < 0.3
+        # split at 2 s with the keyboard, then delete the second half
+        page.evaluate("window.__ve.seek(2)")
+        page.keyboard.press("s")
+        assert state(page, "s.clips.length") == 2 and state(page, "s.sel") == 1
+        page.keyboard.press("Delete")
+        assert state(page, "s.clips.length") == 1 and abs(state(page, "TL.total(s.clips)") - 2) < 0.05
+        page.keyboard.press("Control+z")                              # undo the delete
+        assert state(page, "s.clips.length") == 2 and abs(state(page, "TL.total(s.clips)") - 4) < 0.05
+        page.keyboard.press("Control+Shift+z")                        # redo it
+        assert state(page, "s.clips.length") == 1
+        page.keyboard.press("Control+z")
+        # add a second file: it is inserted after the selected clip (the undo restored the selection on the 2nd half)
+        add_clip_via_dialog(page, media["other"])                     # 2 s, different size/fps/sample rate
+        for _ in range(100):
+            if state(page, "s.clips.length") == 3:
+                break
+            page.wait_for_timeout(100)
+        assert state(page, "s.clips.length") == 3
+        assert [state(page, "s.assets[s.clips[%d].asset].name" % i) for i in range(3)] == ["gap.mp4", "gap.mp4", "other.mp4"]
+        total_before = state(page, "TL.total(s.clips)")
+        assert total_before == pytest.approx(6, abs=0.35)
+        # reorder by dragging the 'other' clip (now the last one) to the very start
+        box = page.locator(".clip >> nth=2").bounding_box()
+        first = page.locator(".clip >> nth=0").bounding_box()
+        page.mouse.move(box["x"] + box["width"] / 2, box["y"] + 30)
+        page.mouse.down()
+        page.mouse.move(first["x"] + 6, box["y"] + 30, steps=8)
+        page.mouse.up()
+        assert [state(page, "s.assets[s.clips[%d].asset].name" % i) for i in range(3)] == ["other.mp4", "gap.mp4", "gap.mp4"]
+        # trim the right edge of the first clip by dragging its handle to the left
+        c0 = page.locator(".clip >> nth=0").bounding_box()
+        page.mouse.move(c0["x"] + c0["width"] - 3, c0["y"] + 30)
+        page.mouse.down()
+        page.mouse.move(c0["x"] + c0["width"] - 3 - 110, c0["y"] + 30, steps=6)
+        page.mouse.up()
+        after_trim = state(page, "TL.total(s.clips)")
+        assert after_trim < total_before - 0.2                        # ripple: the timeline got shorter
+        page.keyboard.press("Control+z")
+        assert state(page, "TL.total(s.clips)") == pytest.approx(total_before, abs=0.01)
+        # remove silences: the gap clips lose their silent middle
+        page.click("#tabs button[data-tab=cuts]")
+        page.click("#ruler", position={"x": 10, "y": 10})                # clicking the ruler deselects: silence removal then covers every clip
+        assert state(page, "s.sel") == -1
+        page.click("#btn-silence")
+        for _ in range(100):
+            if state(page, "s.clips.length") > 3:
+                break
+            page.wait_for_timeout(100)
+        assert state(page, "TL.total(s.clips)") < total_before - 1.0
+        # save the project, reload it from the file
+        page.click("#btn-saveas")
+        page.fill("#dlg-name", "demo timeline")
+        page.fill("#dlg-path", str(tmp_path))
+        page.press("#dlg-path", "Enter")
+        page.click("#dlg-usefolder")
+        saved = tmp_path / "demo timeline.vproj.json"
+        for _ in range(50):
+            if saved.exists():
+                break
+            page.wait_for_timeout(100)
+        assert saved.exists()
+        clips_now = state(page, "s.clips.length")
+        total_now = state(page, "TL.total(s.clips)")
+        # export what is on the timeline
+        page.click("#tabs button[data-tab=export]")
+        page.fill("#in-outdir", str(tmp_path / "timeline-export"))
+        page.click("#btn-export")
+        page.wait_for_selector("#result .ok", timeout=120000)
+        out = list((tmp_path / "timeline-export").glob("*.mp4"))
+        assert len(out) == 1 and ffprobe(out[0])["duration"] == pytest.approx(total_now, abs=0.5)
+        page2 = b.new_page(viewport={"width": 1500, "height": 900})
+        page2.on("pageerror", lambda e: errors.append(str(e)))
+        page2.goto(srv.url() + "&project=" + urllib.parse.quote(str(saved)))
+        for _ in range(100):
+            if state(page2, "s.clips.length") == clips_now:
+                break
+            page2.wait_for_timeout(100)
+        assert state(page2, "s.clips.length") == clips_now
+        assert state(page2, "TL.total(s.clips)") == pytest.approx(total_now, abs=0.01)
+        assert not errors, errors
     finally:
+        b.close()
+        p.stop()
+        srv.stop()
+
+
+def test_browser_playback_crosses_clip_boundaries(media):
+    pw = pytest.importorskip("playwright.sync_api")
+    from hermes_video_editor.editor.server import EditorServer
+    srv = EditorServer(roots=[str(media["dir"])])
+    p, b, page, errors = browser(pw)
+    try:
+        page.goto(srv.url(str(media["clip"])))
+        wait_ready(page)
+        add_clip_via_dialog(page, media["other"])
+        for _ in range(100):
+            if state(page, "s.clips.length") == 2:
+                break
+            page.wait_for_timeout(100)
+        # wait until both previews are ready, then play across the boundary at 4 s
+        for _ in range(300):
+            if state(page, "Object.values(s.assets).every(a => a.src)"):
+                break
+            page.wait_for_timeout(100)
+        page.evaluate("window.__ve.seek(3.2)")
+        page.click("#btn-play")
+        for _ in range(150):
+            if state(page, "s.t") > 4.6:
+                break
+            page.wait_for_timeout(100)
+        assert state(page, "s.t") > 4.6, "playback did not continue into the second clip"
+        page.click("#btn-play")                                       # pause
+        assert not errors, errors
+    finally:
+        b.close()
+        p.stop()
         srv.stop()
 
 
@@ -238,43 +352,38 @@ def test_browser_theme_empty_state_and_drop(media, tmp_path):
     pw = pytest.importorskip("playwright.sync_api")
     from hermes_video_editor.editor.server import EditorServer
     srv = EditorServer(roots=[str(media["dir"])])
+    p, b, page, errors = browser(pw, (1400, 800))
     try:
-        with pw.sync_playwright() as p:
-            try:
-                browser = p.chromium.launch()
-            except Exception as exc:  # noqa: BLE001
-                pytest.skip("no usable chromium: %s" % exc)
-            page = browser.new_page(viewport={"width": 1400, "height": 800})
-            errors = []
-            page.on("pageerror", lambda e: errors.append(str(e)))
-            # light theme + app colours arrive through the URL
-            page.goto(srv.url() + "&theme=light&bg=%23fafafa&fg=%23222222&accent=%230a7cff")
-            page.wait_for_selector("#empty", state="visible")
-            assert page.get_attribute("html", "data-theme") == "light"
-            body_bg = page.evaluate("getComputedStyle(document.body).backgroundColor")
-            assert body_bg == "rgb(250, 250, 250)", body_bg
-            assert page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()") == "#0a7cff"
-            # live theme change through postMessage is ignored unless it comes from the embedding page
-            page.evaluate("window.postMessage({type: 've-theme', theme: 'dark'}, '*')")
-            page.wait_for_timeout(200)
-            assert page.get_attribute("html", "data-theme") == "light"
-            # drop a file onto the window: it is copied in and loaded
-            page.evaluate("""async (url) => {
-                const blob = await (await fetch(url)).blob()
-                const dt = new DataTransfer()
-                dt.items.add(new File([blob], 'dropped one.mp4', { type: 'video/mp4' }))
-                window.dispatchEvent(new DragEvent('dragenter', { dataTransfer: dt, bubbles: true, cancelable: true }))
-                window.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }))
-            }""", "/api/media?t=%s&path=%s" % (srv.token, urllib.parse.quote(str(media["silent"]))))
-            page.wait_for_selector("#video[data-src]", state="attached", timeout=90000)
-            assert "dropped one.mp4" in page.inner_text("#file-chip")
-            assert page.is_hidden("#empty")
-            assert page.input_value("#in-outdir")                       # uploaded files default to the Videos folder
-            assert not errors, errors
-            browser.close()
+        page.goto(srv.url() + "&theme=light&bg=%23fafafa&fg=%23222222&accent=%230a7cff")   # light theme + app colours arrive through the URL
+        page.wait_for_selector("#empty", state="visible")
+        assert page.get_attribute("html", "data-theme") == "light"
+        assert page.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(250, 250, 250)"
+        assert page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()") == "#0a7cff"
+        page.evaluate("window.postMessage({type: 've-theme', theme: 'dark'}, '*')")             # ignored unless it comes from an embedding page
+        page.wait_for_timeout(200)
+        assert page.get_attribute("html", "data-theme") == "light"
+        # drop two files at once: both are copied in and appended to the timeline
+        page.evaluate("""async ([u1, u2]) => {
+            const dt = new DataTransfer()
+            for (const [u, n] of [[u1, 'dropped one.mp4'], [u2, 'dropped two.mp4']]) {
+                const blob = await (await fetch(u)).blob(); dt.items.add(new File([blob], n, { type: 'video/mp4' }))
+            }
+            window.dispatchEvent(new DragEvent('dragenter', { dataTransfer: dt, bubbles: true, cancelable: true }))
+            window.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }))
+        }""", ["/api/media?t=%s&path=%s" % (srv.token, urllib.parse.quote(str(media[k]))) for k in ("silent", "clip")])
+        for _ in range(300):
+            if state(page, "s.clips.length") == 2:
+                break
+            page.wait_for_timeout(100)
+        assert state(page, "s.clips.length") == 2
+        assert [state(page, "s.assets[s.clips[%d].asset].name" % i) for i in range(2)] == ["dropped one.mp4", "dropped two.mp4"]
+        assert page.is_hidden("#empty")
+        assert not errors, errors
     finally:
+        b.close()
+        p.stop()
         srv.stop()
-        for f in jobs_mod.UPLOAD_DIR.glob("dropped one*.mp4"):
+        for f in jobs_mod.UPLOAD_DIR.glob("dropped *.mp4"):
             f.unlink()
 
 
@@ -282,34 +391,34 @@ def test_browser_tools_tab_lists_all_42_and_runs_one(media, tmp_path):
     pw = pytest.importorskip("playwright.sync_api")
     from hermes_video_editor.editor.server import EditorServer
     srv = EditorServer(roots=[str(media["dir"]), str(tmp_path)])
+    p, b, page, errors = browser(pw, (1500, 900))
     try:
-        with pw.sync_playwright() as p:
-            try:
-                browser = p.chromium.launch()
-            except Exception as exc:  # noqa: BLE001
-                pytest.skip("no usable chromium: %s" % exc)
-            page = browser.new_page(viewport={"width": 1500, "height": 900})
-            errors = []
-            page.on("pageerror", lambda e: errors.append(str(e)))
-            page.goto(srv.url(str(media["clip"])))
-            page.wait_for_selector("#video[data-src]", state="attached", timeout=90000)
-            page.click("#tabs button[data-tab=tools]")
-            page.wait_for_selector(".tool-item")
-            assert page.locator(".tool-item").count() == 42
-            page.fill("#tool-search", "silence")
-            assert 2 <= page.locator(".tool-item").count() < 42                 # search filters the list
-            assert page.locator('.tool-item[data-tool="ve_detect_silence"]').count() == 1
-            assert page.locator('.tool-item[data-tool="ve_remove_silence"]').count() == 1
-            page.fill("#tool-search", "")
-            page.click('.tool-item[data-tool="ve_trim"]')
-            assert page.input_value("#tool-input").endswith("clip.mp4")          # current file is prefilled
-            page.fill("#tool-fields .fld:has(label:text-is('duration')) input", "1")
-            page.click("#tool-adv >> xpath=ancestor::details/summary")
-            page.fill("#tool-adv .fld:has(label:text-is('output dir')) input", str(tmp_path / "from-ui"))
-            page.click("#tool-run")
-            page.wait_for_selector("#tool-result .ok", timeout=60000)
-            assert len(list((tmp_path / "from-ui").glob("*.mp4"))) == 1
-            assert not errors, errors
-            browser.close()
+        page.goto(srv.url(str(media["clip"])))
+        wait_ready(page)
+        page.click("#tabs button[data-tab=tools]")
+        page.wait_for_selector(".tool-item")
+        assert page.locator(".tool-item").count() == 42
+        page.fill("#tool-search", "silence")
+        assert 2 <= page.locator(".tool-item").count() < 42
+        assert page.locator('.tool-item[data-tool="ve_detect_silence"]').count() == 1
+        assert page.locator('.tool-item[data-tool="ve_remove_silence"]').count() == 1
+        page.fill("#tool-search", "")
+        page.click('.tool-item[data-tool="ve_trim"]')
+        assert page.input_value("#tool-input").endswith("clip.mp4")          # the clip under the playhead is prefilled
+        page.fill("#tool-fields .fld:has(label:text-is('duration')) input", "1")
+        page.click("#tool-adv >> xpath=ancestor::details/summary")
+        page.fill("#tool-adv .fld:has(label:text-is('output dir')) input", str(tmp_path / "from-ui"))
+        page.click("#tool-run")
+        page.wait_for_selector("#tool-result .ok", timeout=60000)
+        assert len(list((tmp_path / "from-ui").glob("*.mp4"))) == 1
+        page.click("#tool-result button:has-text('Add result to timeline')")
+        for _ in range(100):
+            if state(page, "s.clips.length") == 2:
+                break
+            page.wait_for_timeout(100)
+        assert state(page, "s.clips.length") == 2
+        assert not errors, errors
     finally:
+        b.close()
+        p.stop()
         srv.stop()

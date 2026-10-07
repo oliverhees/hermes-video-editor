@@ -22,7 +22,7 @@ LIST_PATH_KEYS = {"inputs": "media"}
 READ_ONLY = {"ve_media_doctor", "ve_media_probe", "ve_detect_silence", "ve_detect_scenes", "ve_platform_check"}
 GROUPS = [("info", "Inspect"), ("cut", "Cut & time"), ("picture", "Picture"), ("overlay", "Overlays & text"),
           ("audio", "Audio"), ("export", "Export & check")]
-KIND_EXTS = {"media": MEDIA_EXTS, "image": IMAGE_EXTS | VIDEO_EXTS, "captions": CAPTION_EXTS, "font": FONT_EXTS,
+KIND_EXTS = {"project": {".json"}, "media": MEDIA_EXTS, "image": IMAGE_EXTS | VIDEO_EXTS, "captions": CAPTION_EXTS, "font": FONT_EXTS,
              "audio": AUDIO_EXTS}
 
 

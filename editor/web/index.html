@@ -10,13 +10,16 @@
 <div id="app">
   <header id="top">
     <div class="brand"><span class="dot"></span> Video Editor <small>local &middot; FFmpeg</small></div>
-    <div id="file-chip" class="chip" title="">No file</div>
-    <button id="btn-open" class="btn primary">Open file&hellip;</button>
+    <div id="file-chip" class="chip" title="">Untitled project</div>
+    <button id="btn-openproj" class="btn">Open project&hellip;</button>
+    <button id="btn-save" class="btn" title="Save project (Ctrl+S)">Save</button>
+    <button id="btn-saveas" class="btn">Save as&hellip;</button>
+    <button id="btn-open" class="btn primary">Add clip&hellip;</button>
   </header>
 
   <aside id="side">
     <nav id="tabs">
-      <button data-tab="cuts" class="on">Cuts</button>
+      <button data-tab="cuts" class="on">Edit</button>
       <button data-tab="picture">Picture</button>
       <button data-tab="sound">Sound</button>
       <button data-tab="tools">All tools</button>
@@ -24,23 +27,32 @@
     </nav>
 
     <section data-pane="cuts" class="pane on">
-      <h3>Mark &amp; cut</h3>
+      <h3>Clips</h3>
+      <div class="row">
+        <button id="btn-split" class="btn" title="Split at the playhead (S)">Split <kbd>S</kbd></button>
+        <button id="btn-del" class="btn danger" title="Delete the selected clip and close the gap (Delete)">Delete <kbd>Del</kbd></button>
+        <button id="btn-dup" class="btn" title="Duplicate the selected clip">Copy</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button id="btn-undo" class="btn" title="Undo (Ctrl+Z)">Undo</button>
+        <button id="btn-redo" class="btn" title="Redo (Ctrl+Shift+Z)">Redo</button>
+      </div>
+      <div id="clip-info" class="muted" style="margin-top:8px"></div>
+      <h3>Remove a range</h3>
       <div class="row">
         <button id="btn-in" class="btn" title="Set in point (I)">In <kbd>I</kbd></button>
         <button id="btn-out" class="btn" title="Set out point (O)">Out <kbd>O</kbd></button>
-        <button id="btn-cut" class="btn danger" title="Remove marked range (X)">Cut <kbd>X</kbd></button>
+        <button id="btn-cut" class="btn danger" title="Remove the marked range and close the gap (X)">Cut <kbd>X</kbd></button>
       </div>
-      <div id="marks" class="muted">No range marked. Press <kbd>I</kbd> and <kbd>O</kbd> at the playhead, or drag on the timeline with Shift.</div>
+      <div id="marks" class="muted">No range marked.</div>
       <h3>Silence</h3>
       <label class="field">Level <span id="v-noise">-35 dB</span>
         <input id="in-noise" type="range" min="-60" max="-15" step="1" value="-35"></label>
       <label class="field">Shortest silence <span id="v-minsil">0.5 s</span>
         <input id="in-minsil" type="range" min="0.2" max="3" step="0.1" value="0.5"></label>
-      <button id="btn-silence" class="btn wide">Find silences</button>
-      <h3>Cuts <span id="cut-count" class="badge">0</span></h3>
-      <div id="cuts-list" class="list"></div>
+      <button id="btn-silence" class="btn wide">Remove silences</button>
+      <p class="muted">Works on the selected clip, or on all clips if none is selected.</p>
       <div id="summary" class="muted"></div>
-      <label class="check"><input id="in-skip" type="checkbox" checked> Skip cuts in preview</label>
     </section>
 
     <section data-pane="picture" class="pane">
@@ -92,7 +104,7 @@
       <h3>Platform preset</h3>
       <select id="in-preset"></select>
       <h3>Save in folder</h3>
-      <input id="in-outdir" type="text" placeholder="Same folder as the video">
+      <input id="in-outdir" type="text" placeholder="Same folder as the first clip">
       <button id="btn-export" class="btn primary wide">Export</button>
       <div id="job" class="job" hidden>
         <div class="bar"><i id="job-bar"></i></div>
@@ -100,17 +112,18 @@
       </div>
       <div id="result" class="result" hidden></div>
     </section>
-    <div id="brand"><a id="powered" href="https://lokyy.de" target="_blank" rel="noopener noreferrer">Powered by lokyy.de</a></div>
+    <div id="brand"><a id="powered" href="https://lokyy.de" target="_blank" rel="noopener noreferrer">Powered by Lokyy.de</a><span class="tag">German Hermes Engineering</span></div>
   </aside>
 
   <main id="stage-wrap">
-    <div id="stage"><video id="video" playsinline preload="auto"></video><div id="frame-guide" hidden></div>
+    <div id="stage"><video id="video" playsinline preload="auto"></video><video id="video2" playsinline preload="auto"></video><div id="frame-guide" hidden></div>
       <div id="overlay" class="overlay" hidden></div>
       <div id="empty" class="overlay">
         <div class="empty-card">
-          <h2>Open a video to start</h2>
-          <button id="btn-open2" class="btn primary big">Open file&hellip;</button>
-          <div class="muted" style="color:#aab3c5">or drop a video file anywhere in this window</div>
+          <h2>Start a project</h2>
+          <button id="btn-open2" class="btn primary big">Add clip&hellip;</button>
+          <button id="btn-openproj2" class="btn">Open project&hellip;</button>
+          <div class="muted" style="color:#aab3c5">or drop video files anywhere in this window</div>
           <h4 id="recent-title" hidden>Recent</h4>
           <div id="recent" class="list"></div>
         </div>
@@ -129,10 +142,10 @@
     <div id="tl-scroll">
       <div id="track">
         <canvas id="ruler"></canvas>
-        <div id="thumbs" class="lane"></div>
+        <div id="clips" class="lane"></div>
         <canvas id="wave" class="lane"></canvas>
-        <div id="regions"></div>
         <div id="mark-range" hidden></div>
+        <div id="drop-ind" hidden></div>
         <div id="playhead"></div>
       </div>
     </div>
@@ -141,9 +154,10 @@
 
 <div id="modal" hidden>
   <div class="dialog">
-    <div class="dlg-head"><strong>Open a video</strong><button id="dlg-close" class="btn small">Close</button></div>
+    <div class="dlg-head"><strong id="dlg-title">Add a video</strong><button id="dlg-close" class="btn small">Close</button></div>
     <input id="dlg-path" type="text" placeholder="Folder or file path, then Enter">
-    <button id="dlg-usefolder" class="btn small" hidden>Use this folder</button>
+    <div class="row" style="margin-top:6px"><input id="dlg-name" type="text" placeholder="Project name" hidden>
+      <button id="dlg-usefolder" class="btn small" hidden>Use this folder</button></div>
     <div id="dlg-recent-title" class="sect" hidden>Recent</div>
     <div id="dlg-recent" class="list"></div>
     <div class="sect">Folders</div>
@@ -151,6 +165,7 @@
     <p id="dlg-err" class="err"></p>
   </div>
 </div>
+<script src="/static/timeline.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>

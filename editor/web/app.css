@@ -33,7 +33,7 @@ kbd{font:11px ui-monospace,monospace;background:var(--deep);border:1px solid var
 #tabs{display:flex;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:2}
 #tabs button{flex:1;background:none;border:0;border-bottom:2px solid transparent;padding:10px 2px;font-size:12px;color:var(--muted);cursor:pointer}
 #tabs button.on{color:var(--text);border-bottom-color:var(--accent)}
-.pane{display:none;padding:4px 14px 16px}.pane.on{display:block}
+.pane{display:none;padding:4px 14px 78px}.pane.on{display:block}
 h3{margin:16px 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);display:flex;align-items:center;gap:8px}
 .row{display:flex;gap:6px}.row .btn{flex:1}
 .muted{color:var(--muted);font-size:12px}
@@ -65,10 +65,8 @@ background:#000c;color:var(--text)}
 #track{position:relative;height:100%;min-width:100%}
 #ruler{position:absolute;left:0;top:0;height:26px}
 .lane{position:absolute;left:0;right:0}
-#thumbs{top:30px;height:72px;display:flex;background:var(--deep);border-radius:6px;overflow:hidden}
-#thumbs i{display:block;height:100%;background-repeat:no-repeat;flex:none}
+#clips{top:30px;height:72px;background:var(--deep);border-radius:6px}
 #wave{top:108px;width:100%;height:110px}
-#regions{position:absolute;left:0;top:30px;height:188px;right:0;pointer-events:none}
 .region{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(135deg,#ff5d6c55 0 6px,#ff5d6c22 6px 12px);
 border-left:2px solid var(--red);border-right:2px solid var(--red)}
 .region.sel{outline:2px solid var(--accent)}
@@ -115,3 +113,20 @@ details.adv{margin:10px 0;color:var(--muted)}details.adv summary{cursor:pointer}
 #brand{margin-top:auto;padding:10px 14px;border-top:1px solid var(--line);position:sticky;bottom:0;background:var(--panel);text-align:center}
 #brand a{color:var(--muted);text-decoration:none;font-size:12px}
 #brand a:hover{color:var(--accent);text-decoration:underline}
+#brand .tag{display:block;margin-top:2px;font-size:11px;color:var(--muted);opacity:.8}
+
+.clip{position:absolute;top:0;bottom:0;border-radius:6px;overflow:hidden;cursor:grab;border:2px solid transparent;background:color-mix(in srgb,var(--teal) 25%,var(--deep))}
+.clip i{position:absolute;top:0;bottom:0;background-repeat:no-repeat}
+.clip.sel{border-color:var(--accent)}
+.clip.missing{background:repeating-linear-gradient(135deg,#d12f4055 0 8px,#d12f4022 8px 16px);cursor:default}
+.clip .label{position:absolute;left:8px;top:4px;right:10px;font-size:11px;color:#fff;text-shadow:0 1px 3px #000c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.clip .h{position:absolute;top:0;bottom:0;width:9px;cursor:ew-resize;background:transparent}
+.clip .h.l{left:0}.clip .h.r{right:0}
+.clip:hover .h,.clip.sel .h{background:color-mix(in srgb,var(--accent) 70%,transparent)}
+#drop-ind{position:absolute;top:26px;height:80px;width:3px;margin-left:-1px;background:var(--accent);border-radius:2px;pointer-events:none}
+#drop-ind[hidden]{display:none}
+#mark-range{top:26px;height:196px}
+#stage video{position:absolute;inset:0;width:100%;height:100%;background:#000}
+#header-spacer{flex:1}
+.row .btn{white-space:nowrap;padding:6px 6px}
+.row kbd{margin-left:2px}
