@@ -136,6 +136,49 @@
   function fillScale(iw, ih, W, H) { return Math.max(W / iw, H / ih) / Math.min(W / iw, H / ih); }   // scale at which the picture covers the canvas
   function isDefaultTf(tf) { var t = cleanTf(tf); return t.s === 1 && t.x === 0 && t.y === 0; }
 
+  // ---- text layer and audio track: items on their own lanes, positioned in absolute timeline seconds
+  var HEXC = /^#[0-9a-fA-F]{6}$/;
+  function clampN(v, d, lo, hi) { v = Number(v); return isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; }
+  function newText(start, dur, id) {
+    return { id: id || uid("t"), text: "Your text", start: round(Math.max(0, start || 0)), dur: dur || 3, x: 0.5, y: 0.82, size: 0.07,
+      color: "#ffffff", box: false, boxColor: "#000000", boxOpacity: 0.55, outline: true };
+  }
+  function cleanText(t) {          // same limits as sanitize_texts() in editor/project.py
+    t = t || {};
+    return { id: String(t.id || uid("t")).slice(0, 40), text: String(t.text == null ? "" : t.text).slice(0, 500),
+      start: round(clampN(t.start, 0, 0, 86400)), dur: round(clampN(t.dur, 3, 0.1, 3600)),
+      x: clampN(t.x, 0.5, -0.5, 1.5), y: clampN(t.y, 0.82, -0.5, 1.5), size: clampN(t.size, 0.07, 0.01, 0.5),
+      color: HEXC.test(t.color || "") ? t.color : "#ffffff", box: !!t.box, boxColor: HEXC.test(t.boxColor || "") ? t.boxColor : "#000000",
+      boxOpacity: clampN(t.boxOpacity, 0.55, 0, 1), outline: t.outline !== false };
+  }
+  function patch(item, changes) { var o = {}, k; for (k in item) o[k] = item[k]; for (k in changes) o[k] = changes[k]; return o; }
+  function trimText(t, edge, delta) {
+    if (edge === "left") { var ns = clampN(t.start + delta, t.start, 0, t.start + t.dur - 0.2); return patch(t, { start: round(ns), dur: round(t.dur - (ns - t.start)) }); }
+    return patch(t, { dur: round(Math.max(0.2, t.dur + delta)) });
+  }
+  function newAudio(assetId, assetDur, start, id) {
+    return { id: id || uid("m"), asset: assetId, "in": 0, out: round(assetDur), start: round(Math.max(0, start || 0)), vol: -10, fi: 0, fo: 1, duck: true };
+  }
+  function audioDur(a) { return a.out - a["in"]; }
+  function audioEnd(a) { return a.start + audioDur(a); }
+  function cleanAudio(a) {
+    a = a || {};
+    return { id: String(a.id || uid("m")).slice(0, 40), asset: String(a.asset), "in": round(Math.max(0, Number(a["in"]) || 0)), out: round(Math.max(0, Number(a.out) || 0)),
+      start: round(clampN(a.start, 0, 0, 86400)), vol: clampN(a.vol, -10, -60, 24), fi: clampN(a.fi, 0, 0, 60), fo: clampN(a.fo, 0, 0, 60), duck: !!a.duck };
+  }
+  function trimAudio(a, edge, delta, assetDur) {            // the picture of the sound stays where it is: trimming the left edge moves the start with it
+    if (edge === "left") { var ni = clampN(a["in"] + delta, a["in"], 0, a.out - 0.2); return patch(a, { "in": round(ni), start: round(a.start + (ni - a["in"])) }); }
+    return patch(a, { out: round(clampN(a.out + delta, a.out, a["in"] + 0.2, assetDur == null ? Infinity : assetDur)) });
+  }
+  function audioGain(a, t) {                                // linear gain of an audio item at timeline time t (volume + fades), for the preview
+    var g = Math.pow(10, a.vol / 20), into = t - a.start, left = audioEnd(a) - t;
+    if (a.fi > 0 && into < a.fi) g *= Math.max(0, into / a.fi);
+    if (a.fo > 0 && left < a.fo) g *= Math.max(0, left / a.fo);
+    return g;
+  }
+  function activeText(texts, t) { return texts.filter(function (x) { return t >= x.start && t < x.start + x.dur; }); }
+  function activeAudio(audios, t) { return audios.filter(function (a) { return t >= a.start && t < audioEnd(a); }); }
+
   function createHistory(limit) {
     var past = [], future = [], max = limit || 100;
     return {
@@ -149,6 +192,8 @@
   var api = { MIN_CLIP: MIN_CLIP, MIN_PIECE: MIN_PIECE, uid: uid, layout: layout, total: total, at: at, split: split, removeIndex: removeIndex,
     deleteRange: deleteRange, subtractRanges: subtractRanges, applySilence: applySilence, trim: trim, move: move, dropIndex: dropIndex,
     insertAt: insertAt, forExport: forExport, createHistory: createHistory, round: round,
+    newText: newText, cleanText: cleanText, trimText: trimText, newAudio: newAudio, cleanAudio: cleanAudio, trimAudio: trimAudio,
+    audioDur: audioDur, audioEnd: audioEnd, audioGain: audioGain, activeText: activeText, activeAudio: activeAudio, patch: patch,
     ASPECTS: ASPECTS, SHORTS: SHORTS, canvasSize: canvasSize, cleanTf: cleanTf, fgRect: fgRect, fillScale: fillScale, isDefaultTf: isDefaultTf };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.VETimeline = api;
 })(typeof window !== "undefined" ? window : this);

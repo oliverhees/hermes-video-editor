@@ -10,8 +10,9 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
-from ..core.ffmpeg import (encode_args, filter_complex_args, probe, run_ffmpeg)
-from ..core.paths import plan_output
+from ..core.ffmpeg import (encode_args, filter_complex_args, probe, require_filter, run_ffmpeg)
+from ..core.fonts import resolve_font
+from ..core.paths import ff_escape_path, plan_output
 from ..core.result import ToolError
 from .security import inside, safe_dir, safe_media_file
 
@@ -93,6 +94,72 @@ def clean_tf(tf: Any) -> Dict[str, float]:
     return {"s": num(tf.get("s"), 1.0, 0.05, 10.0), "x": num(tf.get("x"), 0.0, -3.0, 3.0), "y": num(tf.get("y"), 0.0, -3.0, 3.0)}
 
 
+def _num(v: Any, default: float, lo: float, hi: float) -> float:
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return default
+    return default if math.isnan(f) or math.isinf(f) else max(lo, min(hi, f))
+
+
+def _hex(v: Any, default: str) -> str:
+    return v if isinstance(v, str) and COLOR_RE.match(v) else default
+
+
+CONTROL_RE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
+MAX_TEXTS, MAX_AUDIOS = 200, 50
+
+
+def clean_text(t: Any) -> Dict[str, Any]:
+    """One text on the picture. Limits are identical to cleanText() in editor/web/timeline.js."""
+    t = t if isinstance(t, dict) else {}
+    return {"id": str(t.get("id") or "t")[:40], "text": CONTROL_RE.sub("", str(t.get("text") if t.get("text") is not None else ""))[:500],
+            "start": _num(t.get("start"), 0.0, 0.0, 86400.0), "dur": _num(t.get("dur"), 3.0, 0.1, 3600.0),
+            "x": _num(t.get("x"), 0.5, -0.5, 1.5), "y": _num(t.get("y"), 0.82, -0.5, 1.5), "size": _num(t.get("size"), 0.07, 0.01, 0.5),
+            "color": _hex(t.get("color"), "#ffffff"), "box": bool(t.get("box")), "boxColor": _hex(t.get("boxColor"), "#000000"),
+            "boxOpacity": _num(t.get("boxOpacity"), 0.55, 0.0, 1.0), "outline": t.get("outline") is not False}
+
+
+def sanitize_texts(raw: Any) -> List[Dict[str, Any]]:
+    if raw is None:
+        return []
+    if not isinstance(raw, list) or len(raw) > MAX_TEXTS:
+        raise ToolError("'texts' must be a list with at most %d entries." % MAX_TEXTS)
+    return [c for c in (clean_text(t) for t in raw) if c["text"].strip()]
+
+
+def clean_audio_fields(a: Dict[str, Any]) -> Dict[str, Any]:
+    return {"start": _num(a.get("start"), 0.0, 0.0, 86400.0), "vol": _num(a.get("vol"), -10.0, -60.0, 24.0),
+            "fi": _num(a.get("fi"), 0.0, 0.0, 60.0), "fo": _num(a.get("fo"), 0.0, 0.0, 60.0), "duck": bool(a.get("duck"))}
+
+
+def sanitize_audios(raw: Any, roots: List[str]) -> List[Dict[str, Any]]:
+    """Audio items for rendering: [{path, in, out, start, vol, fi, fo, duck}] -> same plus probe info."""
+    if raw is None:
+        return []
+    if not isinstance(raw, list) or len(raw) > MAX_AUDIOS:
+        raise ToolError("'audios' must be a list with at most %d entries." % MAX_AUDIOS)
+    out, cache = [], {}
+    for i, a in enumerate(raw):
+        if not isinstance(a, dict):
+            raise ToolError("Audio item %d is invalid." % (i + 1))
+        path = str(safe_media_file(a.get("path"), roots))
+        if path not in cache:
+            cache[path] = probe(Path(path))
+        info = cache[path]
+        if not info["has_audio"]:
+            raise ToolError("Audio item %d (%s) has no sound." % (i + 1, os.path.basename(path)))
+        total = info["duration_s"] or 0
+        lo, hi = _num(a.get("in"), 0.0, 0.0, 86400.0), _num(a.get("out"), total, 0.0, 86400.0)
+        hi = min(hi, total) if total else hi
+        if hi - lo < 0.05:
+            raise ToolError("Audio item %d is shorter than 0.05 s." % (i + 1))
+        item = {"path": path, "in": lo, "out": hi, "info": info}
+        item.update(clean_audio_fields(a))
+        out.append(item)
+    return out
+
+
 def canvas_size(aspect: str, short: int, first_w: int = 1280, first_h: int = 720) -> Tuple[int, int]:
     if aspect not in ASPECTS:
         return _even(first_w), _even(first_h)
@@ -161,10 +228,76 @@ def video_chain(i: int, c: Dict[str, Any], W: int, H: int, fps: Any, d: float, b
             "[g%d][h%d]overlay=%d:%d:format=auto:shortest=0,%s[v%d]" % (i, i, ox, oy, tail, i)]
 
 
-def build_render_graph(clips: List[Dict[str, Any]], width: int, height: int, fps: float,
-                       bg: Any = None) -> Tuple[List[str], str, bool]:
-    """Pure: ffmpeg input args and a filter_complex that plays all clips back to back. Returns (inputs, graph, has_audio)."""
+def text_filters(texts: List[Dict[str, Any]], W: int, H: int, workdir: Path) -> str:
+    """drawtext chain for all texts (each in its own time window). Text goes through files: no escaping problems."""
+    from ..tools.overlay import enable_expr
+    if not texts:
+        return ""
+    require_filter("drawtext", "text on the timeline")
+    font = resolve_font()
+    chain = []
+    for i, t in enumerate(texts):
+        f = Path(workdir) / ("text%d.txt" % i)
+        f.write_text(t["text"], encoding="utf-8")
+        size = max(8, _jsround(t["size"] * H))
+        opts = ["textfile=%s" % ff_escape_path(f), "expansion=none", "fontsize=%d" % size, "fontcolor=%s" % t["color"],
+                "x=%d-text_w/2" % _jsround(t["x"] * W), "y=%d-text_h/2" % _jsround(t["y"] * H)]
+        if font:
+            opts.append("fontfile=%s" % ff_escape_path(font))
+        if t["outline"]:
+            opts += ["borderw=%d" % max(1, _jsround(size * 0.06)), "bordercolor=black"]
+        if t["box"]:
+            opts += ["box=1", "boxcolor=%s@%s" % (t["boxColor"], round(t["boxOpacity"], 3)), "boxborderw=%d" % max(6, size // 4)]
+        opts.append(enable_expr(t["start"], t["start"] + t["dur"]))
+        chain.append("drawtext=" + ":".join(opts))
+    return ",".join(chain)
+
+
+def audio_mix_parts(has_main: bool, audios: List[Dict[str, Any]], first_input: int) -> List[str]:
+    """Mix the audio items (volume, fades, start time) with the timeline's own sound [ac]; result label is [ao]."""
+    parts: List[str] = []
+    ducked = [j for j, a in enumerate(audios) if a["duck"]] if has_main else []
+    labels = []
+    for j, a in enumerate(audios):
+        d = a["out"] - a["in"]
+        chain = ["[%d:a:0]aresample=48000" % (first_input + j), "aformat=channel_layouts=stereo", "volume=%sdB" % round(a["vol"], 2)]
+        if a["fi"] > 0:
+            chain.append("afade=t=in:st=0:d=%s" % round(min(a["fi"], d), 3))
+        if a["fo"] > 0:
+            fo = min(a["fo"], d)
+            chain.append("afade=t=out:st=%.3f:d=%s" % (d - fo, round(fo, 3)))
+        ms = _jsround(a["start"] * 1000)
+        if ms > 0:
+            chain.append("adelay=%d|%d" % (ms, ms))
+        parts.append(",".join(chain) + "[m%d]" % j)
+    if ducked:
+        outs = "".join("[s%d]" % k for k in range(len(ducked)))
+        parts.append("[ac]asplit=%d[mn]%s" % (len(ducked) + 1, outs))
+        main = "[mn]"
+    else:
+        main = "[ac]"
+    k = 0
+    for j in range(len(audios)):
+        if j in ducked:
+            parts.append("[m%d][s%d]sidechaincompress=threshold=0.04:ratio=6:attack=20:release=400[d%d]" % (j, k, j))
+            labels.append("[d%d]" % j)
+            k += 1
+        else:
+            labels.append("[m%d]" % j)
+    ins = ([main] if has_main else []) + labels
+    parts.append("%samix=inputs=%d:duration=%s:normalize=0[amx]" % ("".join(ins), len(ins), "first" if has_main else "longest"))
+    parts.append("[amx]alimiter=limit=0.97[ao]")
+    return parts
+
+
+def build_render_graph(clips: List[Dict[str, Any]], width: int, height: int, fps: float, bg: Any = None,
+                       texts: Any = None, audios: Any = None, workdir: Any = None) -> Tuple[List[str], str, bool]:
+    """Pure (apart from text files in workdir): ffmpeg input args and a filter_complex that plays all clips back to back,
+    draws the texts and mixes the audio items. Returns (inputs, graph, has_audio)."""
     bgs = sanitize_bg(bg)
+    texts, audios = list(texts or []), list(audios or [])
+    if texts and workdir is None:
+        raise ToolError("Internal error: texts need a work folder.")
     any_audio = any(c["info"]["has_audio"] for c in clips)
     inputs: List[str] = []
     parts: List[str] = []
@@ -181,21 +314,31 @@ def build_render_graph(clips: List[Dict[str, Any]], width: int, height: int, fps
             else:
                 parts.append("anullsrc=r=48000:cl=stereo:d=%.3f[a%d]" % (d, i))
             labels += "[a%d]" % i
-    parts.append("%sconcat=n=%d:v=1:a=%d[vo]%s" % (labels, len(clips), int(any_audio), "[ao]" if any_audio else ""))
+    vlabel, alabel = ("vc" if texts else "vo"), ("ac" if audios else "ao")
+    parts.append("%sconcat=n=%d:v=1:a=%d[%s]%s" % (labels, len(clips), int(any_audio), vlabel, "[%s]" % alabel if any_audio else ""))
+    if texts:
+        parts.append("[vc]%s[vo]" % text_filters(texts, width, height, Path(workdir)))
+    if audios:
+        for a in audios:
+            inputs += ["-ss", "%.3f" % a["in"], "-t", "%.3f" % (a["out"] - a["in"]), "-i", a["path"]]
+        parts += audio_mix_parts(any_audio, audios, len(clips))
+        any_audio = True
     return inputs, ";".join(parts), any_audio
 
 
 def render_project(clips: List[Dict[str, Any]], out_dir: Path, crf: int = 20, timeout: int = 3600,
-                   canvas: Any = None, bg: Any = None) -> Path:
-    """Render the sequence to <first clip name>_project.mp4 in out_dir. Inputs are never modified."""
+                   canvas: Any = None, bg: Any = None, texts: Any = None, audios: Any = None) -> Path:
+    """Render the sequence (+ texts, + audio items) to <first clip name>_project.mp4 in out_dir. Inputs are never modified."""
     width, height, fps = canvas_for(clips, canvas)
-    inputs, graph, has_audio = build_render_graph(clips, width, height, fps, bg)
     out = plan_output(Path(clips[0]["path"]), "project", ".mp4", None, str(out_dir), False)
     tmp = Path(tempfile.mkdtemp(prefix="ve_render_"))
     try:
+        inputs, graph, has_audio = build_render_graph(clips, width, height, fps, bg, texts, audios, tmp)
         ff = ["-n"] + inputs + filter_complex_args(graph, tmp) + ["-map", "[vo]"]
         if has_audio:
             ff += ["-map", "[ao]"]
+        if audios:                                                   # music may be longer than the picture
+            ff += ["-t", "%.3f" % sum(c["out"] - c["in"] for c in clips)]
         ff += encode_args(".mp4", crf=crf, audio=has_audio)
         try:
             run_ffmpeg(ff + [str(out)], timeout)
@@ -234,8 +377,19 @@ def validate_project(obj: Any) -> Dict[str, Any]:
             clean_clips.append(item)
         except (KeyError, TypeError, ValueError):
             raise ToolError("A clip has invalid times.")
+    clean_audios = []
+    for a in (obj.get("audios") or [])[:MAX_AUDIOS]:
+        if not isinstance(a, dict) or str(a.get("asset")) not in clean_assets:
+            raise ToolError("An audio item points to an asset that is not in the project.")
+        try:
+            item = {"id": str(a.get("id"))[:40], "asset": str(a["asset"]), "in": float(a["in"]), "out": float(a["out"])}
+        except (KeyError, TypeError, ValueError):
+            raise ToolError("An audio item has invalid times.")
+        item.update(clean_audio_fields(a))
+        clean_audios.append(item)
     return {"version": 1, "name": str(obj.get("name") or "")[:120], "assets": clean_assets, "clips": clean_clips,
-            "canvas": sanitize_canvas(obj.get("canvas")), "bg": sanitize_bg(obj.get("bg"))}
+            "canvas": sanitize_canvas(obj.get("canvas")), "bg": sanitize_bg(obj.get("bg")),
+            "texts": sanitize_texts(obj.get("texts") or []), "audios": clean_audios}
 
 
 def project_path(raw: Any, roots: List[str], must_exist: bool) -> Path:

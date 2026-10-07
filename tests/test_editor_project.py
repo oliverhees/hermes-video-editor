@@ -266,3 +266,122 @@ def test_export_api_with_canvas_and_transform(srv, media, tmp_path):
     bad = req(srv, "/api/export", body=dict(body, canvas={"aspect": "9:16; rm -rf", "short": "x"}, bg={"mode": "color", "color": "javascript:1"}))
     assert bad.status == 200                                                        # unknown values fall back to safe defaults
     wait_job(srv, bad.json()["job"])
+
+
+# ---------------------------------------------------------------- text layer and audio track
+from hermes_video_editor.core.ffmpeg import has_filter
+
+needs_drawtext = pytest.mark.skipif(not (shutil.which("ffmpeg") and has_filter("drawtext")), reason="ffmpeg built without drawtext")
+
+
+def max_volume(path, ss, t, af=None):
+    cmd = ["ffmpeg", "-hide_banner", "-ss", str(ss), "-t", str(t), "-i", str(path), "-vn"]
+    cmd += ["-af", (af + "," if af else "") + "volumedetect", "-f", "null", "-"]
+    err = subprocess.run(cmd, capture_output=True, text=True).stderr
+    return float(err.split("max_volume:")[1].split("dB")[0])
+
+
+@pytest.fixture(scope="module")
+def tone(media):
+    f = media["dir"] / "tone1k.mp3"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "sine=frequency=1000:duration=4", "-c:a", "libmp3lame", str(f)], check=True)
+    return f
+
+
+def test_sanitize_texts_and_audios(media, tone):
+    ok = P.sanitize_texts([{"text": "Hi\x00 there\x07", "start": -3, "dur": 99999, "x": 9, "color": "red;rm", "size": 0}])
+    assert ok[0]["text"] == "Hi there" and ok[0]["start"] == 0 and ok[0]["dur"] == 3600 and ok[0]["x"] == 1.5 and ok[0]["color"] == "#ffffff" and ok[0]["size"] == 0.01
+    assert P.sanitize_texts([{"text": "   "}, {"text": ""}]) == [] and P.sanitize_texts(None) == []
+    with pytest.raises(ToolError):
+        P.sanitize_texts([{"text": "x"}] * 201)
+    roots = [str(media["dir"])]
+    a = P.sanitize_audios([{"path": str(tone), "in": -1, "out": 99, "start": 2, "vol": -99, "fi": 1, "fo": 2, "duck": 1}], roots)
+    assert a[0]["in"] == 0 and a[0]["out"] == pytest.approx(4, abs=0.2) and a[0]["vol"] == -60 and a[0]["duck"] is True
+    for bad in ([{"path": str(media["silent"]), "in": 0, "out": 1}], [{"path": "/etc/passwd"}], [{"path": str(tone), "in": 3, "out": 3.01}], "x"):
+        with pytest.raises(ToolError):
+            P.sanitize_audios(bad, roots)
+
+
+def test_graph_with_text_and_audio_is_shaped(media, tone, tmp_path):
+    roots = [str(media["dir"])]
+    clips = P.sanitize_clips([clip(media, "gap", 0, 4)], roots)
+    audios = P.sanitize_audios([{"path": str(tone), "in": 0, "out": 3, "start": 0.5, "vol": -8, "fi": 1, "fo": 1, "duck": True},
+                                {"path": str(tone), "in": 0, "out": 2, "start": 0, "vol": 0, "duck": False}], roots)
+    texts = P.sanitize_texts([{"text": "100% 'Größe': a,b", "start": 1, "dur": 2, "box": True}])
+    inputs, graph, has_audio = P.build_render_graph(clips, 320, 240, 25.0, None, texts, audios, tmp_path)
+    assert has_audio and inputs.count("-i") == 3
+    assert "[vc]drawtext=" in graph and "enable=between(t\\,1.000\\,3.000)" in graph and "expansion=none" in graph
+    assert "concat=n=1:v=1:a=1[vc][ac]" in graph and "asplit=2[mn][s0]" in graph        # one ducked item -> main is split once
+    assert "sidechaincompress" in graph and "amix=inputs=3:duration=first:normalize=0[amx]" in graph and "alimiter" in graph
+    assert "adelay=500|500" in graph and "afade=t=in:st=0:d=1.0" in graph and "afade=t=out:st=2.000:d=1.0" in graph
+    assert (tmp_path / "text0.txt").read_text(encoding="utf-8") == "100% 'Größe': a,b"   # text goes through a file, unescaped
+
+
+@needs_drawtext
+def test_text_appears_only_in_its_time_window(media, tmp_path):
+    clips = P.sanitize_clips([clip(media, "clip", 0, 3)], [str(media["dir"])])
+    texts = P.sanitize_texts([{"text": "HELLO\nWorld 100%: 'x'", "start": 1.0, "dur": 1.0, "x": 0.5, "y": 0.5, "size": 0.2, "color": "#ff0000",
+                               "box": True, "boxColor": "#000000", "boxOpacity": 1}])
+    out = P.render_project(clips, tmp_path / "txt", texts=texts)
+    centre = "crop=iw*0.5:ih*0.3:iw*0.25:ih*0.35"
+    plain = P.render_project(clips, tmp_path / "plain")
+    def diff(t):
+        a, b = raw_frame(plain, centre, t), raw_frame(out, centre, t)
+        return sum(1 for x, y in zip(a, b) if abs(x - y) > 60)
+    assert diff(0.4) < 200 and diff(2.6) < 200           # before and after the window: identical picture
+    assert diff(1.5) > 3000                              # inside the window: a lot of text and box pixels
+    assert ffprobe(out)["duration"] == pytest.approx(3, abs=0.3)
+
+
+def test_audio_item_starts_at_its_time_with_level_and_fades(media, tone, tmp_path):
+    roots = [str(media["dir"])]
+    clips = P.sanitize_clips([clip(media, "silent", 0, 3)], roots)                    # picture without sound
+    audios = P.sanitize_audios([{"path": str(tone), "in": 0, "out": 2, "start": 1.0, "vol": -6, "fi": 0, "fo": 0.5, "duck": False}], roots)
+    out = P.render_project(clips, tmp_path / "aud", audios=audios)
+    p = ffprobe(out)
+    assert p["audio"] is not None and p["duration"] == pytest.approx(3.0, abs=0.3)
+    long = P.render_project(clips, tmp_path / "long", audios=P.sanitize_audios(
+        [{"path": str(tone), "in": 0, "out": 4, "start": 1.0, "vol": 0, "fi": 0, "fo": 0, "duck": False}], roots))
+    assert ffprobe(long)["duration"] == pytest.approx(3.0, abs=0.3)                  # audio longer than the picture is cut
+    assert max_volume(out, 0, 0.8) < -60                                              # nothing before the start time
+    mid = max_volume(out, 1.3, 1.0)
+    loud = P.render_project(clips, tmp_path / "aud0", audios=P.sanitize_audios(
+        [{"path": str(tone), "in": 0, "out": 2, "start": 1.0, "vol": 0, "fi": 0, "fo": 0, "duck": False}], roots))
+    assert mid == pytest.approx(max_volume(loud, 1.3, 1.0) - 6, abs=1.0)              # -6 dB relative to the untouched level
+    assert max_volume(out, 2.8, 0.2) < mid - 6                                       # fade-out at the end of the timeline window
+
+
+def test_ducking_lowers_the_music_while_the_clip_speaks(media, tone, tmp_path):
+    roots = [str(media["dir"])]
+    clips = P.sanitize_clips([clip(media, "gap", 0, 4)], roots)                       # tone 0-1 s and 2.5-4 s, silence 1-2.5 s
+    band = "bandpass=f=1000:width_type=h:w=150"                                        # isolate the 1 kHz music from the 500 Hz speech
+    def levels(duck):
+        a = P.sanitize_audios([{"path": str(tone), "in": 0, "out": 4, "start": 0, "vol": 0, "duck": duck}], roots)
+        out = P.render_project(clips, tmp_path / ("duck%s" % duck), audios=a)
+        return max_volume(out, 0.4, 0.5, band), max_volume(out, 1.4, 0.8, band)
+    speech_on, gap_on = levels(True)
+    speech_off, gap_off = levels(False)
+    assert gap_on - speech_on > 3                                                      # music comes back up in the pause
+    assert abs(gap_off - speech_off) < 1.5                                             # without ducking it stays level
+
+
+def test_text_and_audio_via_api_and_project_file(srv, media, tone, tmp_path):
+    srv.add_root(str(tmp_path))
+    body = {"clips": [clip(media, "silent", 0, 2)], "texts": [{"text": "Title", "start": 0.2, "dur": 1, "size": 0.1}],
+            "audios": [{"path": str(tone), "in": 0, "out": 3, "start": 0.5, "vol": -9, "fo": 0.5, "duck": False}],
+            "output_dir": str(tmp_path / "layers")}
+    j = wait_job(srv, req(srv, "/api/export", body=body).json()["job"])
+    assert j["state"] == "done", j
+    assert ffprobe(j["result"]["output"])["audio"] is not None
+    assert req(srv, "/api/export", body=dict(body, audios=[{"path": "/etc/passwd"}])).status == 400
+    assert req(srv, "/api/export", body=dict(body, texts="x")).status == 400
+    proj = {"version": 1, "assets": {"a": {"path": str(media["silent"])}, "m": {"path": str(tone)}},
+            "clips": [{"id": "c", "asset": "a", "in": 0, "out": 2}],
+            "texts": [{"id": "t1", "text": "Hi", "start": 0, "dur": 2, "x": 0.4, "color": "#00ff00"}],
+            "audios": [{"id": "m1", "asset": "m", "in": 0, "out": 3, "start": 0.5, "vol": -9, "fi": 0, "fo": 0.5, "duck": True}]}
+    back = P.load_project(P.save_project(str(tmp_path / "layers"), proj, [str(tmp_path)]), [str(tmp_path)])
+    assert back["texts"][0]["color"] == "#00ff00" and back["texts"][0]["x"] == 0.4
+    assert back["audios"][0]["asset"] == "m" and back["audios"][0]["duck"] is True and back["audios"][0]["vol"] == -9
+    with pytest.raises(ToolError):
+        P.validate_project(dict(proj, audios=[{"id": "x", "asset": "nope", "in": 0, "out": 1}]))
+    assert P.validate_project({"version": 1, "assets": {}, "clips": []})["texts"] == []     # older projects still open
