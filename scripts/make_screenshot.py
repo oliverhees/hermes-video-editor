@@ -35,11 +35,18 @@ def main():
                         "gradients=s=1280x720:d=8:speed=0.05:r=25:c0=0x0b6e4f:c1=0xf7c948:c2=0xff5d8f:nb_colors=3",
                         "-f", "lavfi", "-i", "sine=frequency=330:d=8", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac",
                         "-shortest", str(broll)], check=True)
+        music = shot_dir / "music.wav"
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "anoisesrc=c=brown:d=20:a=0.6:r=44100", "-af",
+                        "tremolo=f=2:d=0.7,lowpass=f=900", str(music)], check=True)
+        pip = shot_dir / "reaction.mp4"
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i",
+                        "gradients=s=640x360:d=6:speed=0.06:r=25:c0=0xf72585:c1=0x4361ee:c2=0xffd166:nb_colors=3",
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p", str(pip)], check=True)
         srv = EditorServer(roots=[tmp])
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch()
-                page = browser.new_page(viewport={"width": 1500, "height": 860})
+                page = browser.new_page(viewport={"width": 1500, "height": 940})
                 page.goto(srv.url(str(clip)))
                 page.wait_for_selector("#video[data-src]", state="attached", timeout=90000)
                 page.wait_for_timeout(2500)
@@ -53,12 +60,31 @@ def main():
                 page.select_option("#in-aspect", "9:16")
                 page.evaluate("window.__ve.seek(3.0)")
                 page.click("#clips .clip >> nth=1")
+                page.wait_for_timeout(800)
+                page.evaluate("window.__ve.seek(2.0)")             # the layers: text, music, a video on top
+                page.click("#tabs button[data-tab=text]")
+                page.click("#btn-text-add")
+                page.fill("#tx-text", "Day 3 \u2013 Lisbon")
+                page.click("#tx-p-lower")
+                page.click("#tabs button[data-tab=sound]")
+                page.click("#btn-audio-add")
+                page.fill("#dlg-path", str(music))
+                page.press("#dlg-path", "Enter")
+                page.wait_for_timeout(2500)
+                page.evaluate("window.__ve.seek(1.0)")
+                page.click("#tabs button[data-tab=overlay]")
+                page.click("#btn-ov-add")
+                page.fill("#dlg-path", str(pip))
+                page.press("#dlg-path", "Enter")
+                page.wait_for_timeout(4000)
+                page.evaluate("window.__ve.seek(2.6)")
                 page.wait_for_timeout(1500)
                 page.screenshot(path=str(ROOT / "docs" / "editor.png"))
                 browser.close()
         finally:
             srv.stop()
-            clip.unlink(missing_ok=True)
+            for f in (clip, broll, music, pip):
+                f.unlink(missing_ok=True)
             try:
                 shot_dir.rmdir()
             except OSError:

@@ -98,6 +98,7 @@ def test_desktop_plugin_source_rules():
     allowed = ("'@hermes/plugin-sdk'", "'react'", "'react/jsx-runtime'")
     assert imports and all(any(a in l for a in allowed) for l in imports), imports
     assert not any("{ jsx" in l or "jsx," in l for l in imports), "jsx must not be a named import from the SDK"
+    assert "querySelector" not in src and "styleSheets" not in src and "cssRules" not in src, "no lookups in the app's own UI or style sheets"
 
 
 @pytest.mark.skipif(not NODE, reason="node is not installed")
@@ -298,7 +299,7 @@ def test_browser_timeline_edit_reorder_trim_undo_and_export(media, tmp_path):
         page.fill("#dlg-path", str(tmp_path))
         page.press("#dlg-path", "Enter")
         for _ in range(50):                                            # the folder listing is loaded asynchronously
-            if state(page, "s.dlgPath") == str(tmp_path):
+            if state(page, "s.dlgProjectPath") == str(tmp_path):
                 break
             page.wait_for_timeout(100)
         page.click("#dlg-usefolder")
@@ -454,11 +455,7 @@ def test_desktop_page_finds_the_apps_own_accent_colour(tmp_path):
                        '--accent': 'rgb(240, 240, 245)', '--primary': 'rgb(109, 63, 210)', '--link': 'rgb(0, 0, 255)' }
         const spans = []
         const document = {
-          styleSheets: [{ cssRules: [{ selectorText: ':root', style: Object.assign(['--background', '--primary-foreground', '--ring', '--accent', '--primary', '--link', '--radius'], {}) },
-                                    { selectorText: '.some-component', style: ['--primary-x'] }] },
-                        { get cssRules() { throw new Error('cross-origin') } }],
           body: { appendChild(n) {}, removeChild(n) {} },
-          querySelector: () => null,
           createElement(tag) {
             if (tag === 'canvas') { let last = ''; return { width: 0, height: 0, getContext: () => ({ clearRect() {}, set fillStyle(v) { last = v }, fillRect() {},
               getImageData: () => { const m = /rgb\\((\\d+), (\\d+), (\\d+)\\)/.exec(last); return { data: m ? [+m[1], +m[2], +m[3], 255] : [0, 0, 0, 0] } } }) } }
@@ -549,7 +546,7 @@ def test_browser_canvas_transform_background_and_export(media, tmp_path):
         page.fill("#dlg-path", str(tmp_path))
         page.press("#dlg-path", "Enter")
         for _ in range(50):
-            if state(page, "s.dlgPath") == str(tmp_path):
+            if state(page, "s.dlgProjectPath") == str(tmp_path):
                 break
             page.wait_for_timeout(100)
         page.click("#dlg-usefolder")
@@ -633,7 +630,7 @@ def test_browser_text_and_audio_layers(media, tmp_path):
         page.fill("#dlg-path", str(tmp_path))
         page.press("#dlg-path", "Enter")
         for _ in range(50):
-            if state(page, "s.dlgPath") == str(tmp_path):
+            if state(page, "s.dlgProjectPath") == str(tmp_path):
                 break
             page.wait_for_timeout(100)
         page.click("#dlg-usefolder")
@@ -717,7 +714,7 @@ def test_browser_overlay_track(media, tmp_path):
         page.fill("#dlg-path", str(tmp_path))
         page.press("#dlg-path", "Enter")
         for _ in range(50):
-            if state(page, "s.dlgPath") == str(tmp_path):
+            if state(page, "s.dlgProjectPath") == str(tmp_path):
                 break
             page.wait_for_timeout(100)
         page.click("#dlg-usefolder")
@@ -785,6 +782,38 @@ def test_browser_help_in_english_and_german(media, tmp_path):
         assert page.locator("#help-body script").count() == 0 and "<" not in page.inner_text("#help-body h1")
         page.keyboard.press("Escape")
         assert page.is_hidden("#help")
+        assert not errors, errors
+    finally:
+        b.close()
+        p.stop()
+        srv.stop()
+
+
+def test_browser_open_project_differs_from_add_clip(media, tmp_path):
+    pw = pytest.importorskip("playwright.sync_api")
+    from hermes_video_editor.editor.server import EditorServer
+    (tmp_path / "old.vproj.json").write_text(json.dumps({"version": 1, "assets": {"a": {"path": str(media["clip"])}}, "clips": [{"id": "c", "asset": "a", "in": 0, "out": 2}]}))
+    srv = EditorServer(roots=[str(media["dir"]), str(tmp_path)])
+    p, b, page, errors = browser(pw)
+    try:
+        page.goto(srv.url(str(media["clip"])))
+        wait_ready(page)
+        page.click("#btn-open")                                   # add clip: videos of the media folder, hint says so
+        assert "video or audio file" in page.inner_text("#dlg-hint")
+        page.fill("#dlg-path", str(media["dir"]))
+        page.press("#dlg-path", "Enter")
+        page.wait_for_selector("#dlg-list .item:has-text('clip.mp4')")
+        page.click("#dlg-close")
+        page.click("#btn-openproj")                               # open project: only project files, own folder, own hint
+        assert "project" in page.inner_text("#dlg-hint").lower() and "replaces" in page.inner_text("#dlg-hint")
+        assert page.inner_text("#dlg-title") == "Open a project"
+        page.fill("#dlg-path", str(tmp_path))
+        page.press("#dlg-path", "Enter")
+        page.wait_for_selector("#dlg-list .item:has-text('old.vproj.json')")
+        assert page.locator("#dlg-list .item:has-text('.mp4')").count() == 0
+        page.click("#dlg-close")
+        page.click("#btn-open")                                   # the media dialog did not follow the project folder
+        page.wait_for_selector("#dlg-list .item:has-text('clip.mp4')")
         assert not errors, errors
     finally:
         b.close()

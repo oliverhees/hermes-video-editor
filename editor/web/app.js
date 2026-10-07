@@ -82,16 +82,26 @@
     $("dlg-usefolder").textContent = PICK && PICK.save ? "Save here" : "Use this folder";
     $("dlg-name").hidden = !(PICK && PICK.save); if (PICK && PICK.save) $("dlg-name").value = S.projectName || "my-project";
     $("dlg-title").textContent = PICK && PICK.title ? PICK.title : "Add a video";
-    browse(S.dlgPath || store("ve.dir") || "");
-    var show = !PICK; $("dlg-recent").hidden = !show; if (!show) $("dlg-recent-title").hidden = true;
-    if (show) fillRecent($("dlg-recent"), $("dlg-recent-title"), closeDialog);
+    $("dlg-hint").textContent = !PICK ? "Pick a video or audio file. It is added to the end of the timeline."
+      : PICK.kind === "project" && PICK.save ? "Choose a folder and a name. Saves clips, cuts, canvas, texts, audio and overlays (not the media files)."
+      : PICK.kind === "project" ? "Pick a saved project (.vproj.json). It replaces what is on the timeline now. Only project files are listed."
+      : PICK.folder ? "Pick a folder." : "Pick a file.";
+    var isProject = !!(PICK && PICK.kind === "project");               // projects remember their own folder, separate from the media folder
+    var start = isProject ? S.dlgProjectPath : S.dlgPath;
+    if (!start && !isProject) start = store("ve.dir");
+    if (isProject && !start) {
+      api("/api/recent", { kind: "project" }).then(function (r) { browse(r.files.length ? r.files[0].path.replace(/[\\/][^\\/]*$/, "") : ""); }).catch(function () { browse(""); });
+    } else browse(start || "");
+    var show = !PICK || (isProject && !PICK.save); $("dlg-recent").hidden = !show; if (!show) $("dlg-recent-title").hidden = true;
+    $("dlg-recent-title").textContent = isProject ? "Recent projects" : "Recent";
+    if (show) fillRecent($("dlg-recent"), $("dlg-recent-title"), closeDialog, isProject);
   }
-  function fillRecent(list, title, after) {
-    api("/api/recent").then(function (r) {
+  function fillRecent(list, title, after, projects) {
+    api("/api/recent", projects ? { kind: "project" } : {}).then(function (r) {
       list.textContent = ""; title.hidden = !r.files.length;
       r.files.slice(0, 6).forEach(function (f) {
-        var it = el("div", "item"); it.appendChild(el("span", "grow", "🎬 " + f.name)); it.title = f.path;
-        it.addEventListener("click", function () { if (after) after(); addClipFromPath(f.path); }); list.appendChild(it);
+        var it = el("div", "item"); it.appendChild(el("span", "grow", (projects ? "📄 " : "🎬 ") + f.name.replace(/\.vproj\.json$/, ""))); it.title = f.path;
+        it.addEventListener("click", function () { if (after) after(); if (projects) loadProjectFile(f.path); else addClipFromPath(f.path); }); list.appendChild(it);
       });
     }).catch(function () { title.hidden = true; });
   }
@@ -100,7 +110,7 @@
     $("dlg-err").textContent = "";
     var q = path ? { path: path } : {}; if (PICK && PICK.kind) q.kind = PICK.kind;
     api("/api/ls", q).then(function (d) {
-      S.dlgPath = d.path; store("ve.dir", d.path);
+      if (PICK && PICK.kind === "project") S.dlgProjectPath = d.path; else { S.dlgPath = d.path; store("ve.dir", d.path); }
       $("dlg-path").value = d.path;
       var list = $("dlg-list"); list.textContent = "";
       if (d.parent) { var up = el("div", "item", ".. (up)"); up.addEventListener("click", function () { browse(d.parent); }); list.appendChild(up); }
@@ -116,7 +126,8 @@
           if (PICK) { if (PICK.done) PICK.done(full); } else addClipFromPath(full);
         }); list.appendChild(it);
       });
-      if (!d.dirs.length && !d.files.length) list.appendChild(el("div", "muted", "No folders or files here."));
+      if (!d.files.length && PICK && PICK.kind === "project" && !PICK.save) list.appendChild(el("div", "muted", "No project files in this folder. Save your work with Save, then it shows up here."));
+      else if (!d.dirs.length && !d.files.length) list.appendChild(el("div", "muted", "No folders or files here."));
     }).catch(function (e) { $("dlg-err").textContent = e.message + (e.hint ? " - " + e.hint : ""); });
   }
   function sep(p) { return p.indexOf("\\") >= 0 && p.indexOf("/") < 0 ? "\\" : "/"; }
@@ -127,7 +138,7 @@
   $("btn-openproj2").addEventListener("click", openProjectDialog);
   $("dlg-close").addEventListener("click", closeDialog);
   $("dlg-usefolder").addEventListener("click", function () {
-    var cb = PICK && PICK.done, dir = S.dlgPath, save = PICK && PICK.save, name = $("dlg-name").value.trim();
+    var cb = PICK && PICK.done, dir = PICK && PICK.kind === "project" ? S.dlgProjectPath : S.dlgPath, save = PICK && PICK.save, name = $("dlg-name").value.trim();
     if (save && !name) { $("dlg-err").textContent = "Give the project a name."; return; }
     closeDialog(); if (cb) cb(save ? dir + sep(dir) + name : dir);
   });

@@ -275,23 +275,23 @@ UPLOAD_DIR = CACHE_ROOT / "uploads"
 MAX_RECENT = 12
 
 
-def _recent_file() -> Path:
+def _recent_file(kind: str = "media") -> Path:
     CACHE_ROOT.mkdir(parents=True, exist_ok=True)
-    return CACHE_ROOT / "recent.json"
+    return CACHE_ROOT / ("recent_projects.json" if kind == "project" else "recent.json")
 
 
-def recent_files() -> List[str]:
+def recent_files(kind: str = "media") -> List[str]:
     try:
-        items = json.loads(_recent_file().read_text(encoding="utf-8"))
+        items = json.loads(_recent_file(kind).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return []
     return [p for p in items if isinstance(p, str) and os.path.isfile(p)][:MAX_RECENT]
 
 
-def remember(path: Path) -> None:
-    items = [str(path)] + [p for p in recent_files() if p != str(path)]
+def remember(path: Path, kind: str = "media") -> None:
+    items = [str(path)] + [p for p in recent_files(kind) if p != str(path)]
     try:
-        _recent_file().write_text(json.dumps(items[:MAX_RECENT]), encoding="utf-8")
+        _recent_file(kind).write_text(json.dumps(items[:MAX_RECENT]), encoding="utf-8")
     except OSError:
         pass
 

@@ -52,45 +52,18 @@ function isVivid(hex) {
   return sat >= 0.3 && light >= 0.15 && light <= 0.9
 }
 
-const ACCENT_NAME = /accent|primary|brand|ring|highlight|selection|link/i
-const ACCENT_RANK = [/accent(?!-?fore)/i, /primary(?!-?fore)/i, /brand/i, /ring/i, /highlight|selection|link/i]
+// Standard theme variable names (shadcn / Tailwind style). They are read through getComputedStyle on this page's own
+// container, where they are inherited: no scanning of the app's style sheets and no lookups of the app's elements.
+const ACCENT_VARIABLES = ['--primary', '--color-primary', '--brand', '--color-brand', '--accent-color', '--ring', '--color-ring', '--highlight', '--link', '--accent', '--color-accent']
 
-// names of CSS variables the app declares on :root / html / body / .dark ... that look like an accent colour
-function accentVariableNames() {
-  const names = []
+// the app's accent: the first of those variables that holds a vivid colour (pale greys of "accent" surfaces are skipped)
+function findAccent(node) {
   try {
-    for (const sheet of Array.from(document.styleSheets || [])) {
-      let rules
-      try {
-        rules = sheet.cssRules
-      } catch (e) {
-        continue
-      }
-      for (const rule of Array.from(rules || [])) {
-        if (!rule.style || !/^(:root|html|body|:host|\.dark|\.light|\[data-theme)/i.test(rule.selectorText || '')) continue
-        for (let i = 0; i < rule.style.length; i++) {
-          const name = rule.style[i]
-          if (name.indexOf('--') === 0 && ACCENT_NAME.test(name) && names.indexOf(name) < 0) names.push(name)
-        }
-      }
-    }
-  } catch (e) {
-    return names
-  }
-  const rank = n => {
-    const k = ACCENT_RANK.findIndex(re => re.test(n))
-    return k < 0 ? 99 : k
-  }
-  return names.sort((a, b) => rank(a) - rank(b)).slice(0, 80)
-}
-
-// the app's accent: a vivid CSS variable first, then what the app actually paints (switches, selected items)
-function findAccent() {
-  try {
+    const host = node || document.body
     const probe = document.createElement('span')
-    document.body.appendChild(probe)
+    host.appendChild(probe)
     let found = null
-    for (const name of accentVariableNames()) {
+    for (const name of ACCENT_VARIABLES) {
       probe.style.color = 'var(' + name + ')'
       const hex = toHex(getComputedStyle(probe).color)
       if (isVivid(hex)) {
@@ -98,22 +71,11 @@ function findAccent() {
         break
       }
     }
-    document.body.removeChild(probe)
-    if (found) return found
-    const painted = ['[role="switch"][aria-checked="true"]', '[data-state="checked"]', '[aria-selected="true"]', '[aria-current="page"]']
-    for (const selector of painted) {
-      const node = document.querySelector(selector)
-      if (!node) continue
-      const cs = getComputedStyle(node)
-      for (const prop of [cs.backgroundColor, cs.color, cs.borderTopColor]) {
-        const hex = toHex(prop)
-        if (isVivid(hex)) return hex
-      }
-    }
+    host.removeChild(probe)
+    return found
   } catch (e) {
     return null
   }
-  return null
 }
 
 function effectiveBackground(node) {
@@ -129,7 +91,7 @@ function readTheme(node) {
     const bg = effectiveBackground(node || document.body)
     const fg = toHex(getComputedStyle(node || document.body).color) || (luminance(bg) > 0.5 ? '#1d2330' : '#e6eaf2')
     const out = { theme: luminance(bg) > 0.5 ? 'light' : 'dark', bg, fg }
-    const accent = findAccent()
+    const accent = findAccent(node)
     if (accent) out.accent = accent
     return out
   } catch (e) {
