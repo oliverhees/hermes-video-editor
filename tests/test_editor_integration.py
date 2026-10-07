@@ -422,3 +422,45 @@ def test_browser_tools_tab_lists_all_42_and_runs_one(media, tmp_path):
         b.close()
         p.stop()
         srv.stop()
+
+
+@pytest.mark.skipif(not NODE, reason="node is not installed")
+def test_desktop_page_finds_the_apps_own_accent_colour(tmp_path):
+    """The editor must use Hermes' accent, not a built-in colour. Fake DOM: only a vivid variable counts."""
+    src = (ROOT / "desktop" / "plugin.js").read_text(encoding="utf-8")
+    body = "\n".join(l for l in src.splitlines() if not l.startswith("import ")).replace("export default", "const plugin_default =")
+    script = textwrap.dedent("""
+        const sdk = {}, jsxRuntime = {}, React = {}
+        // fake browser: custom properties resolve through VARS; the canvas returns the rgb() it was given
+        const VARS = { '--background': 'rgb(250, 250, 250)', '--primary-foreground': 'rgb(255, 255, 255)', '--ring': 'rgb(120, 120, 120)',
+                       '--accent': 'rgb(240, 240, 245)', '--primary': 'rgb(109, 63, 210)', '--link': 'rgb(0, 0, 255)' }
+        const spans = []
+        const document = {
+          styleSheets: [{ cssRules: [{ selectorText: ':root', style: Object.assign(['--background', '--primary-foreground', '--ring', '--accent', '--primary', '--link', '--radius'], {}) },
+                                    { selectorText: '.some-component', style: ['--primary-x'] }] },
+                        { get cssRules() { throw new Error('cross-origin') } }],
+          body: { appendChild(n) {}, removeChild(n) {} },
+          querySelector: () => null,
+          createElement(tag) {
+            if (tag === 'canvas') { let last = ''; return { width: 0, height: 0, getContext: () => ({ clearRect() {}, set fillStyle(v) { last = v }, fillRect() {},
+              getImageData: () => { const m = /rgb\\((\\d+), (\\d+), (\\d+)\\)/.exec(last); return { data: m ? [+m[1], +m[2], +m[3], 255] : [0, 0, 0, 0] } } }) } }
+            const span = { style: { color: '' } }; spans.push(span); return span
+          },
+        }
+        const getComputedStyle = n => ({ color: (/var\\((--[\\w-]+)\\)/.exec(n.style && n.style.color) || [])[1] ? (VARS[/var\\((--[\\w-]+)\\)/.exec(n.style.color)[1]] || 'rgb(29, 35, 48)') : 'rgb(29, 35, 48)',
+                                         backgroundColor: 'rgb(250, 250, 250)' })
+        %s
+        const hex = findAccent()
+        if (hex !== '#6d3fd2') throw new Error('wrong accent: ' + hex)       // --accent is a pale grey (not vivid), --primary is the violet one
+        if (!isVivid('#6d3fd2') || isVivid('#f0f0f5') || isVivid('#777777') || isVivid('#ffffff') || isVivid('#000000')) throw new Error('isVivid wrong')
+        VARS['--primary'] = 'rgb(240, 240, 240)'
+        VARS['--link'] = 'rgb(0, 0, 255)'
+        if (findAccent() !== '#0000ff') throw new Error('fallback to the next vivid variable failed')
+        VARS['--link'] = 'rgb(10, 10, 10)'
+        if (findAccent() !== null) throw new Error('should find nothing')
+        const theme = readTheme(null)
+        if (theme.theme !== 'light' || theme.bg !== '#fafafa' || 'accent' in theme) throw new Error('readTheme: ' + JSON.stringify(theme))
+        console.log('OK')
+        """) % body
+    r = run_node(script, tmp_path)
+    assert r.returncode == 0 and "OK" in r.stdout, r.stderr + r.stdout

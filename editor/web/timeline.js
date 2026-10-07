@@ -8,7 +8,12 @@
 
   function uid(prefix) { counter += 1; return (prefix || "c") + Date.now().toString(36) + counter.toString(36); }
   function round(t) { return Math.round(t * 1000) / 1000; }
-  function copy(c, extra) { var o = { id: c.id, asset: c.asset, "in": c["in"], out: c.out }; for (var k in extra) o[k] = extra[k]; return o; }
+  function copy(c, extra) {
+    var o = { id: c.id, asset: c.asset, "in": c["in"], out: c.out };
+    if (c.tf) o.tf = { s: c.tf.s, x: c.tf.x, y: c.tf.y };          // position/scale travel with the pieces of a split
+    for (var k in extra) o[k] = extra[k];
+    return o;
+  }
   function dur(c) { return c.out - c["in"]; }
 
   function layout(clips) {
@@ -107,8 +112,29 @@
 
   // payload for the server: clips with real file paths
   function forExport(clips, assets) {
-    return clips.map(function (c) { return { path: assets[c.asset].path, "in": c["in"], out: c.out }; });
+    return clips.map(function (c) { var o = { path: assets[c.asset].path, "in": c["in"], out: c.out }; if (c.tf) o.tf = cleanTf(c.tf); return o; });
   }
+
+  // ---- canvas + per-clip transform (mirrored exactly in editor/project.py)
+  // tf = {s: scale relative to "fit inside the canvas", x, y: centre offset as a fraction of canvas width/height}
+  var ASPECTS = { "16:9": [16, 9], "9:16": [9, 16], "1:1": [1, 1], "4:5": [4, 5] };
+  var SHORTS = [360, 480, 720, 1080, 1440, 2160];
+  function even(n) { return Math.max(2, Math.round(n / 2) * 2); }
+  function canvasSize(aspect, short, firstW, firstH) {
+    if (!ASPECTS[aspect]) return [even(firstW || 1280), even(firstH || 720)];      // "auto": the first clip decides
+    var a = ASPECTS[aspect], sh = SHORTS.indexOf(short) >= 0 ? short : 1080;
+    return a[0] >= a[1] ? [even(sh * a[0] / a[1]), even(sh)] : [even(sh), even(sh * a[1] / a[0])];
+  }
+  function cleanTf(tf) {
+    var t = tf || {}, num = function (v, d, lo, hi) { v = Number(v); return isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; };
+    return { s: num(t.s, 1, 0.05, 10), x: num(t.x, 0, -3, 3), y: num(t.y, 0, -3, 3) };
+  }
+  function fgRect(iw, ih, W, H, tf) {          // where the picture sits on the canvas: [x, y, w, h] in canvas pixels
+    var t = cleanTf(tf), f = Math.min(W / iw, H / ih), w = even(iw * f * t.s), h = even(ih * f * t.s);
+    return [Math.round(W / 2 + t.x * W - w / 2), Math.round(H / 2 + t.y * H - h / 2), w, h];
+  }
+  function fillScale(iw, ih, W, H) { return Math.max(W / iw, H / ih) / Math.min(W / iw, H / ih); }   // scale at which the picture covers the canvas
+  function isDefaultTf(tf) { var t = cleanTf(tf); return t.s === 1 && t.x === 0 && t.y === 0; }
 
   function createHistory(limit) {
     var past = [], future = [], max = limit || 100;
@@ -122,6 +148,7 @@
 
   var api = { MIN_CLIP: MIN_CLIP, MIN_PIECE: MIN_PIECE, uid: uid, layout: layout, total: total, at: at, split: split, removeIndex: removeIndex,
     deleteRange: deleteRange, subtractRanges: subtractRanges, applySilence: applySilence, trim: trim, move: move, dropIndex: dropIndex,
-    insertAt: insertAt, forExport: forExport, createHistory: createHistory, round: round };
+    insertAt: insertAt, forExport: forExport, createHistory: createHistory, round: round,
+    ASPECTS: ASPECTS, SHORTS: SHORTS, canvasSize: canvasSize, cleanTf: cleanTf, fgRect: fgRect, fillScale: fillScale, isDefaultTf: isDefaultTf };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.VETimeline = api;
 })(typeof window !== "undefined" ? window : this);

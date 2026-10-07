@@ -1,9 +1,9 @@
 :root{--bg:#0e1117;--panel:#151a23;--panel2:#1b2130;--line:#262d3d;--deep:#0a0d12;--text:#e6eaf2;--muted:#8a94a8;
---accent:#ff6b35;--teal:#4ecdc4;--red:#ff5d6c;--blue:#5aa0ff;--yellow:#f7c948;--on-accent:#1a0d06;color-scheme:dark}
+--accent:#8b6cf0;--teal:#4ecdc4;--red:#ff5d6c;--blue:#5aa0ff;--yellow:#f7c948;--on-accent:#ffffff;color-scheme:dark}
 :root[data-theme=light]{--bg:#ffffff;--panel:#f4f5f8;--panel2:#e9ecf2;--line:#d5d9e3;--deep:#e4e7ee;--text:#1d2330;--muted:#5d677c;
---accent:#e8581f;--teal:#12857c;--red:#d12f40;--blue:#2f6fdc;--yellow:#a8690a;--on-accent:#ffffff;color-scheme:light}
+--accent:#6d3fd2;--teal:#12857c;--red:#d12f40;--blue:#2f6fdc;--yellow:#a8690a;--on-accent:#ffffff;color-scheme:light}
 @media (prefers-color-scheme:light){:root:not([data-theme]){--bg:#ffffff;--panel:#f4f5f8;--panel2:#e9ecf2;--line:#d5d9e3;--deep:#e4e7ee;
---text:#1d2330;--muted:#5d677c;--accent:#e8581f;--teal:#12857c;--red:#d12f40;--blue:#2f6fdc;--yellow:#a8690a;--on-accent:#ffffff;color-scheme:light}}
+--text:#1d2330;--muted:#5d677c;--accent:#6d3fd2;--teal:#12857c;--red:#d12f40;--blue:#2f6fdc;--yellow:#a8690a;--on-accent:#ffffff;color-scheme:light}}
 /* colours sent by Hermes Desktop (bg/fg): derive the other surfaces from them */
 :root[data-derive]{--panel:color-mix(in srgb,var(--bg) 95%,var(--text) 5%);--panel2:color-mix(in srgb,var(--bg) 89%,var(--text) 11%);
 --line:color-mix(in srgb,var(--bg) 80%,var(--text) 20%);--deep:color-mix(in srgb,var(--bg) 86%,var(--text) 14%);
