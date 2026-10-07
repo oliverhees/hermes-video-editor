@@ -23,8 +23,10 @@
       <button data-tab="cuts" class="on">Edit</button>
       <button data-tab="picture">Picture</button>
       <button data-tab="text">Text</button>
+      <button data-tab="shape">Shape</button>
       <button data-tab="overlay">Overlay</button>
       <button data-tab="sound">Sound</button>
+      <button data-tab="scene">Scene</button>
       <button data-tab="tools">Tools</button>
       <button data-tab="export">Export</button>
     </nav>
@@ -73,9 +75,12 @@
       <div id="canvas-size" class="muted"></div>
       <h3>Background</h3>
       <div class="row">
-        <select id="in-bg"><option value="blur">Blurred picture</option><option value="black">Black</option><option value="color">Colour</option></select>
-        <input id="in-bgcolor" type="color" value="#000000" hidden title="Background colour">
+        <select id="in-bg"><option value="blur">Blurred picture</option><option value="black">Black</option><option value="color">One colour</option><option value="gradient">Gradient (top to bottom)</option><option value="image">Picture&hellip;</option></select>
+        <input id="in-bgcolor" type="color" value="#000000" hidden title="Background colour (gradient: top)">
+        <input id="in-bgcolor2" type="color" value="#1b1464" hidden title="Gradient: bottom colour">
       </div>
+      <div id="bg-image-row" class="row" hidden><button id="btn-bg-image" class="btn">Choose a picture&hellip;</button><span id="bg-image-name" class="muted grow"></span></div>
+      <p class="muted">Visible wherever the picture does not fill the canvas, for example when you make the video smaller or use 9:16.</p>
       <h3>Selected clip</h3>
       <div id="tf-hint" class="muted"></div>
       <label class="field">Size <span id="v-scale">100%</span><input id="in-scale" type="range" min="5" max="400" step="1" value="100"></label>
@@ -116,6 +121,36 @@
         <h3>Timing (seconds)</h3>
         <div class="row ctl"><label class="mini">Start <input id="tx-start" type="number" min="0" step="0.1"></label><label class="mini">Length <input id="tx-dur" type="number" min="0.1" step="0.1"></label></div>
         <div class="row" style="margin-top:10px"><button id="btn-text-dup" class="btn">Copy</button><button id="btn-text-del" class="btn danger">Delete</button></div>
+      </div>
+    </section>
+
+    <section data-pane="shape" class="pane">
+      <h3>Shapes</h3>
+      <button id="btn-shape-add" class="btn primary wide">Add a shape at the playhead</button>
+      <div class="row ctl"><button id="sh-p-bar" class="btn small" title="Dark rounded bar for a caption">Caption bar</button><button id="sh-p-card" class="btn small" title="White card">Card</button><button id="sh-p-circle" class="btn small">Circle</button><button id="sh-p-full" class="btn small" title="Colour field over the whole picture">Full colour</button></div>
+      <p id="sh-none" class="muted">A coloured shape for a time window: a backing under text, a bar, a frame or a colour field. Place text above it by giving the text a higher track. Drag it on the preview, mouse wheel resizes it.</p>
+      <div id="sh-edit" hidden>
+        <label class="field">Form <select id="sh-kind"><option value="rect">Rectangle</option><option value="rounded">Rounded rectangle</option><option value="ellipse">Ellipse</option></select></label>
+        <div class="row ctl"><label class="mini">Colour <input id="sh-color" type="color" value="#000000"></label></div>
+        <label class="field">Opacity <span id="v-shop">60%</span><input id="sh-op" type="range" min="0" max="100" step="1" value="60"></label>
+        <label class="field">Width <span id="v-shw">50%</span><input id="sh-w" type="range" min="2" max="300" step="1" value="50"></label>
+        <label class="field">Height <span id="v-shh">20%</span><input id="sh-h" type="range" min="2" max="300" step="1" value="20"></label>
+        <label id="sh-radius-row" class="field">Corner roundness <span id="v-shr">25%</span><input id="sh-radius" type="range" min="0" max="50" step="1" value="25"></label>
+        <div class="row ctl"><label class="mini">Start <input id="sh-start" type="number" min="0" step="0.1"></label><label class="mini">Length <input id="sh-dur" type="number" min="0.1" step="0.1"></label></div>
+        <div class="row" style="margin-top:10px"><button id="btn-shape-center" class="btn">Center</button><button id="btn-shape-dup" class="btn">Copy</button><button id="btn-shape-del" class="btn danger">Delete</button></div>
+      </div>
+    </section>
+
+    <section data-pane="scene" class="pane">
+      <h3>Scenes</h3>
+      <button id="btn-scene-add" class="btn primary wide">Bundle items into a scene</button>
+      <p id="sc-none" class="muted">A scene groups texts, shapes, videos on top and sounds. Mark a range (I and O) or put the playhead on the first item, then bundle. Drag the scene on its lane and everything inside moves with it.</p>
+      <div id="sc-edit" hidden>
+        <input id="sc-name" type="text" placeholder="Scene name">
+        <div class="row ctl"><label class="mini">Colour <input id="sc-color" type="color" value="#8b6cf0"></label></div>
+        <div id="sc-info" class="muted"></div>
+        <div class="row" style="margin-top:10px"><button id="btn-scene-dup" class="btn">Copy scene</button><button id="btn-scene-ungroup" class="btn">Ungroup</button></div>
+        <button id="btn-scene-del" class="btn danger wide" style="margin-top:6px">Delete scene and its items</button>
       </div>
     </section>
 
@@ -176,7 +211,7 @@
       <h3>Platform preset</h3>
       <select id="in-preset"></select>
       <h3>Save in folder</h3>
-      <input id="in-outdir" type="text" placeholder="Same folder as the first clip">
+      <div class="row"><input id="in-outdir" type="text" placeholder="Same folder as the first clip (click to choose)"><button id="btn-outdir" class="btn">Choose&hellip;</button></div>
       <button id="btn-export" class="btn primary wide">Export</button>
       <div id="job" class="job" hidden>
         <div class="bar"><i id="job-bar"></i></div>
@@ -192,6 +227,7 @@
     <div id="stage"><video id="video" playsinline preload="auto"></video><video id="video2" playsinline preload="auto"></video>
       <canvas id="stage-canvas"></canvas>
       <div id="tgizmo" hidden></div>
+      <div id="sgizmo" hidden></div>
       <div id="gizmo" hidden><b class="gh" data-corner="nw"></b><b class="gh" data-corner="ne"></b><b class="gh" data-corner="sw"></b><b class="gh" data-corner="se"></b></div>
       <div id="ogizmo" hidden></div>
       <div id="overlay" class="overlay" hidden></div>
@@ -221,6 +257,11 @@
       <button id="btn-play" class="btn round" title="Play / pause (Space)">&#9654;</button>
       <span id="time">0:00.0 / 0:00.0</span>
       <span class="spacer"></span>
+      <select id="add-track" title="Add or remove tracks: put several texts, shapes, videos or sounds on top of each other">
+        <option value="">Tracks&hellip;</option>
+        <optgroup label="Add a track"><option value="add:text">+ Text track</option><option value="add:shape">+ Shape track</option><option value="add:overlay">+ Video track (overlay)</option><option value="add:audio">+ Audio track</option><option value="add:scene">+ Scene track</option></optgroup>
+        <optgroup label="Remove the top track (if empty)"><option value="remove:text">&minus; Text track</option><option value="remove:shape">&minus; Shape track</option><option value="remove:overlay">&minus; Video track</option><option value="remove:audio">&minus; Audio track</option><option value="remove:scene">&minus; Scene track</option></optgroup>
+      </select>
       <button id="btn-zoom-out" class="btn small" title="Zoom out (-)">&minus;</button>
       <button id="btn-zoom-fit" class="btn small">Fit</button>
       <button id="btn-zoom-in" class="btn small" title="Zoom in (+)">+</button>
@@ -233,10 +274,7 @@
         <canvas id="ruler"></canvas>
         <div id="clips" class="lane"></div>
         <canvas id="wave" class="lane"></canvas>
-        <div id="texts" class="lane"><span class="lane-label">Text</span></div>
         <canvas id="awave" class="lane"></canvas>
-        <div id="audios" class="lane"><span class="lane-label">Audio</span></div>
-        <div id="ovs" class="lane"><span class="lane-label">Overlay</span></div>
         <div id="mark-range" hidden></div>
         <div id="drop-ind" hidden></div>
         <div id="playhead"></div>
@@ -260,7 +298,8 @@
     <p id="dlg-hint" class="muted" style="margin:0 0 8px"></p>
     <input id="dlg-path" type="text" placeholder="Folder or file path, then Enter">
     <div class="row" style="margin-top:6px"><input id="dlg-name" type="text" placeholder="Project name" hidden>
-      <button id="dlg-usefolder" class="btn small" hidden>Use this folder</button></div>
+      <button id="dlg-usefolder" class="btn primary small" hidden>Use this folder</button></div>
+    <div id="dlg-mk" class="row" style="margin-top:6px" hidden><input id="dlg-newfolder" type="text" placeholder="New folder name"><button id="dlg-mkdir" class="btn small">Create folder</button></div>
     <div id="dlg-recent-title" class="sect" hidden>Recent</div>
     <div id="dlg-recent" class="list"></div>
     <div class="sect">Folders</div>
@@ -270,8 +309,12 @@
 </div>
 <script src="/static/timeline.js"></script>
 <script src="/static/app.js"></script>
+<script src="/static/tracks.js"></script>
 <script src="/static/layers.js"></script>
 <script src="/static/overlays.js"></script>
+<script src="/static/shapes.js"></script>
+<script src="/static/scenes.js"></script>
+<script src="/static/pick.js"></script>
 <script src="/static/help.js"></script>
 </body>
 </html>

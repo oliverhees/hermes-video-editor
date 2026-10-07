@@ -6,9 +6,9 @@
   if (!V || !V.layers) return;
   var S = V.S, TL = V.TL, $ = V.$, el = V.el, clamp = V.clamp, L = V.layers;
 
-  function tab(name) { var b = document.querySelector('#tabs button[data-tab="' + name + '"]'); if (b) b.click(); }
+  var tab = V.tab, T = V.tracks;
   function cur() { return S.selOv >= 0 ? S.overlays[S.selOv] : null; }
-  function clearOthers() { S.sel = -1; S.selText = -1; S.selAudio = -1; }
+  function clearOthers() { V.clearSel("overlay"); }
   function replace(i, changes) { S.overlays = S.overlays.map(function (o, k) { return k === i ? TL.cleanOverlay(TL.patch(o, changes)) : o; }); S.dirty = true; }
   function setTf(i, tf) { var o = S.overlays[i]; replace(i, { tf: TL.cleanTf(TL.patch(o.tf, tf)) }); }
 
@@ -18,7 +18,7 @@
       V.flash("Reading " + V.baseName(path) + "…");
       V.ensureAsset(path).then(function (a) {
         if (!a.hasVideo) { V.flash(a.name + " has no picture."); return; }
-        V.commit(function () { S.overlays = S.overlays.concat([TL.newOverlay(a.id, a.dur, S.t)]); clearOthers(); S.selOv = S.overlays.length - 1; });
+        V.commit(function () { var no = TL.newOverlay(a.id, a.dur, S.t); no.track = T.freeTrack("overlay", no.start, TL.audioDur(no)); S.overlays = S.overlays.concat([no]); clearOthers(); S.selOv = S.overlays.length - 1; });
       }).catch(function (e) { V.flash("Could not add the video: " + e.message); });
     } });
   });
@@ -55,31 +55,13 @@
 
   // ---------------------------------------------------------------- lane
   function drawLane() {
-    var box = $("ovs");
-    Array.prototype.slice.call(box.querySelectorAll(".oitem")).forEach(function (n) { box.removeChild(n); });
-    S.overlays.forEach(function (o, i) {
-      var asset = V.assetFor(o.asset), d = el("div", "oitem" + (i === S.selOv ? " sel" : ""), asset ? asset.name : "?");
-      d.setAttribute("data-i", i); d.style.left = (o.start * S.zoom) + "px"; d.style.width = Math.max(10, TL.audioDur(o) * S.zoom - 1) + "px"; d.title = asset ? asset.name : "";
-      var hl = el("b", "h l"), hr = el("b", "h r"); hl.setAttribute("data-edge", "left"); hr.setAttribute("data-edge", "right"); d.appendChild(hl); d.appendChild(hr); box.appendChild(d);
-    });
+    T.render("overlay", S.overlays, { cls: "oitem", sel: S.selOv, label: function (o) { var a = V.assetFor(o.asset); return a ? a.name : "?"; },
+      title: function (o) { var a = V.assetFor(o.asset); return a ? a.name : ""; }, start: function (o) { return o.start; }, width: function (o) { return TL.audioDur(o); } });
   }
-  (function () {
-    var drag = null;
-    $("ovs").addEventListener("mousedown", function (e) {
-      var item = e.target.closest && e.target.closest(".oitem"); if (!item || e.button !== 0) return;
-      var i = +item.getAttribute("data-i"), edge = e.target.getAttribute && e.target.getAttribute("data-edge");
-      clearOthers(); S.selOv = i; drag = { i: i, edge: edge, x0: e.clientX, base: V.snap(), item: S.overlays[i], moved: false };
-      renderPanel(); drawLane(); V.drawStage(); tab("overlay"); e.preventDefault(); e.stopPropagation();
-    });
-    window.addEventListener("mousemove", function (e) {
-      if (!drag) return; var dx = (e.clientX - drag.x0) / S.zoom; if (Math.abs(dx) < 0.004 && !drag.moved) return; drag.moved = true;
-      var it = drag.item, asset = V.assetFor(it.asset);
-      var next = drag.edge ? TL.trimAudio(it, drag.edge, dx, asset && asset.dur) : TL.patch(it, { start: Math.max(0, it.start + dx) });
-      S.overlays = S.overlays.map(function (o, k) { return k === drag.i ? TL.cleanOverlay(next) : o; });
-      S.dirty = true; drawLane(); V.drawStage(); renderPanel(true);
-    });
-    window.addEventListener("mouseup", function () { if (!drag) return; var d = drag; drag = null; if (d.moved) { S.hist.push(d.base); V.renderAll(); } });
-  })();
+  T.drag("overlay", { items: function () { return S.overlays; }, tab: "overlay", after: function () { renderPanel(true); drawLane(); V.drawStage(); },
+    select: function (i) { clearOthers(); S.selOv = i; },
+    trim: function (it, edge, dx) { var asset = V.assetFor(it.asset); return TL.trimAudio(it, edge, dx, asset && asset.dur); },
+    replace: function (i, next) { S.overlays = S.overlays.map(function (o, k) { return k === i ? TL.cleanOverlay(next) : o; }); } });
 
   // ---------------------------------------------------------------- preview: one hidden <video> per overlay
   var pool = {};
@@ -92,13 +74,16 @@
   function active() { return TL.activeOverlays(S.overlays, S.t); }
   function drawStage(g, k, W, H) {
     var hit = null;
-    active().forEach(function (o) {
+    var kc = $("stage").clientWidth / W;
+    active().slice().sort(function (a, b) { return (a.track || 0) - (b.track || 0); }).forEach(function (o) {
       var asset = V.assetFor(o.asset); if (!asset || !asset.src || !asset.info || !asset.info.video) return;
       var n = node(o, asset), want = o["in"] + (S.t - o.start);
       if (!V.playing() && Math.abs(n.currentTime - want) > 0.04) { try { n.currentTime = want; } catch (e) { /* not ready */ } }
       var r = TL.fgRect(asset.info.video.display_width, asset.info.video.display_height, W, H, o.tf);
       if (n.readyState >= 2 && n.videoWidth) { g.globalAlpha = o.op; g.drawImage(n, r[0] * k, r[1] * k, r[2] * k, r[3] * k); g.globalAlpha = 1; }
       if (S.overlays[S.selOv] && S.overlays[S.selOv].id === o.id) hit = r;
+      V.hits.push({ z: 20 + (o.track || 0), rect: [r[0] * kc, r[1] * kc, r[2] * kc, r[3] * kc], gizmo: "ogizmo",
+        select: function () { clearOthers(); S.selOv = S.overlays.findIndex(function (x) { return x.id === o.id; }); tab("overlay"); } });
     });
     var gz = $("ogizmo");
     if (!hit || V.playing()) gz.hidden = true;

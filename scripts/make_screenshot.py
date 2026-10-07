@@ -66,6 +66,11 @@ def main():
                 page.click("#btn-text-add")
                 page.fill("#tx-text", "Day 3 \u2013 Lisbon")
                 page.click("#tx-p-lower")
+                page.click("#btn-text-add")                        # a second text at the same time lands on its own track
+                page.fill("#tx-text", "LISBON")
+                page.click("#tx-p-title")
+                page.click("#tabs button[data-tab=shape]")         # a rounded bar behind the caption
+                page.click("#sh-p-bar")
                 page.click("#tabs button[data-tab=sound]")
                 page.click("#btn-audio-add")
                 page.fill("#dlg-path", str(music))
@@ -78,6 +83,7 @@ def main():
                 page.press("#dlg-path", "Enter")
                 page.wait_for_timeout(4000)
                 page.evaluate("window.__ve.seek(2.6)")
+                page.click("#tabs button[data-tab=shape]")
                 page.wait_for_timeout(1500)
                 page.screenshot(path=str(ROOT / "docs" / "editor.png"))
                 browser.close()

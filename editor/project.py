@@ -14,7 +14,7 @@ from ..core.ffmpeg import (encode_args, filter_complex_args, probe, require_filt
 from ..core.fonts import resolve_font
 from ..core.paths import ff_escape_path, plan_output
 from ..core.result import ToolError
-from .security import inside, safe_dir, safe_media_file
+from .security import inside, safe_dir, safe_image_file, safe_media_file
 
 PROJECT_SUFFIX = ".vproj.json"
 MAX_CLIPS = 300
@@ -54,7 +54,7 @@ def sanitize_clips(raw: Any, roots: List[str]) -> List[Dict[str, Any]]:
 
 ASPECTS = {"16:9": (16, 9), "9:16": (9, 16), "1:1": (1, 1), "4:5": (4, 5)}
 SHORTS = (360, 480, 720, 1080, 1440, 2160)
-BG_MODES = ("blur", "black", "color")
+BG_MODES = ("blur", "black", "color", "gradient", "image")
 COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
@@ -74,11 +74,23 @@ def sanitize_canvas(raw: Any) -> Dict[str, Any]:
     return {"aspect": aspect, "short": short}
 
 
-def sanitize_bg(raw: Any) -> Dict[str, str]:
+def sanitize_bg(raw: Any, roots: Any = None) -> Dict[str, str]:
+    """Background behind pictures that do not fill the canvas: blur, black, one colour, a two-colour gradient or a picture.
+    Old modes keep the old two keys; gradient adds color2, image adds the (checked) picture path."""
     raw = raw if isinstance(raw, dict) else {}
     mode = raw.get("mode") if raw.get("mode") in BG_MODES else "blur"
-    color = raw.get("color") if isinstance(raw.get("color"), str) and COLOR_RE.match(raw.get("color")) else "#000000"
-    return {"mode": mode, "color": color}
+    out = {"mode": mode, "color": _hex(raw.get("color"), "#000000")}
+    if mode == "gradient":
+        out["color2"] = _hex(raw.get("color2"), "#1b1464")
+    elif mode == "image":
+        path = raw.get("image")
+        if roots is not None:
+            path = str(safe_image_file(path, roots))
+        elif not isinstance(path, str) or not path.strip():
+            out["mode"] = "black"
+            return out
+        out["image"] = path
+    return out
 
 
 def clean_tf(tf: Any) -> Dict[str, float]:
@@ -108,6 +120,55 @@ def _hex(v: Any, default: str) -> str:
 
 CONTROL_RE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 MAX_TEXTS, MAX_AUDIOS = 200, 50
+MAX_SHAPES, MAX_SCENES, MAX_TRACKS = 200, 100, 12
+TRACK_KINDS = ("scene", "shape", "text", "overlay", "audio")
+SHAPE_KINDS = ("rect", "rounded", "ellipse")
+
+
+def _track(v: Any) -> int:
+    return int(_num(v, 0, 0, MAX_TRACKS - 1))
+
+
+def sanitize_tracks(raw: Any) -> Dict[str, int]:
+    """How many lanes of each kind the timeline shows (at least one)."""
+    raw = raw if isinstance(raw, dict) else {}
+    return {k: int(_num(raw.get(k), 1, 1, MAX_TRACKS)) for k in TRACK_KINDS}
+
+
+def clean_shape(sh: Any) -> Dict[str, Any]:
+    """A coloured shape (backing for text, frame, bar). x/y = centre, w/h = size, all as fractions of the canvas."""
+    sh = sh if isinstance(sh, dict) else {}
+    return {"id": str(sh.get("id") or "s")[:40], "kind": sh.get("kind") if sh.get("kind") in SHAPE_KINDS else "rect",
+            "start": _num(sh.get("start"), 0.0, 0.0, 86400.0), "dur": _num(sh.get("dur"), 3.0, 0.1, 3600.0),
+            "x": _num(sh.get("x"), 0.5, -0.5, 1.5), "y": _num(sh.get("y"), 0.5, -0.5, 1.5),
+            "w": _num(sh.get("w"), 0.5, 0.02, 3.0), "h": _num(sh.get("h"), 0.2, 0.02, 3.0),
+            "color": _hex(sh.get("color"), "#000000"), "op": _num(sh.get("op"), 0.6, 0.0, 1.0),
+            "radius": _num(sh.get("radius"), 0.25, 0.0, 0.5), "track": _track(sh.get("track"))}
+
+
+def sanitize_shapes(raw: Any) -> List[Dict[str, Any]]:
+    if raw is None:
+        return []
+    if not isinstance(raw, list) or len(raw) > MAX_SHAPES:
+        raise ToolError("'shapes' must be a list with at most %d entries." % MAX_SHAPES)
+    return [clean_shape(x) for x in raw]
+
+
+def sanitize_scenes(raw: Any) -> List[Dict[str, Any]]:
+    """Scenes bundle items so they move together. They only exist in the editor and the project file; the render ignores them."""
+    if raw is None:
+        return []
+    if not isinstance(raw, list) or len(raw) > MAX_SCENES:
+        raise ToolError("'scenes' must be a list with at most %d entries." % MAX_SCENES)
+    out = []
+    for sc in raw:
+        if not isinstance(sc, dict):
+            continue
+        items = [str(i)[:40] for i in (sc.get("items") if isinstance(sc.get("items"), list) else [])][:400]
+        out.append({"id": str(sc.get("id") or "sc")[:40], "name": CONTROL_RE.sub("", str(sc.get("name") or "Scene"))[:60],
+                    "start": _num(sc.get("start"), 0.0, 0.0, 86400.0), "dur": _num(sc.get("dur"), 3.0, 0.1, 3600.0),
+                    "color": _hex(sc.get("color"), "#8b6cf0"), "items": items, "track": _track(sc.get("track"))})
+    return out
 
 
 def clean_text(t: Any) -> Dict[str, Any]:
@@ -117,7 +178,8 @@ def clean_text(t: Any) -> Dict[str, Any]:
             "start": _num(t.get("start"), 0.0, 0.0, 86400.0), "dur": _num(t.get("dur"), 3.0, 0.1, 3600.0),
             "x": _num(t.get("x"), 0.5, -0.5, 1.5), "y": _num(t.get("y"), 0.82, -0.5, 1.5), "size": _num(t.get("size"), 0.07, 0.01, 0.5),
             "color": _hex(t.get("color"), "#ffffff"), "box": bool(t.get("box")), "boxColor": _hex(t.get("boxColor"), "#000000"),
-            "boxOpacity": _num(t.get("boxOpacity"), 0.55, 0.0, 1.0), "outline": t.get("outline") is not False}
+            "boxOpacity": _num(t.get("boxOpacity"), 0.55, 0.0, 1.0), "outline": t.get("outline") is not False,
+            "track": _track(t.get("track"))}
 
 
 def sanitize_texts(raw: Any) -> List[Dict[str, Any]]:
@@ -130,7 +192,8 @@ def sanitize_texts(raw: Any) -> List[Dict[str, Any]]:
 
 def clean_audio_fields(a: Dict[str, Any]) -> Dict[str, Any]:
     return {"start": _num(a.get("start"), 0.0, 0.0, 86400.0), "vol": _num(a.get("vol"), -10.0, -60.0, 24.0),
-            "fi": _num(a.get("fi"), 0.0, 0.0, 60.0), "fo": _num(a.get("fo"), 0.0, 0.0, 60.0), "duck": bool(a.get("duck"))}
+            "fi": _num(a.get("fi"), 0.0, 0.0, 60.0), "fo": _num(a.get("fo"), 0.0, 0.0, 60.0), "duck": bool(a.get("duck")),
+            "track": _track(a.get("track"))}
 
 
 def sanitize_audios(raw: Any, roots: List[str]) -> List[Dict[str, Any]]:
@@ -166,7 +229,8 @@ MAX_OVERLAYS = 30
 def clean_overlay_fields(o: Dict[str, Any]) -> Dict[str, Any]:
     """Placement of a picture-in-picture item. Limits are identical to cleanOverlay() in editor/web/timeline.js."""
     return {"start": _num(o.get("start"), 0.0, 0.0, 86400.0), "tf": clean_tf(o.get("tf") if isinstance(o.get("tf"), dict) else {"s": 0.4, "x": 0.27, "y": -0.27}),
-            "op": _num(o.get("op"), 1.0, 0.0, 1.0), "sound": bool(o.get("sound")), "vol": _num(o.get("vol"), 0.0, -60.0, 24.0)}
+            "op": _num(o.get("op"), 1.0, 0.0, 1.0), "sound": bool(o.get("sound")), "vol": _num(o.get("vol"), 0.0, -60.0, 24.0),
+            "track": _track(o.get("track"))}
 
 
 def sanitize_overlays(raw: Any, roots: List[str]) -> List[Dict[str, Any]]:
@@ -196,12 +260,43 @@ def sanitize_overlays(raw: Any, roots: List[str]) -> List[Dict[str, Any]]:
     return out
 
 
+def shape_filters(shapes: List[Dict[str, Any]], W: int, H: int, fps: Any, src: str, dst: str) -> List[str]:
+    """Draw every shape in its own time window: a one-frame rgba picture with a shaped alpha, looped for the window."""
+    parts: List[str] = []
+    cur = src
+    for k, sh in enumerate(shapes):
+        w, h = _even(sh["w"] * W), _even(sh["h"] * H)
+        x, y = _jsround(sh["x"] * W - w / 2.0), _jsround(sh["y"] * H - h / 2.0)
+        op = round(sh["op"], 3)
+        if sh["kind"] == "rect":
+            alpha = "%s" % round(255 * op, 2)
+        elif sh["kind"] == "ellipse":
+            alpha = "%s*clip((1-hypot((X+0.5-W/2)/(W/2),(Y+0.5-H/2)/(H/2)))*min(W,H)/2+0.5,0,1)" % round(255 * op, 2)
+        else:
+            rad = max(1.0, sh["radius"] * min(w, h))
+            alpha = ("%s*clip(%s-hypot(max(abs(X+0.5-W/2)-(W/2-%s),0),max(abs(Y+0.5-H/2)-(H/2-%s),0))+0.5,0,1)"
+                     % (round(255 * op, 2), round(rad, 2), round(rad, 2), round(rad, 2)))
+        rgb = sh["color"][1:]
+        parts.append("color=c=0x%s:s=%dx%d:r=%s:d=%.4f,format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='%s',"
+                     "loop=loop=-1:size=1:start=0,trim=duration=%.3f,setpts=PTS-STARTPTS+%.3f/TB[sh%d]"
+                     % (rgb, w, h, fps, 1.0 / float(fps if isinstance(fps, (int, float)) else 25), alpha, sh["dur"], sh["start"], k))
+        nxt = dst if k == len(shapes) - 1 else "shx%d" % k
+        parts.append("[%s][sh%d]overlay=%d:%d:format=auto:eof_action=pass:%s[%s]" % (cur, k, x, y, _enable(sh["start"], sh["start"] + sh["dur"]), nxt))
+        cur = nxt
+    return parts
+
+
+def _enable(a: float, b: float) -> str:
+    from ..tools.overlay import enable_expr
+    return enable_expr(a, b)
+
+
 def overlay_filters(overlays: List[Dict[str, Any]], first_input: int, W: int, H: int, fps: Any, src: str, dst: str) -> List[str]:
     """Lay every overlay over the picture [src] during its own time window; the result is [dst]."""
     from ..tools.overlay import enable_expr
     parts: List[str] = []
     cur = src
-    for k, o in enumerate(overlays):
+    for k, o in enumerate(overlays):         # callers pass them bottom to top
         v = o["info"]["video"]
         x, y, w, h = fg_rect(v["display_width"], v["display_height"], W, H, o["tf"])
         d = o["out"] - o["in"]
@@ -246,6 +341,15 @@ def canvas_for(clips: List[Dict[str, Any]], canvas: Any = None) -> Tuple[int, in
 
 
 def _color_source(bg: Dict[str, str], W: int, H: int, fps: Any, d: float, label: str) -> str:
+    """The background as a source of duration d (solid colour, gradient or picture)."""
+    if bg["mode"] == "gradient":
+        require_filter("gradients", "a gradient background")
+        return ("gradients=s=%dx%d:r=%s:d=%.3f:c0=0x%s:c1=0x%s:x0=0:y0=0:x1=0:y1=%d:nb_colors=2,format=yuv420p,setsar=1[%s]"
+                % (W, H, fps, d, bg["color"][1:], bg["color2"][1:], H, label))
+    if bg["mode"] == "image" and bg.get("image"):
+        return ("movie=filename=%s,scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d,format=yuv420p,setsar=1,"
+                "loop=loop=-1:size=1,fps=%s,trim=duration=%.3f,setpts=PTS-STARTPTS[%s]"
+                % (ff_escape_path(Path(bg["image"])), W, H, W, H, fps, d, label))
     colour = "0x" + bg["color"][1:] if bg["mode"] == "color" else "black"
     return "color=c=%s:s=%dx%d:r=%s:d=%.3f,format=yuv420p,setsar=1[%s]" % (colour, W, H, fps, d, label)
 
@@ -347,11 +451,14 @@ def audio_mix_parts(has_main: bool, audios: List[Dict[str, Any]], first_input: i
 
 
 def build_render_graph(clips: List[Dict[str, Any]], width: int, height: int, fps: float, bg: Any = None,
-                       texts: Any = None, audios: Any = None, workdir: Any = None, overlays: Any = None) -> Tuple[List[str], str, bool]:
-    """Pure (apart from text files in workdir): ffmpeg input args and a filter_complex that plays all clips back to back,
-    lays the overlay track over them, draws the texts and mixes the audio items. Returns (inputs, graph, has_audio)."""
+                       texts: Any = None, audios: Any = None, workdir: Any = None, overlays: Any = None,
+                       shapes: Any = None) -> Tuple[List[str], str, bool]:
+    """Pure (apart from text files in workdir): ffmpeg input args and a filter_complex that plays all clips back to back, then
+    stacks shapes, the overlay track and the texts on top (in that order; inside a kind the higher track is on top) and mixes
+    the audio items. Returns (inputs, graph, has_audio)."""
     bgs = sanitize_bg(bg)
-    texts, overlays = list(texts or []), list(overlays or [])
+    by_track = lambda items: sorted(items, key=lambda i: i.get("track", 0))      # noqa: E731 - stable: later items stay above
+    texts, overlays, shapes = by_track(texts or []), by_track(overlays or []), by_track(shapes or [])
     audios = list(audios or []) + [dict(path=o["path"], info=o["info"], duck=False, fi=0.0, fo=0.0, vol=o["vol"], start=o["start"],
                                         **{"in": o["in"], "out": o["out"]}) for o in overlays if o["sound"] and o["info"]["has_audio"]]
     if texts and workdir is None:
@@ -372,17 +479,22 @@ def build_render_graph(clips: List[Dict[str, Any]], width: int, height: int, fps
             else:
                 parts.append("anullsrc=r=48000:cl=stereo:d=%.3f[a%d]" % (d, i))
             labels += "[a%d]" % i
-    vlabel = "vc" if (texts or overlays) else "vo"
+    vlabel = "vc" if (texts or overlays or shapes) else "vo"
     alabel = "ac" if audios else "ao"
     parts.append("%sconcat=n=%d:v=1:a=%d[%s]%s" % (labels, len(clips), int(any_audio), vlabel, "[%s]" % alabel if any_audio else ""))
+    cur = vlabel
+    if shapes:
+        dst = "vs" if (overlays or texts) else "vo"
+        parts += shape_filters(shapes, width, height, fps, cur, dst)
+        cur = dst
     if overlays:
         for o in overlays:
             inputs += ["-ss", "%.3f" % o["in"], "-t", "%.3f" % (o["out"] - o["in"]), "-i", o["path"]]
-        parts += overlay_filters(overlays, len(clips), width, height, fps, "vc", "vt" if texts else "vo")
-        if texts:
-            vlabel = "vt"
+        dst = "vt" if texts else "vo"
+        parts += overlay_filters(overlays, len(clips), width, height, fps, cur, dst)
+        cur = dst
     if texts:
-        parts.append("[%s]%s[vo]" % (vlabel, text_filters(texts, width, height, Path(workdir))))
+        parts.append("[%s]%s[vo]" % (cur, text_filters(texts, width, height, Path(workdir))))
     if audios:
         first = len(clips) + len(overlays)
         for a in audios:
@@ -393,17 +505,18 @@ def build_render_graph(clips: List[Dict[str, Any]], width: int, height: int, fps
 
 
 def render_project(clips: List[Dict[str, Any]], out_dir: Path, crf: int = 20, timeout: int = 3600,
-                   canvas: Any = None, bg: Any = None, texts: Any = None, audios: Any = None, overlays: Any = None) -> Path:
+                   canvas: Any = None, bg: Any = None, texts: Any = None, audios: Any = None, overlays: Any = None,
+                   shapes: Any = None) -> Path:
     """Render the sequence (+ texts, + audio items) to <first clip name>_project.mp4 in out_dir. Inputs are never modified."""
     width, height, fps = canvas_for(clips, canvas)
     out = plan_output(Path(clips[0]["path"]), "project", ".mp4", None, str(out_dir), False)
     tmp = Path(tempfile.mkdtemp(prefix="ve_render_"))
     try:
-        inputs, graph, has_audio = build_render_graph(clips, width, height, fps, bg, texts, audios, tmp, overlays)
+        inputs, graph, has_audio = build_render_graph(clips, width, height, fps, bg, texts, audios, tmp, overlays, shapes)
         ff = ["-n"] + inputs + filter_complex_args(graph, tmp) + ["-map", "[vo]"]
         if has_audio:
             ff += ["-map", "[ao]"]
-        if audios or overlays:                                       # music / overlays may be longer than the picture
+        if audios or overlays or shapes:                             # music / overlays may be longer than the picture
             ff += ["-t", "%.3f" % sum(c["out"] - c["in"] for c in clips)]
         ff += encode_args(".mp4", crf=crf, audio=has_audio)
         try:
@@ -464,6 +577,7 @@ def validate_project(obj: Any) -> Dict[str, Any]:
         item.update(clean_overlay_fields(o))
         clean_overlays.append(item)
     return {"version": 1, "name": str(obj.get("name") or "")[:120], "assets": clean_assets, "clips": clean_clips, "overlays": clean_overlays,
+            "shapes": sanitize_shapes(obj.get("shapes")), "scenes": sanitize_scenes(obj.get("scenes")), "tracks": sanitize_tracks(obj.get("tracks")),
             "canvas": sanitize_canvas(obj.get("canvas")), "bg": sanitize_bg(obj.get("bg")),
             "texts": sanitize_texts(obj.get("texts") or []), "audios": clean_audios}
 

@@ -1,5 +1,6 @@
 """Timeline rendering (clips played back to back), project files and the timeline export API."""
 import json
+import subprocess
 import os
 
 import pytest
@@ -461,3 +462,100 @@ def test_overlay_via_api_and_project_file(srv, media, red, tmp_path):
     with pytest.raises(ToolError):
         P.validate_project(dict(proj, overlays=[{"id": "x", "asset": "nope", "in": 0, "out": 1}]))
     assert P.validate_project({"version": 1, "assets": {}, "clips": []})["overlays"] == []
+
+
+# ---------------------------------------------------------------- shapes, tracks, backgrounds, scenes
+def _rgb_at(path, x, y, t):
+    px = raw_frame(path, "crop=2:2:%d:%d" % (x, y), t)
+    n = len(px) // 3
+    return [sum(px[c::3]) / float(n) for c in range(3)]
+
+
+def _red(px):
+    return px[0] > 200 and px[1] < 50 and px[2] < 50
+
+
+def test_sanitize_shapes_scenes_tracks_and_bg(media, tmp_path):
+    sh = P.sanitize_shapes([{"kind": "star", "x": 9, "w": 0, "color": "red", "op": 7, "track": 99, "dur": 0}])[0]
+    assert sh["kind"] == "rect" and sh["x"] == 1.5 and sh["w"] == 0.02 and sh["color"] == "#000000" and sh["op"] == 1 and sh["track"] == 11 and sh["dur"] == 0.1
+    assert P.sanitize_shapes(None) == [] and len(P.sanitize_shapes([{}] * 200)) == 200
+    with pytest.raises(ToolError):
+        P.sanitize_shapes([{}] * 201)
+    sc = P.sanitize_scenes([{"name": "Intro\x00", "items": ["a", 5], "start": -1}, "x"])
+    assert len(sc) == 1 and sc[0]["name"] == "Intro" and sc[0]["items"] == ["a", "5"] and sc[0]["start"] == 0
+    assert P.sanitize_tracks({"text": 99, "audio": 0, "bogus": 3}) == {"scene": 1, "shape": 1, "text": 12, "overlay": 1, "audio": 1}
+    assert P.sanitize_bg({"mode": "color", "color": "#ff0000"}) == {"mode": "color", "color": "#ff0000"}          # old modes keep their shape
+    assert P.sanitize_bg({"mode": "gradient", "color": "#ff0000", "color2": "x"}) == {"mode": "gradient", "color": "#ff0000", "color2": "#1b1464"}
+    img = tmp_path / "bg.png"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=green:s=64x64:d=1", "-frames:v", "1", str(img)], check=True)
+    assert P.sanitize_bg({"mode": "image", "image": str(img)}, [str(tmp_path)])["image"] == str(img)
+    for bad in ({"mode": "image", "image": "/etc/passwd"}, {"mode": "image", "image": str(tmp_path / "nope.png")}, {"mode": "image"}):
+        with pytest.raises(ToolError):
+            P.sanitize_bg(bad, [str(tmp_path)])
+    assert P.sanitize_bg({"mode": "image"})["mode"] == "black"                                                # internal call without a picture
+
+
+def test_shapes_are_drawn_only_in_their_window_and_shape(media, tmp_path):
+    clips = P.sanitize_clips([clip(media, "clip", 0, 4)], [str(media["dir"])])
+    shapes = P.sanitize_shapes([{"kind": "rect", "x": 0.25, "y": 0.5, "w": 0.2, "h": 0.2, "color": "#ff0000", "op": 1, "start": 1, "dur": 1.5},
+                                {"kind": "ellipse", "x": 0.75, "y": 0.5, "w": 0.3, "h": 0.4, "color": "#ff0000", "op": 1, "start": 1, "dur": 1.5},
+                                {"kind": "rounded", "x": 0.5, "y": 0.15, "w": 0.3, "h": 0.2, "radius": 0.5, "color": "#ff0000", "op": 1, "start": 1, "dur": 1.5}])
+    out = P.render_project(clips, tmp_path / "shapes", shapes=shapes)
+    assert ffprobe(out)["duration"] == pytest.approx(4, abs=0.3)
+    assert _red(_rgb_at(out, 160, 180, 1.5)) and _red(_rgb_at(out, 480, 180, 1.5)) and _red(_rgb_at(out, 320, 54, 1.5))
+    assert not _red(_rgb_at(out, 160, 180, 0.4)) and not _red(_rgb_at(out, 160, 180, 3.0))          # outside the window
+    assert not _red(_rgb_at(out, 480 - 56, 180 - 70, 1.5))                                       # corner of the ellipse's box stays empty
+    assert not _red(_rgb_at(out, 320 - 96, 54 - 34, 1.5))                                        # fully rounded corner of the third shape
+    half = P.sanitize_shapes([{"kind": "rect", "x": 0.5, "y": 0.5, "w": 0.3, "h": 0.3, "color": "#000000", "op": 0.5, "start": 0, "dur": 4}])
+    out2 = P.render_project(clips, tmp_path / "half", shapes=half)
+    plain = P.render_project(clips, tmp_path / "plain2")
+    a, b = _rgb_at(plain, 320, 180, 1.0), _rgb_at(out2, 320, 180, 1.0)
+    assert sum(b) < sum(a) * 0.8 and sum(b) > sum(a) * 0.2                                       # darkened, not black
+
+
+def test_layer_order_shape_under_overlay_under_text_and_tracks(media, tmp_path):
+    red = media["dir"] / "red2.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=red:s=160x90:r=25:d=2", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(red)], check=True)
+    blue = media["dir"] / "blue2.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=blue:s=160x90:r=25:d=2", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(blue)], check=True)
+    roots = [str(media["dir"])]
+    clips = P.sanitize_clips([clip(media, "clip", 0, 3)], roots)
+    both = lambda t_red, t_blue: P.sanitize_overlays([{"path": str(red), "in": 0, "out": 2, "start": 0, "tf": {"s": 0.5, "x": 0, "y": 0}, "track": t_red},
+                                                       {"path": str(blue), "in": 0, "out": 2, "start": 0, "tf": {"s": 0.5, "x": 0, "y": 0}, "track": t_blue}], roots)
+    out = P.render_project(clips, tmp_path / "o1", overlays=both(0, 1))                 # blue is on the higher track: on top
+    px = _rgb_at(out, 320, 180, 1.0)
+    assert px[2] > 200 and px[0] < 50
+    out = P.render_project(clips, tmp_path / "o2", overlays=both(1, 0))                 # now red is on top
+    assert _red(_rgb_at(out, 320, 180, 1.0))
+    shape = P.sanitize_shapes([{"kind": "rect", "x": 0.5, "y": 0.5, "w": 1, "h": 1, "color": "#00ff00", "op": 1, "start": 0, "dur": 3}])
+    out = P.render_project(clips, tmp_path / "o3", overlays=both(0, 1), shapes=shape)   # a shape lies under the video overlay
+    assert _rgb_at(out, 320, 180, 1.0)[2] > 200 and _rgb_at(out, 10, 10, 1.0)[1] > 200
+
+
+def test_gradient_and_image_backgrounds_render(media, tmp_path):
+    roots = [str(media["dir"]), str(tmp_path)]
+    clips = P.sanitize_clips([clip(media, "silent", 0, 2)], roots)                  # 320x240 picture on a 9:16 canvas leaves bars above and below
+    canvas = {"aspect": "9:16", "short": 360}
+    grad = P.render_project(clips, tmp_path / "grad", canvas=canvas, bg={"mode": "gradient", "color": "#ff0000", "color2": "#0000ff"})
+    top, bottom = _rgb_at(grad, 10, 6, 0.5), _rgb_at(grad, 10, 632, 0.5)
+    assert top[0] > 180 and top[2] < 80 and bottom[2] > 150 and bottom[0] < 100        # red at the top, blue at the bottom
+    img = tmp_path / "green.png"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=0x00ff00:s=64x64:d=1", "-frames:v", "1", str(img)], check=True)
+    pic = P.render_project(clips, tmp_path / "pic", canvas=canvas, bg=P.sanitize_bg({"mode": "image", "image": str(img)}, roots))
+    g = _rgb_at(pic, 10, 6, 0.5)
+    assert g[1] > 200 and g[0] < 60 and g[2] < 60
+
+
+def test_project_file_keeps_shapes_scenes_tracks_and_new_backgrounds(media, tmp_path):
+    proj = {"version": 1, "assets": {"a": {"path": str(media["silent"])}}, "clips": [{"id": "c", "asset": "a", "in": 0, "out": 2}],
+            "shapes": [{"id": "s1", "kind": "ellipse", "x": 0.3, "w": 0.4, "color": "#ff00ff", "op": 0.4, "track": 2}],
+            "scenes": [{"id": "sc1", "name": "Intro", "start": 0.5, "dur": 2, "items": ["s1", "t1"]}],
+            "texts": [{"id": "t1", "text": "Hi", "track": 3}], "tracks": {"text": 4, "shape": 3},
+            "bg": {"mode": "gradient", "color": "#ff0000", "color2": "#0000ff"}}
+    back = P.load_project(P.save_project(str(tmp_path / "all"), proj, [str(tmp_path)]), [str(tmp_path)])
+    assert back["shapes"][0]["kind"] == "ellipse" and back["shapes"][0]["track"] == 2 and back["shapes"][0]["op"] == 0.4
+    assert back["scenes"][0]["items"] == ["s1", "t1"] and back["texts"][0]["track"] == 3
+    assert back["tracks"] == {"scene": 1, "shape": 3, "text": 4, "overlay": 1, "audio": 1}
+    assert back["bg"] == {"mode": "gradient", "color": "#ff0000", "color2": "#0000ff"}
+    old = P.validate_project({"version": 1, "assets": {}, "clips": []})
+    assert old["shapes"] == [] and old["scenes"] == [] and old["tracks"] == {k: 1 for k in P.TRACK_KINDS}

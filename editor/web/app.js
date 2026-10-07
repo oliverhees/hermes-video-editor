@@ -10,8 +10,9 @@
   var S = {
     assets: {}, clips: [], sel: -1, t: 0, zoom: 80, mark: { a: null, b: null }, hist: TL.createHistory(100),
     projectPath: null, projectName: "", dirty: false, config: null, dlgPath: "", fitted: false,
-    canvas: { aspect: "auto", short: 1080 }, bg: { mode: "blur", color: "#000000" },
-    texts: [], audios: [], overlays: [], selText: -1, selAudio: -1, selOv: -1,           // layers: text on the picture, audio items (music, voice-over)
+    canvas: { aspect: "auto", short: 1080 }, bg: { mode: "blur", color: "#000000", color2: "#1b1464", image: "" },
+    texts: [], audios: [], overlays: [], shapes: [], scenes: [], tracks: { scene: 1, shape: 1, text: 1, overlay: 1, audio: 1 },
+    selText: -1, selAudio: -1, selOv: -1, selShape: -1, selScene: -1,           // layers: text on the picture, audio items (music, voice-over)
   };
 
   // ---------------------------------------------------------------- api
@@ -78,7 +79,7 @@
   function openDialog(pick) {
     PICK = pick && pick.kind ? pick : null;
     $("modal").hidden = false;
-    $("dlg-usefolder").hidden = !(PICK && (PICK.folder || PICK.save));
+    $("dlg-usefolder").hidden = !(PICK && (PICK.folder || PICK.save)); $("dlg-mk").hidden = !(PICK && (PICK.folder || PICK.save)); $("dlg-newfolder").value = "";
     $("dlg-usefolder").textContent = PICK && PICK.save ? "Save here" : "Use this folder";
     $("dlg-name").hidden = !(PICK && PICK.save); if (PICK && PICK.save) $("dlg-name").value = S.projectName || "my-project";
     $("dlg-title").textContent = PICK && PICK.title ? PICK.title : "Add a video";
@@ -88,6 +89,8 @@
       : PICK.folder ? "Pick a folder." : "Pick a file.";
     var isProject = !!(PICK && PICK.kind === "project");               // projects remember their own folder, separate from the media folder
     var start = isProject ? S.dlgProjectPath : S.dlgPath;
+    if (PICK && PICK.folder && !PICK.start) start = S.dlgFolderPath || (S.clips[0] && assetFor(S.clips[0].asset) ? dirName(assetFor(S.clips[0].asset).path) : "") || start;
+    if (PICK && PICK.save && !start) start = (S.projectPath ? dirName(S.projectPath) : "") || (S.clips[0] && assetFor(S.clips[0].asset) ? dirName(assetFor(S.clips[0].asset).path) : "");   // next to the video
     if (!start && !isProject) start = store("ve.dir");
     if (isProject && !start) {
       api("/api/recent", { kind: "project" }).then(function (r) { browse(r.files.length ? r.files[0].path.replace(/[\\/][^\\/]*$/, "") : ""); }).catch(function () { browse(""); });
@@ -110,7 +113,7 @@
     $("dlg-err").textContent = "";
     var q = path ? { path: path } : {}; if (PICK && PICK.kind) q.kind = PICK.kind;
     api("/api/ls", q).then(function (d) {
-      if (PICK && PICK.kind === "project") S.dlgProjectPath = d.path; else { S.dlgPath = d.path; store("ve.dir", d.path); }
+      if (PICK && PICK.kind === "project") S.dlgProjectPath = d.path; else if (PICK && PICK.folder) S.dlgFolderPath = d.path; else { S.dlgPath = d.path; store("ve.dir", d.path); }
       $("dlg-path").value = d.path;
       var list = $("dlg-list"); list.textContent = "";
       if (d.parent) { var up = el("div", "item", ".. (up)"); up.addEventListener("click", function () { browse(d.parent); }); list.appendChild(up); }
@@ -118,7 +121,7 @@
         var it = el("div", "item"); it.appendChild(el("span", "grow", "📁 " + x.name));
         it.addEventListener("click", function () { browse(d.path + sep(d.path) + x.name); }); list.appendChild(it);
       });
-      d.files.forEach(function (x) {
+      (PICK && (PICK.folder || PICK.save) && PICK.kind !== "project" ? [] : d.files).forEach(function (x) {
         var it = el("div", "item"); it.appendChild(el("span", "grow", (PICK && PICK.kind === "project" ? "📄 " : "🎬 ") + x.name));
         it.appendChild(el("span", "muted", (x.size / 1048576).toFixed(1) + " MB"));
         it.addEventListener("click", function () {
@@ -128,8 +131,18 @@
       });
       if (!d.files.length && PICK && PICK.kind === "project" && !PICK.save) list.appendChild(el("div", "muted", "No project files in this folder. Save your work with Save, then it shows up here."));
       else if (!d.dirs.length && !d.files.length) list.appendChild(el("div", "muted", "No folders or files here."));
-    }).catch(function (e) { $("dlg-err").textContent = e.message + (e.hint ? " - " + e.hint : ""); });
+    }).catch(function (e) {
+      if (path) { browse(""); $("dlg-err").textContent = ""; return; }                          // a folder that is not allowed (or gone): start at the home folder instead
+      $("dlg-err").textContent = e.message + (e.hint ? " - " + e.hint : "");
+    });
   }
+  function dirName(p) { var s = String(p).replace(/\\/g, "/"), i = s.lastIndexOf("/"); return i > 0 ? p.slice(0, i) : ""; }
+  $("dlg-mkdir").addEventListener("click", function () {
+    var name = $("dlg-newfolder").value.trim(); if (!name) { $("dlg-err").textContent = "Type a name for the new folder."; return; }
+    var parent = (PICK && PICK.kind === "project") ? S.dlgProjectPath : (PICK && PICK.folder ? S.dlgFolderPath : S.dlgPath);
+    api("/api/mkdir", null, { parent: parent, name: name }).then(function (r) { $("dlg-newfolder").value = ""; browse(r.path); })
+      .catch(function (e) { $("dlg-err").textContent = e.message; });
+  });
   function sep(p) { return p.indexOf("\\") >= 0 && p.indexOf("/") < 0 ? "\\" : "/"; }
   function openProjectDialog() { openDialog({ kind: "project", title: "Open a project", done: loadProjectFile }); }
   $("btn-open").addEventListener("click", function () { openDialog(); });
@@ -138,7 +151,7 @@
   $("btn-openproj2").addEventListener("click", openProjectDialog);
   $("dlg-close").addEventListener("click", closeDialog);
   $("dlg-usefolder").addEventListener("click", function () {
-    var cb = PICK && PICK.done, dir = PICK && PICK.kind === "project" ? S.dlgProjectPath : S.dlgPath, save = PICK && PICK.save, name = $("dlg-name").value.trim();
+    var cb = PICK && PICK.done, dir = PICK && PICK.kind === "project" ? S.dlgProjectPath : (PICK && PICK.folder ? S.dlgFolderPath : S.dlgPath), save = PICK && PICK.save, name = $("dlg-name").value.trim();
     if (save && !name) { $("dlg-err").textContent = "Give the project a name."; return; }
     closeDialog(); if (cb) cb(save ? dir + sep(dir) + name : dir);
   });
@@ -186,11 +199,20 @@
   function findAssetByPath(path) { for (var k in S.assets) if (S.assets[k].path === path) return S.assets[k]; return null; }
 
   // ---------------------------------------------------------------- editing (every change goes through edit() so undo/redo work)
-  function snap() { return { clips: S.clips, sel: S.sel, canvas: S.canvas, bg: S.bg, texts: S.texts, audios: S.audios, overlays: S.overlays, selText: S.selText, selAudio: S.selAudio, selOv: S.selOv }; }
+  function clearSel(except) {                      // one selection at a time: a clip, or one item of a layer
+    if (except !== "clip") S.sel = -1; if (except !== "text") S.selText = -1; if (except !== "audio") S.selAudio = -1;
+    if (except !== "overlay") S.selOv = -1; if (except !== "shape") S.selShape = -1; if (except !== "scene") S.selScene = -1;
+  }
+  function tab(name) { var b = document.querySelector('#tabs button[data-tab="' + name + '"]'); if (b) b.click(); }
+  var HITS = [];                                   // what is under the mouse on the preview (filled while drawing, see pick.js)
+  function snap() { return { clips: S.clips, sel: S.sel, canvas: S.canvas, bg: S.bg, texts: S.texts, audios: S.audios, overlays: S.overlays, shapes: S.shapes, scenes: S.scenes, tracks: S.tracks,
+    selText: S.selText, selAudio: S.selAudio, selOv: S.selOv, selShape: S.selShape, selScene: S.selScene }; }
   function restore(p) {
     S.clips = p.clips; S.sel = p.sel; S.canvas = p.canvas || S.canvas; S.bg = p.bg || S.bg; S.dirty = true;
     S.texts = p.texts || []; S.audios = p.audios || []; S.selText = p.selText == null ? -1 : p.selText; S.selAudio = p.selAudio == null ? -1 : p.selAudio;
     S.overlays = p.overlays || []; S.selOv = p.selOv == null ? -1 : p.selOv;
+    S.shapes = p.shapes || []; S.scenes = p.scenes || []; S.tracks = p.tracks || S.tracks;
+    S.selShape = p.selShape == null ? -1 : p.selShape; S.selScene = p.selScene == null ? -1 : p.selScene;
     syncCanvasControls(); afterEdit();
   }
   function commit(fn) { S.hist.push(snap()); fn(); S.dirty = true; renderAll(); }          // for changes that are not clip edits (texts, audio items)
@@ -380,13 +402,15 @@
     if (!cssW || !cssH) return;
     if (cv.width !== Math.round(cssW * dpr) || cv.height !== Math.round(cssH * dpr)) { cv.width = Math.round(cssW * dpr); cv.height = Math.round(cssH * dpr); }
     var g = cv.getContext("2d"), k = cv.width / W;
-    g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = S.bg.mode === "color" ? S.bg.color : "#000"; g.fillRect(0, 0, cv.width, cv.height);
+    g.setTransform(1, 0, 0, 1, 0, 0); paintBackground(g, cv.width, cv.height);
+    HITS.length = 0;
     var hit = currentHit(), a = hit && assetFor(hit.clip.asset), v = act();
     $("gizmo").hidden = true;
     var layers = function () { if (window.VE && VE.layers) VE.layers.drawStage(g, k, W, H); };
     if (!hit || !a || !a.hasVideo || !a.info || !a.info.video) { layers(); return; }
     var iw = a.info.video.display_width, ih = a.info.video.display_height, r = TL.fgRect(iw, ih, W, H, hit.clip.tf);
     updateGizmo(r, hit.index, cssW / W);
+    HITS.push({ z: 0, rect: [r[0] * cssW / W, r[1] * cssW / W, r[2] * cssW / W, r[3] * cssW / W], gizmo: "gizmo", select: function () { clearSel("clip"); S.sel = hit.index; } });
     if (v.getAttribute("data-asset") !== a.id || !v.videoWidth || v.readyState < 2) { layers(); return; }
     var covers = r[0] <= 0 && r[1] <= 0 && r[0] + r[2] >= W && r[1] + r[3] >= H;
     if (S.bg.mode === "blur" && !covers) {
@@ -399,8 +423,8 @@
     layers();
   }
   function updateGizmo(r, index, kc) {                         // the frame around the picture that can be dragged
-    var gz = $("gizmo"), target = targetIndex();
-    if (target !== index || PB.playing) { gz.hidden = true; return; }
+    var gz = $("gizmo");
+    if (S.sel !== index || PB.playing) { gz.hidden = true; return; }
     gz.hidden = false; gz.style.left = (r[0] * kc) + "px"; gz.style.top = (r[1] * kc) + "px"; gz.style.width = (r[2] * kc) + "px"; gz.style.height = (r[3] * kc) + "px";
   }
   window.addEventListener("resize", function () { layoutStage(); drawAll(); });
@@ -428,9 +452,25 @@
     $("canvas-size").textContent = "Output: " + d[0] + " \u00D7 " + d[1] + " px";
     $("tf-hint").textContent = !has ? "Add a clip first." : !(asset && asset.hasVideo) ? "This clip has no picture." : (h && h.index !== i ? "Move the playhead into the selected clip to see it." : "Position and size apply to the selected clip only.");
   }
+  // the canvas colour behind the pictures: black, one colour, a two-colour gradient or a picture (blur is drawn from the video)
+  var bgImg = null, bgImgPath = "";
+  function paintBackground(g, w, h) {
+    var m = S.bg.mode;
+    if (m === "gradient") { var gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, S.bg.color); gr.addColorStop(1, S.bg.color2 || "#1b1464"); g.fillStyle = gr; g.fillRect(0, 0, w, h); return; }
+    if (m === "image" && S.bg.image) {
+      if (bgImgPath !== S.bg.image) { bgImgPath = S.bg.image; bgImg = new Image(); bgImg.onload = function () { drawStage(); }; bgImg.src = url("/api/image", { path: S.bg.image }); }
+      g.fillStyle = "#000"; g.fillRect(0, 0, w, h);
+      if (bgImg && bgImg.complete && bgImg.naturalWidth) { var sc = Math.max(w / bgImg.naturalWidth, h / bgImg.naturalHeight), dw = bgImg.naturalWidth * sc, dh = bgImg.naturalHeight * sc; g.drawImage(bgImg, (w - dw) / 2, (h - dh) / 2, dw, dh); }
+      return;
+    }
+    g.fillStyle = m === "color" ? S.bg.color : "#000"; g.fillRect(0, 0, w, h);
+  }
+  function bgForExport() { var b = S.bg; return b.mode === "gradient" ? { mode: "gradient", color: b.color, color2: b.color2 } : b.mode === "image" ? (b.image ? { mode: "image", color: b.color, image: b.image } : { mode: "black", color: b.color }) : { mode: b.mode, color: b.color }; }
   function syncCanvasControls() {
     $("in-aspect").value = S.canvas.aspect; $("in-short").value = String(S.canvas.short); $("in-bg").value = S.bg.mode; $("in-bgcolor").value = S.bg.color;
-    $("in-bgcolor").hidden = S.bg.mode !== "color"; $("in-short").disabled = S.canvas.aspect === "auto";
+    $("in-bgcolor").hidden = !(S.bg.mode === "color" || S.bg.mode === "gradient"); $("in-bgcolor2").hidden = S.bg.mode !== "gradient"; $("in-bgcolor2").value = S.bg.color2 || "#1b1464";
+    $("bg-image-row").hidden = S.bg.mode !== "image"; $("bg-image-name").textContent = S.bg.image ? baseName(S.bg.image) : "No picture chosen";
+    $("in-short").disabled = S.canvas.aspect === "auto";
   }
   function changeCanvas(patchCanvas, patchBg) {
     S.hist.push(snap());
@@ -440,8 +480,12 @@
   }
   $("in-aspect").addEventListener("change", function () { changeCanvas({ aspect: this.value }); });
   $("in-short").addEventListener("change", function () { changeCanvas({ short: +this.value }); });
-  $("in-bg").addEventListener("change", function () { changeCanvas(null, { mode: this.value }); });
+  $("in-bg").addEventListener("change", function () { changeCanvas(null, { mode: this.value }); if (this.value === "image" && !S.bg.image) $("btn-bg-image").click(); });
   $("in-bgcolor").addEventListener("change", function () { changeCanvas(null, { color: this.value }); });
+  $("in-bgcolor2").addEventListener("change", function () { changeCanvas(null, { color2: this.value }); });
+  $("btn-bg-image").addEventListener("click", function () {
+    openDialog({ kind: "picture", title: "Choose a background picture", done: function (p) { changeCanvas(null, { mode: "image", image: p }); } });
+  });
   [["in-scale", function (t, v) { t.s = v / 100; }], ["in-x", function (t, v) { t.x = v / 100; }], ["in-y", function (t, v) { t.y = v / 100; }]].forEach(function (pair) {
     $(pair[0]).addEventListener("input", function () { var i = targetIndex(); if (i < 0) return; beginGesture(); var t = tfOf(i); pair[1](t, +this.value); setTfLive(i, t); });
     $(pair[0]).addEventListener("change", endGesture);
@@ -590,12 +634,12 @@
       var clipEl = e.target.closest ? e.target.closest(".clip") : null;
       if (clipEl && !e.shiftKey) {
         var i = +clipEl.getAttribute("data-i"), edge = e.target.getAttribute && e.target.getAttribute("data-edge");
-        S.sel = i; S.selText = -1; S.selAudio = -1; S.selOv = -1; seek(tAt(e));
+        clearSel("clip"); S.sel = i; seek(tAt(e));
         drag = { kind: edge ? "trim" : "move", i: i, edge: edge, x0: e.clientX, base: S.clips, moved: false };
         renderAll(); e.preventDefault(); return;
       }
       drag = { kind: e.shiftKey ? "mark" : "scrub", t0: tAt(e) };
-      if (drag.kind === "scrub") { S.sel = -1; S.selText = -1; S.selAudio = -1; S.selOv = -1; seek(drag.t0); renderAll(); }
+      if (drag.kind === "scrub") { clearSel("none"); seek(drag.t0); renderAll(); }
       e.preventDefault();
     });
     window.addEventListener("mousemove", function (e) {
@@ -656,6 +700,7 @@
     var assets = {}; Object.keys(used).forEach(function (id) { var a = S.assets[id]; if (a) assets[id] = { path: a.path, name: a.name }; });
     return { version: 1, name: S.projectName || "", assets: assets, canvas: S.canvas, bg: S.bg, texts: S.texts.map(TL.cleanText),
       audios: S.audios.map(TL.cleanAudio), overlays: S.overlays.map(TL.cleanOverlay),
+      shapes: S.shapes.map(TL.cleanShape), scenes: S.scenes.map(TL.cleanScene), tracks: window.VE && VE.tracks ? VE.tracks.normalized() : S.tracks,
       clips: S.clips.map(function (c) { var o = { id: c.id, asset: c.asset, "in": c["in"], out: c.out }; if (c.tf) o.tf = TL.cleanTf(c.tf); return o; }) };
   }
   function saveProject(forceDialog) {
@@ -672,12 +717,13 @@
   function loadProjectFile(path) {
     busy("Opening project…");
     api("/api/project/load", { path: path }).then(function (p) {
-      S.assets = {}; S.clips = []; S.sel = -1; S.texts = []; S.audios = []; S.overlays = []; S.selOv = -1; S.t = 0; S.mark = { a: null, b: null }; S.hist = TL.createHistory(100);
+      S.assets = {}; S.clips = []; S.sel = -1; S.texts = []; S.audios = []; S.overlays = []; S.shapes = []; S.scenes = []; S.tracks = TL.cleanTracks(null); clearSel("none"); S.t = 0; S.mark = { a: null, b: null }; S.hist = TL.createHistory(100);
       var ids = Object.keys(p.assets);
       return Promise.all(ids.map(function (id) { return registerAsset(id, p.assets[id].path, p.assets[id].name).catch(function () { return null; }); })).then(function () {
         S.clips = p.clips.map(function (c) { var o = { id: c.id, asset: c.asset, "in": c["in"], out: c.out }; if (c.tf) o.tf = c.tf; return o; });
-        S.canvas = p.canvas || { aspect: "auto", short: 1080 }; S.bg = p.bg || { mode: "blur", color: "#000000" }; syncCanvasControls();
-        S.texts = (p.texts || []).map(TL.cleanText); S.audios = (p.audios || []).map(TL.cleanAudio); S.overlays = (p.overlays || []).map(TL.cleanOverlay); S.selText = -1; S.selAudio = -1;
+        S.canvas = p.canvas || { aspect: "auto", short: 1080 }; S.bg = Object.assign({ mode: "blur", color: "#000000", color2: "#1b1464", image: "" }, p.bg || {}); syncCanvasControls();
+        S.texts = (p.texts || []).map(TL.cleanText); S.audios = (p.audios || []).map(TL.cleanAudio); S.overlays = (p.overlays || []).map(TL.cleanOverlay); S.shapes = (p.shapes || []).map(TL.cleanShape); S.scenes = (p.scenes || []).map(TL.cleanScene);
+        S.tracks = TL.cleanTracks(p.tracks); S.selText = -1; S.selAudio = -1;
         S.projectPath = p.path; S.projectName = p.name || ""; S.dirty = false; S.fitted = true; S.sel = S.clips.length ? 0 : -1;
         busy(null); invalidatePreload(); syncPlayback(); renderAll(); fit();
         var missing = ids.filter(function (id) { return S.assets[id] && S.assets[id].state === "missing"; });
@@ -689,12 +735,15 @@
   $("btn-saveas").addEventListener("click", function () { saveProject(true); });
 
   // ---------------------------------------------------------------- export
+  function chooseOutDir() { openDialog({ kind: "media", folder: true, title: "Choose the folder for the exported video", done: function (p) { $("in-outdir").value = p; } }); }
+  $("btn-outdir").addEventListener("click", chooseOutDir);
+  $("in-outdir").addEventListener("click", function () { if (!this.value.trim()) chooseOutDir(); });
   $("btn-export").addEventListener("click", function () {
     if (!S.clips.length) { openDialog(); return; }
     var body = {
-      clips: TL.forExport(S.clips, S.assets), canvas: S.canvas, bg: S.bg, texts: S.texts.map(TL.cleanText),
-      audios: S.audios.filter(function (a) { return S.assets[a.asset] && !S.assets[a.asset].error; }).map(function (a) { return { path: S.assets[a.asset].path, "in": a["in"], out: a.out, start: a.start, vol: a.vol, fi: a.fi, fo: a.fo, duck: a.duck }; }),
-      overlays: S.overlays.filter(function (o) { return S.assets[o.asset] && !S.assets[o.asset].error; }).map(function (o) { return { path: S.assets[o.asset].path, "in": o["in"], out: o.out, start: o.start, tf: o.tf, op: o.op, sound: o.sound, vol: o.vol }; }), speed: +$("in-speed").value, reframe: "none",
+      clips: TL.forExport(S.clips, S.assets), canvas: S.canvas, bg: bgForExport(), texts: S.texts.map(TL.cleanText), shapes: S.shapes.map(TL.cleanShape),
+      audios: S.audios.filter(function (a) { return S.assets[a.asset] && !S.assets[a.asset].error; }).map(function (a) { return { path: S.assets[a.asset].path, "in": a["in"], out: a.out, start: a.start, vol: a.vol, fi: a.fi, fo: a.fo, duck: a.duck, track: a.track || 0 }; }),
+      overlays: S.overlays.filter(function (o) { return S.assets[o.asset] && !S.assets[o.asset].error; }).map(function (o) { return { path: S.assets[o.asset].path, "in": o["in"], out: o.out, start: o.start, tf: o.tf, op: o.op, sound: o.sound, vol: o.vol, track: o.track || 0 }; }), speed: +$("in-speed").value, reframe: "none",
       loudness: $("in-loud").checked ? +$("in-lufs").value : null, preset: $("in-preset").value || null,
       output_dir: $("in-outdir").value.trim() || null,
     };
@@ -901,7 +950,7 @@
   window.__ve = { seek: seek, state: S, TL: TL };          // handy for debugging and the browser tests
   window.VE = { S: S, TL: TL, $: $, el: el, fmt: fmt, clamp: clamp, api: api, url: url, assetFor: assetFor, ensureAsset: ensureAsset, snap: snap, commit: commit,
     renderAll: renderAll, drawStage: drawStage, drawCanvases: drawCanvases, seek: seek, flash: flash, openDialog: openDialog, cssColor: cssColor, baseName: baseName,
-    canvasDims: canvasDims, playing: function () { return PB.playing; }, gestureBegin: beginGesture, gestureEnd: endGesture, layers: null };
+    canvasDims: canvasDims, playing: function () { return PB.playing; }, gestureBegin: beginGesture, gestureEnd: endGesture, layers: null, tab: tab, clearSel: clearSel, hits: HITS };
   function init() {
     api("/api/config").then(function (c) {
       S.config = c;

@@ -39,7 +39,7 @@ def main():
     d.text((68, 190), "Video Editor", font=font(BOLD, 88), fill="#ffffff")
     d.text((74, 320), "Cut, reframe, caption and master", font=font(REG, 26), fill="#c9d1e0")
     d.text((74, 356), "your own footage: visually or by chat.", font=font(REG, 26), fill="#c9d1e0")
-    chips = ["Multi-clip timeline + waveform", "9:16 canvas, move and zoom clips", "Overlay, text and music tracks", "45 FFmpeg tools for the agent"]
+    chips = ["Multi-clip timeline + waveform", "9:16 canvas, move and zoom clips", "Shapes, scenes, unlimited tracks", "45 FFmpeg tools for the agent"]
     for i, text in enumerate(chips):
         y = 450 + i * 62
         d.ellipse([74, y + 6, 98, y + 30], fill=TEAL)

@@ -11,6 +11,7 @@ VIDEO_EXTS = {".mp4", ".m4v", ".mov", ".mkv", ".webm", ".avi", ".mpg", ".mpeg", 
               ".wmv", ".flv", ".3gp"}
 AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".flac", ".aac", ".ogg", ".opus"}
 MEDIA_EXTS = VIDEO_EXTS | AUDIO_EXTS
+BG_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
 
 
 def default_roots() -> List[str]:
@@ -48,6 +49,21 @@ def safe_media_file(raw: object, roots: Iterable[str]) -> Path:
     p = Path(real)
     if p.suffix.lower() not in MEDIA_EXTS:
         raise ToolError("Not a media file type: %s" % p.suffix)
+    if not p.is_file():
+        raise ToolError("File not found: %s" % raw)
+    return p
+
+
+def safe_image_file(raw: object, roots: Iterable[str]) -> Path:
+    """Existing picture file below one of the roots (used for backgrounds)."""
+    if not isinstance(raw, str) or not raw.strip():
+        raise ToolError("Missing image path.")
+    real = _norm(raw)
+    if not inside(real, roots):
+        raise ToolError("Path is outside the folders the editor may access.")
+    p = Path(real)
+    if p.suffix.lower() not in BG_IMAGE_EXTS:
+        raise ToolError("Not a picture file type: %s" % p.suffix, hint="Use png, jpg, webp, bmp or gif.")
     if not p.is_file():
         raise ToolError("File not found: %s" % raw)
     return p

@@ -612,7 +612,7 @@ def test_browser_text_and_audio_layers(media, tmp_path):
                 break
             page.wait_for_timeout(100)
         assert state(page, "s.audios.length") == 1
-        page.wait_for_selector("#audios .aitem", timeout=5000)
+        page.wait_for_selector(".aitem", timeout=5000)
         page.fill("#au-vol", "-6")
         page.dispatch_event("#au-vol", "input")
         assert state(page, "s.audios[0].vol") == -6
@@ -668,7 +668,7 @@ def test_browser_overlay_track(media, tmp_path):
                 break
             page.wait_for_timeout(100)
         assert state(page, "s.overlays.length") == 1 and state(page, "s.overlays[0].start") == pytest.approx(1, abs=0.05)
-        page.wait_for_selector("#ovs .oitem", timeout=5000)
+        page.wait_for_selector(".oitem", timeout=5000)
 
         def stage_px(fx, fy):
             return page.evaluate("(() => { const c = document.getElementById('stage-canvas'); const d = c.getContext('2d').getImageData(Math.round(c.width*%s), Math.round(c.height*%s), 1, 1).data; return [d[0], d[1], d[2]] })()" % (fx, fy))
@@ -697,7 +697,7 @@ def test_browser_overlay_track(media, tmp_path):
         page.dispatch_event("#ov-s", "input")
         assert state(page, "s.overlays[0].tf.s") == 0.5
         # lane: move with the mouse
-        it = bbox(page, "#ovs .oitem")
+        it = bbox(page, ".oitem")
         page.mouse.move(it["x"] + it["width"] / 2, it["y"] + it["height"] / 2)
         page.mouse.down()
         page.mouse.move(it["x"] + it["width"] / 2 + 40, it["y"] + it["height"] / 2, steps=4)
@@ -726,7 +726,7 @@ def test_browser_overlay_track(media, tmp_path):
         data = json.loads(saved.read_text())
         assert data["overlays"][0]["tf"]["s"] == 0.5 and data["overlays"][0]["tf"]["x"] == -0.27
         # delete with the keyboard
-        page.click("#ovs .oitem")
+        page.click(".oitem")
         page.keyboard.press("Delete")
         assert state(page, "s.overlays.length") == 0
         assert not errors, errors
@@ -832,3 +832,193 @@ def test_kie_announcement_is_neutral_and_everywhere():
         for url in re.findall(r"https?://[^\s)\"']*kie\.ai[^\s)\"']*", t):
             assert url.rstrip("/") == "https://kie.ai", (name, url)
     assert "kie.ai" not in (ROOT / "desktop" / "plugin.js").read_text(encoding="utf-8").lower()   # the page never talks to it
+
+
+def test_browser_click_on_the_preview_selects_and_drags_the_layer_under_the_mouse(media, tmp_path):
+    pw = pytest.importorskip("playwright.sync_api")
+    from hermes_video_editor.editor.server import EditorServer
+    srv = EditorServer(roots=[str(media["dir"]), str(tmp_path)])
+    p, b, page, errors = browser(pw)
+    try:
+        page.goto(srv.url(str(media["clip"])))
+        wait_ready(page)
+        page.evaluate("window.__ve.seek(1)")
+        page.click("#tabs button[data-tab=text]")
+        page.click("#btn-text-add")
+        page.fill("#tx-text", "Move me")
+        page.click("#tabs button[data-tab=edit]") if page.locator("#tabs button[data-tab=edit]").count() else page.click("#tabs button[data-tab=cuts]")
+        assert state(page, "s.selText") == 0
+        page.click("#btn-ov-add") if False else None
+        # click on empty timeline space deselects, then a click on the text in the preview (video lies underneath) selects the TEXT
+        page.keyboard.press("Escape")
+        st = bbox(page, "#stage")
+        page.mouse.click(st["x"] + 5, st["y"] + 5)                                   # corner of the picture, no layer there: clip or nothing
+        page.wait_for_timeout(200)
+        tx = state(page, "s.texts[0].x"), state(page, "s.texts[0].y")
+        cx, cy = st["x"] + st["width"] * tx[0], st["y"] + st["height"] * tx[1]
+        page.mouse.move(cx, cy)
+        page.mouse.down()
+        assert state(page, "s.selText") == 0 and state(page, "s.sel") == -1          # the text got selected, not the video
+        page.mouse.move(cx - 80, cy - 90, steps=6)
+        page.mouse.up()
+        nx, ny = state(page, "s.texts[0].x"), state(page, "s.texts[0].y")
+        assert nx < tx[0] - 0.05 and ny < tx[1] - 0.1                                # and moved with the same click
+        # a click on the picture away from the text selects the clip (its frame appears)
+        page.mouse.click(st["x"] + st["width"] * 0.5, st["y"] + st["height"] * 0.2)
+        assert state(page, "s.sel") == 0 and state(page, "s.selText") == -1
+        assert page.is_visible("#gizmo")
+        assert not errors, errors
+    finally:
+        b.close()
+        p.stop()
+        srv.stop()
+
+
+def test_browser_tracks_shapes_scenes_and_backgrounds(media, tmp_path):
+    pw = pytest.importorskip("playwright.sync_api")
+    from hermes_video_editor.editor.server import EditorServer
+    srv = EditorServer(roots=[str(media["dir"]), str(tmp_path)])
+    p, b, page, errors = browser(pw)
+    try:
+        page.goto(srv.url(str(media["clip"])))
+        wait_ready(page)
+        page.evaluate("window.__ve.seek(1)")
+        # several texts at the same time go to separate tracks (rows), more tracks by menu
+        page.click("#tabs button[data-tab=text]")
+        page.click("#btn-text-add")
+        page.click("#btn-text-add")
+        assert state(page, "s.texts.map(t => t.track)") == [0, 1] and state(page, "s.tracks.text") == 2
+        assert page.locator('.trow[data-kind="text"]').count() == 2 and page.locator('.litem[data-kind="text"]').count() == 2
+        page.select_option("#add-track", "add:audio")
+        assert state(page, "s.tracks.audio") == 2 and page.locator('.trow[data-kind="audio"]').count() == 2
+        page.select_option("#add-track", "remove:audio")
+        assert state(page, "s.tracks.audio") == 1
+        page.evaluate("document.activeElement && document.activeElement.blur()")
+        page.keyboard.press("Control+z")                                             # undo brings the second audio track back
+        assert state(page, "s.tracks.audio") == 2
+        # move a text to the other track by dragging its item downwards
+        item = page.locator('.litem[data-kind="text"][data-i="1"]')
+        row0 = bbox(page, '.trow[data-kind="text"][data-track="0"]')
+        box = item.bounding_box()
+        page.mouse.move(box["x"] + 40, box["y"] + box["height"] / 2)
+        page.mouse.down()
+        page.mouse.move(box["x"] + 40, row0["y"] + row0["height"] / 2, steps=5)
+        page.mouse.up()
+        assert state(page, "s.texts[1].track") == 0
+        # a shape: add, make it a card, it shows on the preview and can be deleted
+        page.click("#tabs button[data-tab=shape]")
+        page.click("#sh-p-card")
+        assert state(page, "s.shapes.length") == 1 and state(page, "s.shapes[0].kind") == "rounded" and state(page, "s.shapes[0].color") == "#ffffff"
+        page.evaluate("window.__ve.seek(1.2)")
+        page.wait_for_timeout(500)
+        px = page.evaluate("(() => { const c = document.getElementById('stage-canvas'); const d = c.getContext('2d').getImageData(Math.round(c.width*0.5), Math.round(c.height*0.5), 1, 1).data; return [d[0], d[1], d[2]] })()")
+        assert min(px) > 180                                                          # white card over the picture
+        # a scene bundles what starts at the playhead (texts, the shape) and moving it moves them together
+        page.click("#tabs button[data-tab=scene]")
+        page.evaluate("window.__ve.seek(1)")
+        page.click("#btn-scene-add")
+        assert state(page, "s.scenes.length") == 1 and len(state(page, "s.scenes[0].items")) == 3
+        t0 = state(page, "s.texts[0].start")
+        sh0 = state(page, "s.shapes[0].start")
+        sc = bbox(page, '.litem[data-kind="scene"]')
+        page.mouse.move(sc["x"] + sc["width"] / 2, sc["y"] + sc["height"] / 2)
+        page.mouse.down()
+        page.mouse.move(sc["x"] + sc["width"] / 2 - 30, sc["y"] + sc["height"] / 2, steps=1)         # left: not possible below 0, so go right
+        page.mouse.move(sc["x"] + sc["width"] / 2 + 150, sc["y"] + sc["height"] / 2, steps=5)
+        page.mouse.up()
+        moved = state(page, "s.scenes[0].start")
+        assert moved > 1.2 and state(page, "s.texts[0].start") == pytest.approx(t0 + (moved - 1), abs=0.02) and state(page, "s.shapes[0].start") == pytest.approx(sh0 + (moved - 1), abs=0.02)
+        page.evaluate("document.activeElement && document.activeElement.blur()")
+        page.keyboard.press("Control+z")                                              # one undo puts the scene and its items back
+        assert state(page, "s.scenes[0].start") == pytest.approx(1, abs=0.05) and state(page, "s.texts[0].start") == pytest.approx(t0, abs=0.02)
+        # backgrounds: gradient and picture can be chosen
+        page.click("#tabs button[data-tab=picture]")
+        page.select_option("#in-bg", "gradient")
+        assert state(page, "s.bg.mode") == "gradient" and page.is_visible("#in-bgcolor2")
+        pic = tmp_path / "bg.png"
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=0x00ff00:s=64x64:d=1", "-frames:v", "1", str(pic)], check=True)
+        page.select_option("#in-bg", "image")
+        page.fill("#dlg-path", str(pic))
+        page.press("#dlg-path", "Enter")
+        for _ in range(60):
+            if state(page, "s.bg.image") == str(pic):
+                break
+            page.wait_for_timeout(100)
+        assert state(page, "s.bg.mode") == "image" and state(page, "s.bg.image") == str(pic)
+        # export with all of it and keep it in the project
+        page.click("#tabs button[data-tab=export]")
+        page.fill("#in-outdir", str(tmp_path / "multi"))
+        page.click("#btn-export")
+        page.wait_for_selector("#result .ok", timeout=120000)
+        assert len(list((tmp_path / "multi").glob("*.mp4"))) == 1
+        page.click("#btn-saveas")
+        page.fill("#dlg-name", "multi")
+        page.fill("#dlg-path", str(tmp_path))
+        page.press("#dlg-path", "Enter")
+        for _ in range(50):
+            if state(page, "s.dlgProjectPath") == str(tmp_path):
+                break
+            page.wait_for_timeout(100)
+        page.click("#dlg-usefolder")
+        saved = tmp_path / "multi.vproj.json"
+        for _ in range(50):
+            if saved.exists():
+                break
+            page.wait_for_timeout(100)
+        data = json.loads(saved.read_text())
+        assert data["shapes"][0]["color"] == "#ffffff" and data["scenes"][0]["name"] == "Scene 1" and data["tracks"]["text"] == 2 and data["bg"]["mode"] == "image"
+        assert sorted(t["track"] for t in data["texts"]) == [0, 0] or sorted(t["track"] for t in data["texts"]) == [0, 1]
+        assert not errors, errors
+    finally:
+        b.close()
+        p.stop()
+        srv.stop()
+
+
+def test_browser_export_folder_picker_opens_the_directory_tree_and_can_make_folders(media, tmp_path):
+    pw = pytest.importorskip("playwright.sync_api")
+    from hermes_video_editor.editor.server import EditorServer
+    (tmp_path / "videos").mkdir()
+    srv = EditorServer(roots=[str(media["dir"]), str(tmp_path)])
+    p, b, page, errors = browser(pw)
+    try:
+        page.goto(srv.url(str(media["clip"])))
+        wait_ready(page)
+        page.click("#tabs button[data-tab=export]")
+        page.click("#in-outdir")                                                       # clicking the empty field opens the folder tree
+        assert "folder" in page.inner_text("#dlg-title").lower()
+        page.wait_for_selector("#dlg-list .item")
+        assert state(page, "s.dlgFolderPath") == str(media["dir"])                    # starts next to the first clip
+        assert page.locator("#dlg-list .item:has-text('.mp4')").count() == 0          # a folder picker lists folders only
+        page.fill("#dlg-path", str(tmp_path))
+        page.press("#dlg-path", "Enter")
+        page.wait_for_selector("#dlg-list .item:has-text('videos')")
+        page.fill("#dlg-newfolder", "exports")
+        page.click("#dlg-mkdir")
+        for _ in range(50):
+            if (tmp_path / "exports").is_dir():
+                break
+            page.wait_for_timeout(100)
+        for _ in range(50):
+            if page.input_value("#dlg-path") == str(tmp_path / "exports"):
+                break
+            page.wait_for_timeout(100)
+        assert (tmp_path / "exports").is_dir() and page.input_value("#dlg-path") == str(tmp_path / "exports")
+        page.fill("#dlg-newfolder", "../evil")
+        page.click("#dlg-mkdir")
+        page.wait_for_timeout(300)
+        assert not (tmp_path.parent / "evil").exists() and "cannot" in page.inner_text("#dlg-err").lower()
+        page.click("#dlg-usefolder")
+        assert page.input_value("#in-outdir") == str(tmp_path / "exports")
+        # saving a project starts in the folder of the video and lets you create a folder there too
+        page.click("#btn-saveas")
+        for _ in range(50):
+            if state(page, "s.dlgProjectPath") == str(media["dir"]):
+                break
+            page.wait_for_timeout(100)
+        assert state(page, "s.dlgProjectPath") == str(media["dir"]) and page.is_visible("#dlg-mkdir")
+        assert not errors, errors
+    finally:
+        b.close()
+        p.stop()
+        srv.stop()

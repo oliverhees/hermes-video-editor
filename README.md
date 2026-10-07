@@ -1,6 +1,6 @@
 **🇬🇧 English** · [🇩🇪 Deutsch](README.de.md)
 
-**🚧 STATUS: BETA v0.2**
+**🚧 STATUS: BETA v0.3**
 
 ![Video Editor](docs/banner.png)
 
@@ -54,8 +54,8 @@ It gives the Hermes agent 45 precise FFmpeg tools, and gives you a visual editor
 
 - **45 tools** for the agent: inspect, cut and time, picture, overlays and text, audio, export and check.
 - **Visual editor** in Hermes Desktop: drop videos in, split, delete, reorder, trim, remove silences, undo/redo.
-- **Canvas** 16:9, 9:16, 1:1, 4:5 with blurred, black or coloured background; position and scale every clip freely (a 16:9 clip fits into a 9:16 canvas, you re-frame where the speaker moves).
-- **Layers**: a **video overlay track** (picture-in-picture), a **text layer** and an **audio track** (music or voice-over with fades and ducking).
+- **Canvas** 16:9, 9:16, 1:1, 4:5 with blurred, black or coloured background; position and scale every clip freely (a 16:9 clip fits into a 9:16 canvas, you re-frame where the speaker moves), with a blurred, black, coloured, gradient or picture background.
+- **Layers on any number of tracks**: **video overlays** (picture-in-picture), **text**, **shapes** (colour boxes, bars, cards, ellipses), **audio** (music or voice-over with fades and ducking) and **scenes** that bundle items so they move together. Click what you see on the preview to select it and drag it.
 - **Waveform**, thumbnails, projects (`.vproj.json`), export presets for Reels, TikTok, Shorts, YouTube, X and Discord, and a platform rule check.
 - **Follows your Hermes theme** (light/dark and accent colour).
 - **100% local**: no cloud, no API key, no telemetry. Originals are never touched.
@@ -109,7 +109,10 @@ python scripts/editor.py my-video.mp4    # with a file preloaded
 | Cut | `S` split, `Delete` remove a clip (gap closes), `I` `O` `X` cut a range, drag edges to trim, drag clips to reorder, `Ctrl+Z` undo |
 | Remove silences | *Edit* tab -> **Remove silences** |
 | Canvas, background, position, size | *Picture* tab; drag the picture in the preview, mouse wheel zooms, **Fit / Fill / Center / Reset** |
-| **Video on top** | *Overlay* tab: a second video track above the picture (position, size, opacity, own sound) |
+| **Video on top** | *Overlay* tab: videos above the picture (position, size, opacity, own sound), as many tracks as you like |
+| **Shapes** | *Shape* tab: rectangle, rounded box, ellipse, caption bar, card, colour field (colour, opacity, size, time) |
+| **Scenes** | *Scene* tab: bundle texts, shapes, videos and sounds; drag the scene and everything moves along |
+| **Tracks** | *Tracks...* menu above the timeline: add or remove tracks; drag items up and down between tracks |
 | **Text** | *Text* tab: size, colour, outline, box, presets (Title, Lower third, Caption); drag in the preview |
 | **Music / voice-over** | *Sound* tab: volume, fades, start time, **ducking** (music gets quieter while the video speaks) |
 | Any of the 45 tools | *Tools* tab: every tool as a form |
