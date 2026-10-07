@@ -114,7 +114,7 @@ python scripts/editor.py my-video.mp4    # mit vorgeladener Datei
 | **Video obendrauf** | Tab *Overlay*: zweite Videospur über dem Bild (Position, Größe, Deckkraft, eigener Ton) |
 | **Text** | Tab *Text*: Größe, Farbe, Umriss, Box, Vorlagen (Title, Lower third, Caption); in der Vorschau ziehen |
 | **Musik / Sprecher** | Tab *Sound*: Lautstärke, Ein-/Ausblenden, Startzeit, **Ducking** (Musik wird leiser, solange das Video spricht) |
-| Eines der 42 Werkzeuge | Tab *All tools*: jedes Werkzeug als Formular |
+| Eines der 42 Werkzeuge | Tab *Tools*: jedes Werkzeug als Formular |
 | Export | Tab *Export*: Plattform-Voreinstellung, Lautheit, Tempo, Ordner |
 | Hilfe | Knopf **Help** (obere Leiste): diese Anleitung auf Deutsch oder Englisch |
 

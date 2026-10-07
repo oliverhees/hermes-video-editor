@@ -14,7 +14,7 @@ The editor never changes your original files. Every export creates a new file.
 
 | Area | What it is |
 |---|---|
-| Left | Tabs: **Edit, Picture, Text, Overlay, Sound, All tools, Export** |
+| Left | Tabs: **Edit, Picture, Text, Overlay, Sound, Tools, Export** |
 | Centre | Preview of your canvas. Drag the picture, text or overlay right here |
 | Bottom | Timeline: clips, waveform, **Text** lane, **Audio** lane, **Overlay** lane |
 
@@ -67,7 +67,7 @@ A second video track above the main picture: reaction clip, logo animation, b-ro
   Without a folder the file goes next to the original (dropped files go to `~/Videos`).
 - **Save** / **Save as** write a `.vproj.json` project (clips, canvas, texts, audio, overlays). **Open project** brings it back.
 
-## 9. All tools (tab All tools)
+## 9. Tools (tab Tools)
 
 All 42 `lk_*` tools as forms: search, fill in, **Run**. The same tools are available to the Hermes agent in chat.
 Example prompts for the chat:
