@@ -1,5 +1,7 @@
 # hermes-video-editor
 
+> Powered by [lokyy.de](https://lokyy.de)
+
 **Edit your OWN local videos from chat.** A plugin for [Hermes Agent](https://hermes-agent.nousresearch.com/)
 with **42 FFmpeg tools**. 100% local: no cloud, no API key, no network calls, no telemetry.
 
@@ -196,6 +198,10 @@ come from a catalog entry, not from the plugin itself. To get the same card:
 
 The banner is `docs/banner.png` (2:1, built around a real screenshot of the editor).
 Until the entry is merged the card shows the manifest description and a "Git" badge.
+
+## Credits
+
+Powered by [lokyy.de](https://lokyy.de). The link is also shown at the bottom of the editor's side panel.
 
 ## License
 

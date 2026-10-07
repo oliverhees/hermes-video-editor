@@ -8,6 +8,7 @@ import * as React from 'react'
 import * as jsxRuntime from 'react/jsx-runtime'
 
 const PATH = '/video-editor'
+const ALLOWED_LINKS = ['https://lokyy.de', 'https://lokyy.de/']
 const STANDALONE = 'python scripts/editor.py   (inside the hermes-video-editor folder)'
 
 // jsx/jsxs: the React JSX runtime is the documented source; fall back to the SDK or plain createElement.
@@ -91,6 +92,18 @@ function EditorPage(props) {
   React.useEffect(() => {
     load()
   }, [load])
+
+  // the editor frame has no popup rights: it asks us to open its "Powered by" link (allow-listed addresses only)
+  React.useEffect(() => {
+    const onMessage = event => {
+      const frame = frameRef.current
+      const data = event && event.data
+      if (!frame || event.source !== frame.contentWindow || !data || data.type !== 've-open-link') return
+      if (ALLOWED_LINKS.indexOf(data.url) >= 0) window.open(data.url, '_blank', 'noopener,noreferrer')
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [])
 
   // follow theme changes while the page is open (no reload: the colours are posted into the frame)
   React.useEffect(() => {
