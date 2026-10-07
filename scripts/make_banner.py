@@ -23,7 +23,7 @@ def main():
     d.text((70, 38), "LOCAL \u00B7 FFMPEG \u00B7 NO CLOUD", font=font(BOLD, 26), fill="#ff6b35")
     d.text((70, 76), "Video Editor", font=font(BOLD, 104), fill="#ffffff")
     d.text((74, 196), "Cut, reframe and export your own footage - in the editor or by chat.", font=font(REG, 30), fill="#c9d1e0")
-    bullets = ["Find and cut silences", "Crop 9:16 with a live frame guide", "Loudness + platform check",
+    bullets = ["Clips timeline with waveform", "9:16 canvas: move and zoom each clip", "Remove silences in one click",
                "42 FFmpeg tools for the agent"]
     for i, text in enumerate(bullets):
         d.text((70, 330 + i * 64), "\u2713", font=font(BOLD, 34), fill="#4ecdc4")

@@ -189,7 +189,7 @@ SPEEDS = (0.5, 0.75, 1.0, 1.25, 1.5, 2.0)
 
 
 def build_steps(req: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Pure: turn an export request into an ordered list of tool calls."""
+    """Pure: turn an export request into an ordered list of tool calls (the timeline render comes before these)."""
     steps: List[Dict[str, Any]] = []
     cuts = req.get("cuts") or []
     if cuts:
@@ -232,13 +232,20 @@ def validate_export(req: Dict[str, Any]) -> None:
 
 def run_export(job: Job, src: Path, req: Dict[str, Any], final_dir: Path) -> None:
     from ..schemas import TOOLS
+    from . import project as project_mod
     handlers = {t["name"]: t["handler"] for t in TOOLS}
+    clips = req.get("clips_info")                       # a timeline: render it first, then apply the other steps
     steps = build_steps(req)
-    if not steps:
+    if not steps and not clips:
         raise ToolError("Nothing to export: add a cut, change speed/format, or pick a preset.")
     tmp = Path(tempfile.mkdtemp(prefix="ve_export_"))
     current, result = src, None
     try:
+        if clips:
+            job.step = "Rendering the timeline"
+            rendered = project_mod.render_project(clips, final_dir if not steps else tmp, canvas=req.get("canvas"), bg=req.get("bg"),
+                                                   texts=req.get("texts"), audios=req.get("audios_info"))
+            current, result = rendered, {"output": str(rendered), "duration_s": probe(rendered)["duration_s"]}
         for i, step in enumerate(steps):
             job.step = step["label"]
             job.progress = i / float(len(steps))
@@ -252,11 +259,56 @@ def run_export(job: Job, src: Path, req: Dict[str, Any], final_dir: Path) -> Non
     finally:
         shutil.rmtree(str(tmp), ignore_errors=True)
     out = result["output"]
+    labels = (["Rendering the timeline"] if clips else []) + [s["label"] for s in steps]
     summary: Dict[str, Any] = {"output": out, "duration_s": result.get("duration_s"),
-                               "size_bytes": os.path.getsize(out), "steps": [s["label"] for s in steps],
+                               "size_bytes": os.path.getsize(out), "steps": labels,
                                "platform_check": None}
     if req.get("preset") in PLATFORM_RULES:
         check = json.loads(handlers["ve_platform_check"]({"input": out, "platform": req["preset"]}))
         if check.get("ok"):
             summary["platform_check"] = check["info"]
     job.result = summary
+
+
+# --------------------------------------------------------------------------- recent files and uploads
+UPLOAD_DIR = CACHE_ROOT / "uploads"
+MAX_RECENT = 12
+
+
+def _recent_file() -> Path:
+    CACHE_ROOT.mkdir(parents=True, exist_ok=True)
+    return CACHE_ROOT / "recent.json"
+
+
+def recent_files() -> List[str]:
+    try:
+        items = json.loads(_recent_file().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    return [p for p in items if isinstance(p, str) and os.path.isfile(p)][:MAX_RECENT]
+
+
+def remember(path: Path) -> None:
+    items = [str(path)] + [p for p in recent_files() if p != str(path)]
+    try:
+        _recent_file().write_text(json.dumps(items[:MAX_RECENT]), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def upload_target(name: str) -> Path:
+    """Safe, unique path inside UPLOAD_DIR for a dropped file (basename only, media extensions only)."""
+    from .security import MEDIA_EXTS
+    base = os.path.basename((name or "").replace("\\", "/"))
+    stem, ext = os.path.splitext(base)
+    ext = ext.lower()
+    if ext not in MEDIA_EXTS:
+        raise ToolError("That file type is not a supported video or audio file: %s" % (ext or "no extension"))
+    stem = "".join(c if (c.isalnum() or c in " ._-") else "_" for c in stem).strip(" .")[:80] or "video"
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    cand = UPLOAD_DIR / (stem + ext)
+    n = 1
+    while cand.exists():
+        cand = UPLOAD_DIR / ("%s_%d%s" % (stem, n, ext))
+        n += 1
+    return cand

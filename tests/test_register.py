@@ -148,3 +148,20 @@ def test_install_refuses_foreign_dir_and_uninstalls(tmp_path):
     assert subprocess.run([sys.executable, str(ROOT / "scripts" / "install.py"), "--target", str(tmp_path),
                            "--uninstall"], capture_output=True).returncode == 0
     assert not (tmp_path / "hermes-video-editor").exists()
+
+
+def test_install_in_place_never_deletes_itself(tmp_path):
+    """Regression: running install.py from inside ~/.hermes/plugins/<name> (a git clone) used to delete the folder
+    and leave a self-referencing symlink."""
+    import shutil
+    plugins = tmp_path / "plugins"
+    shutil.copytree(str(ROOT), str(plugins / "hermes-video-editor"),
+                    ignore=shutil.ignore_patterns(".git", "__pycache__", ".pytest_cache", "tests"))
+    inside = plugins / "hermes-video-editor"
+    script = inside / "scripts" / "install.py"
+    r = subprocess.run([sys.executable, str(script), "--target", str(plugins)], capture_output=True, text=True, cwd=str(inside))
+    assert r.returncode == 0, r.stderr
+    assert inside.is_dir() and not inside.is_symlink() and (inside / "plugin.yaml").is_file()
+    assert (tmp_path / "desktop-plugins" / "hermes-video-editor" / "plugin.js").is_file()
+    again = subprocess.run([sys.executable, str(script), "--target", str(plugins), "--uninstall"], capture_output=True, text=True)
+    assert again.returncode == 0 and (inside / "plugin.yaml").is_file()          # refuses to delete itself

@@ -77,3 +77,37 @@ needs `HERMES_ENABLE_PROJECT_PLUGINS=true`). Plugins are opt-in: must be enabled
 - Unknowns (not in the docs I could read): whether the Desktop app restricts `frame-src` to loopback URLs, and how a
   plugin can learn the gateway's base URL (we do not need it: `/start` returns our own URL).
 - Verified here with headless Chromium against the real server; **not** verified inside the real Desktop app.
+
+## Addendum: verified in the real Desktop app (Hermes Desktop v0.21.5)
+
+- `import { jsx } from '@hermes/plugin-sdk'` FAILS: "The requested module 'blob:file:///...' does not provide an export
+  named 'jsx'". The SDK doc example is wrong for this version. `desktop/plugin.js` now uses namespace imports
+  (`import * as sdk`, `react`, `react/jsx-runtime`), takes `jsx` from `react/jsx-runtime` (fallback `React.createElement`)
+  and `register()` throws an error that lists the SDK exports that are missing and the ones that exist.
+- The Plugins card shows a plugin as "Agent + Desktop", source "Disk" when both halves live in `~/.hermes/plugins/<id>`
+  and `~/.hermes/desktop-plugins/<id>`; a load error appears as a red text plus a "failed" badge on that card.
+
+## Addendum: editor architecture (clips timeline)
+
+- Model: `assets` (files) + `clips` ({id, asset, in, out}) played back to back. All edits are pure functions in
+  `editor/web/timeline.js` (unit-tested in Node): split, ripple delete, delete range, silence subtraction, trim, move,
+  undo/redo history.
+- Preview: two `<video>` elements; the next clip is preloaded and swapped at the boundary (contiguous clips from the same
+  file just keep playing). Needs H.264 or VP8 playback; otherwise a proxy is made on the server.
+- Export: `editor/project.py` builds one `filter_complex` (one `-ss/-t/-i` input per clip, scale+pad to the first clip's
+  size, concat) and renders `<first clip>_project.mp4`; then the existing steps (speed, reframe, loudness, preset) run.
+- Projects: `.vproj.json` (version 1) with assets (path, name) and clips; validated on save and load, paths confined to
+  the allowed folders.
+- Canvas: project `canvas` = {aspect auto|16:9|9:16|1:1|4:5, short side 360..2160} and `bg` = {mode blur|black|color, color}.
+  Per clip `tf` = {s, x, y}: s is relative to 'fit inside the canvas', x/y the centre offset as a fraction of the canvas.
+  `fgRect()` (JS) and `fg_rect()` (Python) are identical; a parity test compares 300 random cases. The preview is a
+  <canvas> that draws the active <video> with that rectangle; the render crops to the visible part before scaling.
+- Accent colour: the Desktop page looks for a vivid CSS variable (accent/primary/brand/ring/...) in the app's style
+  sheets, then for painted controls (checked switch, selected item); the editor falls back to neutral violet.
+- Not yet: layers/tracks, text/overlay clips, audio tracks (music), transitions, keyframes.
+
+
+## Addendum: text layer and audio track
+- Project model: `texts[]` (id, text, start, dur, x, y, size, color, outline, box, boxColor) and `audios[]` (id, asset, in, out, start, vol dB, fi, fo, duck), absolute timeline times. Pure logic in `timeline.js`, UI in `editor/web/layers.js`.
+- Render (`editor/project.py`): text = `drawtext` with `textfile=` + `expansion=none` + `enable=between(t,a,b)`; audio = per-item `atrim/adelay/volume/afade`, optional `sidechaincompress` against the clip audio, `amix normalize=0` + `alimiter`; output is cut to the video length (`-t`).
+- Limits: see README (ripple edits do not move layers; preview approximates text and does not play ducking).
