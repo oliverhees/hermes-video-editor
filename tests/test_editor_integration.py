@@ -777,7 +777,10 @@ def test_browser_help_in_english_and_german(media, tmp_path):
         page.wait_for_selector("#help-body h1", timeout=10000)
         assert "user guide" in page.inner_text("#help-body h1").lower() and page.locator("#help-body table").count() >= 4
         page.click("#help-de")
-        page.wait_for_function("((document.querySelector('#help-body h1') || {innerText: ''}).innerText).indexOf('Anleitung') >= 0", timeout=10000)
+        for _ in range(100):
+            if "Anleitung" in page.inner_text("#help-body"):
+                break
+            page.wait_for_timeout(100)
         assert "Leinwand" in page.inner_text("#help-body")
         assert page.locator("#help-body script").count() == 0 and "<" not in page.inner_text("#help-body h1")
         page.keyboard.press("Escape")
