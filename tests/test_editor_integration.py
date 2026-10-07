@@ -77,6 +77,7 @@ def desktop_harness(sdk_js: str, jsx_runtime_js: str, tail: str) -> str:
         %s
         const document = { body: {}, documentElement: {}, createElement: () => ({ style: {}, getContext: () => null }) }
         const getComputedStyle = () => ({ backgroundColor: 'rgb(0, 0, 0)', color: 'rgb(0,0,0)' })
+        const window = { listeners: [], opened: [], addEventListener(t, f) { this.listeners.push(f) }, removeEventListener() {}, open(...a) { this.opened.push(a) } }
         const regs = []
         const ctx = { registerMany: items => regs.push(...items), calls: [],
                       rest: path => { ctx.calls.push(path); return ctx.reply },
@@ -121,6 +122,35 @@ def test_desktop_plugin_registers_page_and_nav(tmp_path):
 
 
 @pytest.mark.skipif(not NODE, reason="node is not installed")
+def test_powered_by_link_is_opened_by_the_desktop_page_for_the_frame_only(tmp_path):
+    script = desktop_harness(GOOD_SDK, RUNTIME, """
+        plugin_default.register(ctx)
+        const page = regs.find(r => r.area === 'routes')
+        const tree = page.render(); tree.type(tree.props)            // run the component once so the hooks register
+        effects.forEach(fn => fn())
+        const frameWin = {}
+        // pretend the frame is mounted: the component's ref is the last useRef; simulate through the listener only
+        const listener = window.listeners[0]
+        listener({ source: frameWin, data: { type: 've-open-link', url: 'https://lokyy.de' } })
+        if (window.opened.length) throw new Error('must ignore messages while no frame is mounted')
+        console.log('OK')
+        """)
+    r = run_node(script, tmp_path)
+    assert r.returncode == 0 and "OK" in r.stdout, r.stderr + r.stdout
+    src = (ROOT / "desktop" / "plugin.js").read_text(encoding="utf-8")
+    assert "ALLOWED_LINKS = ['https://lokyy.de', 'https://lokyy.de/']" in src
+    assert "event.source !== frame.contentWindow" in src and "noopener" in src
+
+
+def test_powered_by_lokyy_link_in_editor_and_readme():
+    html = (ROOT / "editor" / "web" / "index.html").read_text()
+    assert '<a id="powered" href="https://lokyy.de" target="_blank" rel="noopener noreferrer">Powered by lokyy.de</a>' in html
+    js = (ROOT / "editor" / "web" / "app.js").read_text()
+    assert 'type: "ve-open-link"' in js
+    assert "Powered by [lokyy.de](https://lokyy.de)" in (ROOT / "README.md").read_text()
+
+
+@pytest.mark.skipif(not NODE, reason="node is not installed")
 def test_desktop_plugin_works_without_jsx_runtime_and_reports_missing_exports(tmp_path):
     # 1) no jsx anywhere -> falls back to React.createElement (this is what failed in the real app)
     ok = desktop_harness(GOOD_SDK, "{}", """
@@ -151,7 +181,10 @@ def test_app_js_syntax():
 
 def test_no_inline_script_or_remote_assets_in_html():
     html = (ROOT / "editor" / "web" / "index.html").read_text()
-    assert "<script>" not in html and "http://" not in html and "https://" not in html
+    link = '<a id="powered" href="https://lokyy.de" target="_blank" rel="noopener noreferrer">Powered by lokyy.de</a>'
+    assert link in html
+    rest = html.replace(link, "")                                   # the only external address is the credit link
+    assert "<script>" not in rest and "http://" not in rest and "https://" not in rest
 
 
 # ---------------------------------------------------------------- real browser (optional)

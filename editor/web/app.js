@@ -579,6 +579,12 @@
     if (show) box.appendChild(el("pre", "", JSON.stringify(show, null, 2)));
   }
 
+  // ---------------------------------------------------------------- "Powered by" link
+  // Inside Hermes Desktop the page runs in a sandboxed frame without popups: ask the embedding page to open the link.
+  $("powered").addEventListener("click", function (e) {
+    if (window.parent !== window) { e.preventDefault(); window.parent.postMessage({ type: "ve-open-link", url: this.href }, "*"); }
+  });
+
   // ---------------------------------------------------------------- start
   function init() {
     api("/api/config").then(function (c) {
