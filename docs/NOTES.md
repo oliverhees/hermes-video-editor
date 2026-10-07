@@ -77,3 +77,12 @@ needs `HERMES_ENABLE_PROJECT_PLUGINS=true`). Plugins are opt-in: must be enabled
 - Unknowns (not in the docs I could read): whether the Desktop app restricts `frame-src` to loopback URLs, and how a
   plugin can learn the gateway's base URL (we do not need it: `/start` returns our own URL).
 - Verified here with headless Chromium against the real server; **not** verified inside the real Desktop app.
+
+## Addendum: verified in the real Desktop app (Hermes Desktop v0.21.5)
+
+- `import { jsx } from '@hermes/plugin-sdk'` FAILS: "The requested module 'blob:file:///...' does not provide an export
+  named 'jsx'". The SDK doc example is wrong for this version. `desktop/plugin.js` now uses namespace imports
+  (`import * as sdk`, `react`, `react/jsx-runtime`), takes `jsx` from `react/jsx-runtime` (fallback `React.createElement`)
+  and `register()` throws an error that lists the SDK exports that are missing and the ones that exist.
+- The Plugins card shows a plugin as "Agent + Desktop", source "Disk" when both halves live in `~/.hermes/plugins/<id>`
+  and `~/.hermes/desktop-plugins/<id>`; a load error appears as a red text plus a "failed" badge on that card.
