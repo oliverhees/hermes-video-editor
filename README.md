@@ -135,10 +135,17 @@ CI runs on Ubuntu, macOS and Windows (`.github/workflows/test.yml`).
 - Reads your input files and writes new files (outputs, plus short-lived temp files in the system temp folder).
 - Declared capabilities in `plugin.yaml` are generated from the real registrations and checked by a test.
 
-## Catalog submission
+## Catalog submission (rich plugin card in Hermes Desktop)
 
-`python scripts/make_catalog_entry.py` prints a `plugin-catalog/<name>.yaml` entry pinned to the current commit
-(the catalog requires a full 40-character SHA). Validate first with `hermes plugins validate . --install-deps`.
+The banner, "Repository" / "Documentation" links, "Requires Hermes" and "Reviewed commit" you see on official cards
+come from a catalog entry, not from the plugin itself. To get the same card:
+
+1. Push your commit, then `python scripts/make_catalog_entry.py` (pins the commit SHA and the banner URL).
+2. `hermes plugins validate . --install-deps`
+3. Open a PR to `NousResearch/hermes-agent` adding that output as `plugin-catalog/hermes-video-editor.yaml`.
+
+The banner is `docs/banner.png` (2:1), rendered by `scripts/make_banner.py` (needs Pillow).
+Until the entry is merged the card shows the manifest description and a "Git" badge.
 
 ## License
 
