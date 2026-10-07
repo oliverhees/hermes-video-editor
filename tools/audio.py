@@ -238,7 +238,7 @@ def denoise_audio(args: Dict[str, Any]) -> Any:
 # ------------------------------------------------------------------ specs
 SPECS = [
     ToolSpec(
-        name="ve_extract_audio",
+        name="lk_extract_audio",
         description=("Save the audio track of a video as an audio file (mp3, wav, m4a or flac). The video is untouched. "
                      "Use before transcription or to reuse the sound elsewhere."),
         handler=extract_audio,
@@ -246,17 +246,17 @@ SPECS = [
                     "bitrate_kbps": {"type": "integer", "default": 192, "description": "Bitrate for mp3/m4a in kbit/s."},
                     "audio_track": {"type": "integer", "default": 0, "description": "Which audio stream (0 = first)."}}),
     ToolSpec(
-        name="ve_replace_audio",
+        name="lk_replace_audio",
         description=("Swap the soundtrack of a video for another audio file (voice-over, music). Video is not re-encoded. "
                      "mode 'trim' (default): result keeps the video length (audio cut, or padded with silence if shorter); "
                      "'shortest': ends when the shorter one ends; 'loop': repeats the audio to fill the video. "
-                     "To ADD music under existing sound use ve_mix_music."),
+                     "To ADD music under existing sound use lk_mix_music."),
         handler=replace_audio, required=["audio"],
         properties={"audio": {"type": "string", "description": "Path to the new audio (or a video whose audio to use)."},
                     "mode": {"type": "string", "enum": ["trim", "shortest", "loop"], "default": "trim",
                              "description": "How to fit audio length to the video."}}),
     ToolSpec(
-        name="ve_mix_music",
+        name="lk_mix_music",
         description=("Add background music under the video's own sound. Music is looped to the video length, lowered by "
                      "music_volume_db, faded out at the end, and with ducking=true it automatically gets quieter while "
                      "someone speaks. Works for silent clips too (music only). Video is not re-encoded."),
@@ -267,38 +267,38 @@ SPECS = [
                     "duck_strength": {"type": "string", "enum": list(DUCK), "default": "medium", "description": "How strongly the music dips."},
                     "fade_out_s": {"type": "number", "default": 2, "description": "Fade the music out over the last N seconds (0 = none)."}}),
     ToolSpec(
-        name="ve_normalize_loudness",
+        name="lk_normalize_loudness",
         description=("Make the loudness consistent using two-pass EBU R128 loudnorm. target_lufs default -14 (YouTube/Reels/"
                      "TikTok-style streaming level); -16 for podcasts. Reports before/after LUFS. Video is not re-encoded. "
-                     "For a simple gain change use ve_adjust_volume."),
+                     "For a simple gain change use lk_adjust_volume."),
         handler=normalize_loudness,
         properties={"target_lufs": {"type": "number", "default": -14, "description": "Target integrated loudness in LUFS."},
                     "true_peak_db": {"type": "number", "default": -1.5, "description": "Max true peak in dBTP."},
                     "lra": {"type": "number", "default": 11, "description": "Target loudness range."},
                     "verify": {"type": "boolean", "default": True, "description": "Measure the result again and report it."}}),
     ToolSpec(
-        name="ve_sync_audio_offset",
+        name="lk_sync_audio_offset",
         description=("Fix lip-sync: shift the audio relative to the picture by offset_ms milliseconds. Positive = audio plays "
                      "LATER (use when sound comes too early); negative = audio plays EARLIER. Video is not re-encoded."),
         handler=sync_audio_offset, required=["offset_ms"],
         properties={"offset_ms": {"type": "number", "minimum": -10000, "maximum": 10000,
                                   "description": "Milliseconds to shift the audio (+ later, - earlier)."}}),
     ToolSpec(
-        name="ve_adjust_volume",
+        name="lk_adjust_volume",
         description=("Make the audio louder or quieter by 'db' (e.g. 6 or -3) OR by a 'factor' (2 = double, 0.5 = half). "
-                     "A limiter prevents clipping. For consistent loudness use ve_normalize_loudness instead."),
+                     "A limiter prevents clipping. For consistent loudness use lk_normalize_loudness instead."),
         handler=adjust_volume,
         properties={"db": {"type": "number", "description": "Gain in decibels (+ louder, - quieter)."},
                     "factor": {"type": "number", "description": "Linear multiplier (1 = unchanged)."},
                     "prevent_clipping": {"type": "boolean", "default": True, "description": "Apply a peak limiter."}}),
     ToolSpec(
-        name="ve_fade_audio",
-        description="Fade the audio in and/or out (seconds) without touching the picture. For picture fades use ve_fade_video.",
+        name="lk_fade_audio",
+        description="Fade the audio in and/or out (seconds) without touching the picture. For picture fades use lk_fade_video.",
         handler=fade_audio,
         properties={"fade_in_s": {"type": "number", "default": 0, "description": "Fade-in length in seconds."},
                     "fade_out_s": {"type": "number", "default": 0, "description": "Fade-out length in seconds."}}),
     ToolSpec(
-        name="ve_denoise_audio",
+        name="lk_denoise_audio",
         description=("Reduce steady background noise (hiss, hum, fans) with a spectral denoiser. preset 'voice' also cuts "
                      "rumble below 90 Hz and hiss above 9 kHz for speech. Strong settings can make voices sound watery."),
         handler=denoise_audio,

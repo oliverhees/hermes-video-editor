@@ -14,34 +14,52 @@ def font(path, size):
     return ImageFont.truetype(path, size)
 
 
+def glow(img, cx, cy, r, color, alpha):
+    layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    ImageDraw.Draw(layer).ellipse([cx - r, cy - r, cx + r, cy + r], fill=color + (alpha,))
+    from PIL import ImageFilter
+    layer = layer.filter(ImageFilter.GaussianBlur(r // 2))
+    img.paste(layer, (0, 0), layer)
+
+
 def main():
-    img = Image.new("RGB", (W, H), "#0e1117")
+    from PIL import ImageFilter
+    ACC, TEAL = "#8b6cf0", "#4ecdc4"
+    img = Image.new("RGB", (W, H), "#0b0d14")
     d = ImageDraw.Draw(img)
     for y in range(H):                                   # vertical gradient
         t = y / H
-        d.line([(0, y), (W, y)], fill=(int(14 + 22 * t), int(17 + 10 * t), int(23 + 40 * t)))
-    d.text((70, 38), "LOCAL \u00B7 FFMPEG \u00B7 NO CLOUD", font=font(BOLD, 26), fill="#ff6b35")
-    d.text((70, 76), "Video Editor", font=font(BOLD, 104), fill="#ffffff")
-    d.text((74, 196), "Cut, reframe and export your own footage - in the editor or by chat.", font=font(REG, 30), fill="#c9d1e0")
-    bullets = ["Clips timeline with waveform", "9:16 canvas: move and zoom each clip", "Remove silences in one click",
-               "42 FFmpeg tools for the agent"]
-    for i, text in enumerate(bullets):
-        d.text((70, 330 + i * 64), "\u2713", font=font(BOLD, 34), fill="#4ecdc4")
-        d.text((120, 332 + i * 64), text, font=font(REG, 30), fill="#e6eaf2")
+        d.line([(0, y), (W, y)], fill=(int(11 + 14 * t), int(13 + 8 * t), int(20 + 34 * t)))
+    glow(img, 1250, 330, 430, (139, 108, 240), 120)       # violet glow behind the screenshot
+    glow(img, 120, 760, 300, (78, 205, 196), 60)
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle([70, 54, 412, 96], radius=21, outline=ACC, width=2)
+    d.text((92, 62), "100% LOCAL  \u00B7  FFMPEG", font=font(BOLD, 22), fill="#c9bdfb")
+    d.text((72, 128), "Hermes", font=font(BOLD, 52), fill="#c9d1e0")
+    d.text((68, 190), "Video Editor", font=font(BOLD, 88), fill="#ffffff")
+    d.text((74, 320), "Cut, reframe, caption and master", font=font(REG, 26), fill="#c9d1e0")
+    d.text((74, 356), "your own footage: visually or by chat.", font=font(REG, 26), fill="#c9d1e0")
+    chips = ["Multi-clip timeline + waveform", "9:16 canvas, move and zoom clips", "Overlay, text and music tracks", "42 FFmpeg tools for the agent"]
+    for i, text in enumerate(chips):
+        y = 450 + i * 62
+        d.ellipse([74, y + 6, 98, y + 30], fill=TEAL)
+        d.text((80, y + 4), "\u2713", font=font(BOLD, 22), fill="#0b0d14")
+        d.text((116, y + 2), text, font=font(REG, 26), fill="#e6eaf2")
+    d.text((74, 730), "Powered by Lokyy.de \u00B7 German Hermes Engineering", font=font(REG, 20), fill="#8d97ad")
     # real screenshot of the editor, bleeding off the right and bottom edges
     shot = Image.open(ROOT / "docs" / "editor.png").convert("RGB")
-    sw = 930
+    sw = 940
     shot = shot.resize((sw, int(shot.height * sw / shot.width)), Image.LANCZOS)
     mask = Image.new("L", shot.size, 0)
     ImageDraw.Draw(mask).rounded_rectangle([0, 0, shot.width, shot.height], radius=22, fill=255)
-    px, py = 640, 262
+    px, py = 690, 170
     shadow = Image.new("RGBA", (shot.width + 80, shot.height + 80), (0, 0, 0, 0))
-    ImageDraw.Draw(shadow).rounded_rectangle([40, 50, shot.width + 40, shot.height + 50], radius=26, fill=(0, 0, 0, 150))
-    from PIL import ImageFilter
+    ImageDraw.Draw(shadow).rounded_rectangle([40, 50, shot.width + 40, shot.height + 50], radius=26, fill=(0, 0, 0, 170))
     shadow = shadow.filter(ImageFilter.GaussianBlur(24))
     img.paste(shadow, (px - 40, py - 40), shadow)
     img.paste(shot, (px, py), mask)
-    d.rounded_rectangle([px, py, px + shot.width, py + shot.height], radius=22, outline="#2c3550", width=2)
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle([px, py, px + shot.width, py + shot.height], radius=22, outline="#3a3f66", width=2)
     out = ROOT / "docs" / "banner.png"
     img.save(out, optimize=True)
     print("wrote", out, img.size)

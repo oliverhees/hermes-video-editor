@@ -98,6 +98,7 @@ def test_desktop_plugin_source_rules():
     allowed = ("'@hermes/plugin-sdk'", "'react'", "'react/jsx-runtime'")
     assert imports and all(any(a in l for a in allowed) for l in imports), imports
     assert not any("{ jsx" in l or "jsx," in l for l in imports), "jsx must not be a named import from the SDK"
+    assert "querySelector" not in src and "styleSheets" not in src and "cssRules" not in src, "no lookups in the app's own UI or style sheets"
 
 
 @pytest.mark.skipif(not NODE, reason="node is not installed")
@@ -298,7 +299,7 @@ def test_browser_timeline_edit_reorder_trim_undo_and_export(media, tmp_path):
         page.fill("#dlg-path", str(tmp_path))
         page.press("#dlg-path", "Enter")
         for _ in range(50):                                            # the folder listing is loaded asynchronously
-            if state(page, "s.dlgPath") == str(tmp_path):
+            if state(page, "s.dlgProjectPath") == str(tmp_path):
                 break
             page.wait_for_timeout(100)
         page.click("#dlg-usefolder")
@@ -418,10 +419,10 @@ def test_browser_tools_tab_lists_all_42_and_runs_one(media, tmp_path):
         assert page.locator(".tool-item").count() == 42
         page.fill("#tool-search", "silence")
         assert 2 <= page.locator(".tool-item").count() < 42
-        assert page.locator('.tool-item[data-tool="ve_detect_silence"]').count() == 1
-        assert page.locator('.tool-item[data-tool="ve_remove_silence"]').count() == 1
+        assert page.locator('.tool-item[data-tool="lk_detect_silence"]').count() == 1
+        assert page.locator('.tool-item[data-tool="lk_remove_silence"]').count() == 1
         page.fill("#tool-search", "")
-        page.click('.tool-item[data-tool="ve_trim"]')
+        page.click('.tool-item[data-tool="lk_trim"]')
         assert page.input_value("#tool-input").endswith("clip.mp4")          # the clip under the playhead is prefilled
         page.fill("#tool-fields .fld:has(label:text-is('duration')) input", "1")
         page.click("#tool-adv >> xpath=ancestor::details/summary")
@@ -454,11 +455,7 @@ def test_desktop_page_finds_the_apps_own_accent_colour(tmp_path):
                        '--accent': 'rgb(240, 240, 245)', '--primary': 'rgb(109, 63, 210)', '--link': 'rgb(0, 0, 255)' }
         const spans = []
         const document = {
-          styleSheets: [{ cssRules: [{ selectorText: ':root', style: Object.assign(['--background', '--primary-foreground', '--ring', '--accent', '--primary', '--link', '--radius'], {}) },
-                                    { selectorText: '.some-component', style: ['--primary-x'] }] },
-                        { get cssRules() { throw new Error('cross-origin') } }],
           body: { appendChild(n) {}, removeChild(n) {} },
-          querySelector: () => null,
           createElement(tag) {
             if (tag === 'canvas') { let last = ''; return { width: 0, height: 0, getContext: () => ({ clearRect() {}, set fillStyle(v) { last = v }, fillRect() {},
               getImageData: () => { const m = /rgb\\((\\d+), (\\d+), (\\d+)\\)/.exec(last); return { data: m ? [+m[1], +m[2], +m[3], 255] : [0, 0, 0, 0] } } }) } }
@@ -549,7 +546,7 @@ def test_browser_canvas_transform_background_and_export(media, tmp_path):
         page.fill("#dlg-path", str(tmp_path))
         page.press("#dlg-path", "Enter")
         for _ in range(50):
-            if state(page, "s.dlgPath") == str(tmp_path):
+            if state(page, "s.dlgProjectPath") == str(tmp_path):
                 break
             page.wait_for_timeout(100)
         page.click("#dlg-usefolder")
@@ -633,7 +630,7 @@ def test_browser_text_and_audio_layers(media, tmp_path):
         page.fill("#dlg-path", str(tmp_path))
         page.press("#dlg-path", "Enter")
         for _ in range(50):
-            if state(page, "s.dlgPath") == str(tmp_path):
+            if state(page, "s.dlgProjectPath") == str(tmp_path):
                 break
             page.wait_for_timeout(100)
         page.click("#dlg-usefolder")
@@ -644,6 +641,179 @@ def test_browser_text_and_audio_layers(media, tmp_path):
             page.wait_for_timeout(100)
         data = json.loads(saved.read_text())
         assert data["texts"][0]["text"] == "Hello Lokyy" and data["audios"][0]["vol"] == -6
+        assert not errors, errors
+    finally:
+        b.close()
+        p.stop()
+        srv.stop()
+
+
+def test_browser_overlay_track(media, tmp_path):
+    pw = pytest.importorskip("playwright.sync_api")
+    from hermes_video_editor.editor.server import EditorServer
+    red = tmp_path / "red.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=red:s=320x180:r=25:d=2", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(red)], check=True)
+    srv = EditorServer(roots=[str(media["dir"]), str(tmp_path)])
+    p, b, page, errors = browser(pw)
+    try:
+        page.goto(srv.url(str(media["clip"])))
+        wait_ready(page)
+        page.evaluate("window.__ve.seek(1)")
+        page.click("#tabs button[data-tab=overlay]")
+        page.click("#btn-ov-add")
+        page.fill("#dlg-path", str(red))
+        page.press("#dlg-path", "Enter")
+        for _ in range(100):
+            if state(page, "s.overlays.length") == 1:
+                break
+            page.wait_for_timeout(100)
+        assert state(page, "s.overlays.length") == 1 and state(page, "s.overlays[0].start") == pytest.approx(1, abs=0.05)
+        page.wait_for_selector("#ovs .oitem", timeout=5000)
+
+        def stage_px(fx, fy):
+            return page.evaluate("(() => { const c = document.getElementById('stage-canvas'); const d = c.getContext('2d').getImageData(Math.round(c.width*%s), Math.round(c.height*%s), 1, 1).data; return [d[0], d[1], d[2]] })()" % (fx, fy))
+        red_seen = False
+        for _ in range(40):                                   # the overlay video needs a moment to load its frame
+            page.evaluate("window.__ve.seek(1.5)")
+            page.wait_for_timeout(250)
+            px = stage_px(0.77, 0.23)
+            if px[0] > 200 and px[1] < 60:
+                red_seen = True
+                break
+        assert red_seen, px
+        # drag it on the preview, undo, resize by slider, opacity
+        gz = bbox(page, "#ogizmo")
+        page.mouse.move(gz["x"] + gz["width"] / 2, gz["y"] + gz["height"] / 2)
+        page.mouse.down()
+        page.mouse.move(gz["x"] + gz["width"] / 2 - 150, gz["y"] + gz["height"] / 2 + 60, steps=6)
+        page.mouse.up()
+        tf = state(page, "s.overlays[0].tf")
+        assert tf["x"] < 0.2 and tf["y"] > -0.2
+        page.keyboard.press("Control+z")
+        assert state(page, "s.overlays[0].tf.x") == pytest.approx(0.27, abs=0.001)
+        page.click("#ov-c-bl")
+        assert state(page, "s.overlays[0].tf.x") == -0.27 and state(page, "s.overlays[0].tf.y") == 0.27
+        page.fill("#ov-s", "50")
+        page.dispatch_event("#ov-s", "input")
+        assert state(page, "s.overlays[0].tf.s") == 0.5
+        # lane: move with the mouse
+        it = bbox(page, "#ovs .oitem")
+        page.mouse.move(it["x"] + it["width"] / 2, it["y"] + it["height"] / 2)
+        page.mouse.down()
+        page.mouse.move(it["x"] + it["width"] / 2 + 40, it["y"] + it["height"] / 2, steps=4)
+        page.mouse.up()
+        assert state(page, "s.overlays[0].start") > 1.05
+        # export + project
+        page.click("#tabs button[data-tab=export]")
+        page.fill("#in-outdir", str(tmp_path / "pip"))
+        page.click("#btn-export")
+        page.wait_for_selector("#result .ok", timeout=120000)
+        assert len(list((tmp_path / "pip").glob("*.mp4"))) == 1
+        page.click("#btn-saveas")
+        page.fill("#dlg-name", "pip")
+        page.fill("#dlg-path", str(tmp_path))
+        page.press("#dlg-path", "Enter")
+        for _ in range(50):
+            if state(page, "s.dlgProjectPath") == str(tmp_path):
+                break
+            page.wait_for_timeout(100)
+        page.click("#dlg-usefolder")
+        saved = tmp_path / "pip.vproj.json"
+        for _ in range(50):
+            if saved.exists():
+                break
+            page.wait_for_timeout(100)
+        data = json.loads(saved.read_text())
+        assert data["overlays"][0]["tf"]["s"] == 0.5 and data["overlays"][0]["tf"]["x"] == -0.27
+        # delete with the keyboard
+        page.click("#ovs .oitem")
+        page.keyboard.press("Delete")
+        assert state(page, "s.overlays.length") == 0
+        assert not errors, errors
+    finally:
+        b.close()
+        p.stop()
+        srv.stop()
+
+
+def test_docs_are_bilingual_and_consistent():
+    import re
+    for lang in ("en", "de"):
+        for name in ("GUIDE.md", "TOOLS.md"):
+            assert (ROOT / "docs" / lang / name).is_file(), (lang, name)
+    en, de = [(ROOT / "docs" / l / "GUIDE.md").read_text(encoding="utf-8") for l in ("en", "de")]
+    heads = lambda t: [h for h in re.findall(r"^## (\d+)\.", t, re.M)]
+    assert heads(en) == heads(de) and len(heads(en)) >= 12            # same chapters in both languages
+    for text in (en, de):
+        assert "PolyForm" in text and "https://lokyy.de" in text and "lk_" in text and not re.search(r"\bve_", text)
+    readme_en, readme_de = [(ROOT / n).read_text(encoding="utf-8") for n in ("README.md", "README.de.md")]
+    for t in (readme_en, readme_de):
+        for link in ("docs/en/GUIDE.md", "docs/de/GUIDE.md", "docs/en/TOOLS.md", "docs/de/TOOLS.md", "LICENSE"):
+            assert "(%s)" % link in t, link
+        assert "(README.de.md)" in readme_en and "(README.md)" in readme_de
+        assert "PolyForm" in t
+    lic = (ROOT / "LICENSE").read_text(encoding="utf-8")
+    assert lic.startswith("# PolyForm Noncommercial License 1.0.0") and "Required Notice" in lic and "MIT" not in lic
+    assert "PolyForm-Noncommercial-1.0.0" in (ROOT / "plugin.yaml").read_text(encoding="utf-8")
+
+
+def test_catalog_entry_links_the_docs(tmp_path):
+    out = subprocess.run([sys.executable, str(ROOT / "scripts" / "make_catalog_entry.py")], capture_output=True, text=True, check=True).stdout
+    assert "docs_url: https://github.com/oliverhees/hermes-video-editor/blob/" in out and "PolyForm" in out and "\n    - ve_" not in out and "lk_trim" in out
+
+
+def test_browser_help_in_english_and_german(media, tmp_path):
+    pw = pytest.importorskip("playwright.sync_api")
+    from hermes_video_editor.editor.server import EditorServer
+    srv = EditorServer(roots=[str(media["dir"]), str(tmp_path)])
+    p, b, page, errors = browser(pw)
+    try:
+        page.goto(srv.url())
+        page.wait_for_selector("#btn-help")
+        page.click("#btn-help")
+        page.wait_for_selector("#help-body h1", timeout=10000)
+        assert "user guide" in page.inner_text("#help-body h1").lower() and page.locator("#help-body table").count() >= 4
+        page.click("#help-de")
+        for _ in range(100):
+            if "Anleitung" in page.inner_text("#help-body"):
+                break
+            page.wait_for_timeout(100)
+        assert "Leinwand" in page.inner_text("#help-body")
+        assert page.locator("#help-body script").count() == 0 and "<" not in page.inner_text("#help-body h1")
+        page.keyboard.press("Escape")
+        assert page.is_hidden("#help")
+        assert not errors, errors
+    finally:
+        b.close()
+        p.stop()
+        srv.stop()
+
+
+def test_browser_open_project_differs_from_add_clip(media, tmp_path):
+    pw = pytest.importorskip("playwright.sync_api")
+    from hermes_video_editor.editor.server import EditorServer
+    (tmp_path / "old.vproj.json").write_text(json.dumps({"version": 1, "assets": {"a": {"path": str(media["clip"])}}, "clips": [{"id": "c", "asset": "a", "in": 0, "out": 2}]}))
+    srv = EditorServer(roots=[str(media["dir"]), str(tmp_path)])
+    p, b, page, errors = browser(pw)
+    try:
+        page.goto(srv.url(str(media["clip"])))
+        wait_ready(page)
+        page.click("#btn-open")                                   # add clip: videos of the media folder, hint says so
+        assert "video or audio file" in page.inner_text("#dlg-hint")
+        page.fill("#dlg-path", str(media["dir"]))
+        page.press("#dlg-path", "Enter")
+        page.wait_for_selector("#dlg-list .item:has-text('clip.mp4')")
+        page.click("#dlg-close")
+        page.click("#btn-openproj")                               # open project: only project files, own folder, own hint
+        assert "project" in page.inner_text("#dlg-hint").lower() and "replaces" in page.inner_text("#dlg-hint")
+        assert page.inner_text("#dlg-title") == "Open a project"
+        page.fill("#dlg-path", str(tmp_path))
+        page.press("#dlg-path", "Enter")
+        page.wait_for_selector("#dlg-list .item:has-text('old.vproj.json')")
+        assert page.locator("#dlg-list .item:has-text('.mp4')").count() == 0
+        page.click("#dlg-close")
+        page.click("#btn-open")                                   # the media dialog did not follow the project folder
+        page.wait_for_selector("#dlg-list .item:has-text('clip.mp4')")
         assert not errors, errors
     finally:
         b.close()

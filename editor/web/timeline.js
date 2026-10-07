@@ -176,6 +176,17 @@
     if (a.fo > 0 && left < a.fo) g *= Math.max(0, left / a.fo);
     return g;
   }
+  // ---- overlay track: a second video on top of the main picture, in absolute timeline seconds (placement like a clip's tf)
+  function newOverlay(assetId, assetDur, start, id) {
+    return { id: id || uid("o"), asset: assetId, "in": 0, out: round(assetDur), start: round(Math.max(0, start || 0)),
+      tf: { s: 0.4, x: 0.27, y: -0.27 }, op: 1, sound: false, vol: 0 };
+  }
+  function cleanOverlay(o) {          // same limits as clean_overlay_fields() in editor/project.py
+    o = o || {};
+    return { id: String(o.id || uid("o")).slice(0, 40), asset: String(o.asset), "in": round(Math.max(0, Number(o["in"]) || 0)), out: round(Math.max(0, Number(o.out) || 0)),
+      start: round(clampN(o.start, 0, 0, 86400)), tf: cleanTf(o.tf || { s: 0.4, x: 0.27, y: -0.27 }), op: clampN(o.op, 1, 0, 1), sound: !!o.sound, vol: clampN(o.vol, 0, -60, 24) };
+  }
+  function activeOverlays(list, t) { return list.filter(function (o) { return t >= o.start && t < audioEnd(o); }); }
   function activeText(texts, t) { return texts.filter(function (x) { return t >= x.start && t < x.start + x.dur; }); }
   function activeAudio(audios, t) { return audios.filter(function (a) { return t >= a.start && t < audioEnd(a); }); }
 
@@ -193,7 +204,7 @@
     deleteRange: deleteRange, subtractRanges: subtractRanges, applySilence: applySilence, trim: trim, move: move, dropIndex: dropIndex,
     insertAt: insertAt, forExport: forExport, createHistory: createHistory, round: round,
     newText: newText, cleanText: cleanText, trimText: trimText, newAudio: newAudio, cleanAudio: cleanAudio, trimAudio: trimAudio,
-    audioDur: audioDur, audioEnd: audioEnd, audioGain: audioGain, activeText: activeText, activeAudio: activeAudio, patch: patch,
+    audioDur: audioDur, audioEnd: audioEnd, audioGain: audioGain, activeText: activeText, newOverlay: newOverlay, cleanOverlay: cleanOverlay, activeOverlays: activeOverlays, activeAudio: activeAudio, patch: patch,
     ASPECTS: ASPECTS, SHORTS: SHORTS, canvasSize: canvasSize, cleanTf: cleanTf, fgRect: fgRect, fillScale: fillScale, isDefaultTf: isDefaultTf };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.VETimeline = api;
 })(typeof window !== "undefined" ? window : this);

@@ -11,7 +11,7 @@
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 button,input,select{font:inherit;color:inherit}
-#app{display:grid;height:100vh;grid-template-columns:300px 1fr;grid-template-rows:48px 1fr 308px;
+#app{display:grid;height:100vh;grid-template-columns:300px 1fr;grid-template-rows:48px 1fr 352px;
 grid-template-areas:"top top" "side stage" "tl tl"}
 #top{grid-area:top;display:flex;align-items:center;gap:12px;padding:0 14px;background:var(--panel);border-bottom:1px solid var(--line)}
 .brand{font-weight:700;letter-spacing:.2px;display:flex;align-items:center;gap:8px}
@@ -31,7 +31,7 @@ border:1px solid var(--line);border-radius:999px;padding:4px 12px}
 kbd{font:11px ui-monospace,monospace;background:var(--deep);border:1px solid var(--line);border-radius:4px;padding:0 4px;color:var(--muted)}
 #side{grid-area:side;background:var(--panel);border-right:1px solid var(--line);overflow:auto;display:flex;flex-direction:column}
 #tabs{display:flex;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:2}
-#tabs button{flex:1;background:none;border:0;border-bottom:2px solid transparent;padding:10px 2px;font-size:12px;color:var(--muted);cursor:pointer}
+#tabs button{flex:1;background:none;border:0;border-bottom:2px solid transparent;padding:9px 2px;font-size:11.5px;white-space:nowrap;color:var(--muted);cursor:pointer}
 #tabs button.on{color:var(--text);border-bottom-color:var(--accent)}
 .pane{display:none;padding:4px 14px 78px}.pane.on{display:block}
 h3{margin:16px 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);display:flex;align-items:center;gap:8px}
@@ -120,7 +120,7 @@ details.adv{margin:10px 0;color:var(--muted)}details.adv summary{cursor:pointer}
 .clip:hover .h,.clip.sel .h{background:color-mix(in srgb,var(--accent) 70%,transparent)}
 #drop-ind{position:absolute;top:26px;height:72px;width:3px;margin-left:-1px;background:var(--accent);border-radius:2px;pointer-events:none}
 #drop-ind[hidden]{display:none}
-#mark-range{top:26px;height:262px}
+#mark-range{top:26px;height:308px}
 #stage video{position:absolute;inset:0;width:100%;height:100%;background:#000}
 #header-spacer{flex:1}
 .row .btn{white-space:nowrap;padding:6px 6px}
@@ -160,6 +160,14 @@ background:color-mix(in srgb,var(--accent) 14%,var(--panel2));box-shadow:inset 0
 #texts{top:176px;height:30px;background:color-mix(in srgb,var(--panel2) 70%,transparent);border-radius:6px}
 #audios{top:212px;height:62px;background:color-mix(in srgb,var(--panel2) 70%,transparent);border-radius:6px}
 #awave{top:212px;height:62px;pointer-events:none}
+#ovs{top:282px;height:34px;background:color-mix(in srgb,var(--panel2) 70%,transparent);border-radius:6px}
+.oitem{position:absolute;top:3px;bottom:3px;border-radius:6px;cursor:grab;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:11px;line-height:28px;padding:0 10px;border:2px solid transparent;user-select:none;background:color-mix(in srgb,var(--accent) 55%,var(--bg));color:var(--text)}
+.oitem.sel{border-color:var(--text)}
+.oitem .h{position:absolute;top:0;bottom:0;width:8px;cursor:ew-resize;background:transparent}
+.oitem .h.l{left:0}.oitem .h.r{right:0}
+.oitem:hover .h,.oitem.sel .h{background:color-mix(in srgb,var(--accent) 70%,transparent)}
+#ogizmo{position:absolute;border:2px solid var(--accent);cursor:move;border-radius:3px}
+#ogizmo[hidden]{display:none}
 .lane-label{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--muted);pointer-events:none;letter-spacing:.06em;text-transform:uppercase}
 .titem,.aitem{position:absolute;top:3px;bottom:3px;border-radius:6px;cursor:grab;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:11px;line-height:24px;padding:0 10px;border:2px solid transparent;user-select:none}
 .titem{background:color-mix(in srgb,var(--accent) 38%,var(--bg));color:var(--text)}
@@ -174,3 +182,23 @@ background:color-mix(in srgb,var(--accent) 14%,var(--panel2));box-shadow:inset 0
 .row.ctl{align-items:end;flex-wrap:wrap;gap:8px}
 input[type=number]{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
 input[type=color]{width:100%;min-width:36px;height:32px;padding:2px;background:var(--panel2);border:1px solid var(--line);border-radius:8px}
+
+/* help: the user guide in English and German */
+#help{position:fixed;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;z-index:20}
+#help[hidden]{display:none}
+.help-box{width:min(860px,94vw);height:min(86vh,900px);background:var(--panel);border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;overflow:hidden}
+.help-head{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.help-head strong{flex:1}
+.seg{display:inline-flex;gap:4px}
+.seg .btn.on{background:var(--accent);color:var(--on-accent,#fff);border-color:var(--accent)}
+.help-body{padding:6px 22px 24px;overflow:auto;line-height:1.55;font-size:14px}
+.help-body h1{font-size:22px;margin:14px 0 6px}
+.help-body h2{font-size:16px;margin:24px 0 6px;padding-top:8px;border-top:1px solid var(--line)}
+.help-body h3{font-size:14px;margin:16px 0 4px}
+.help-body p,.help-body li{color:var(--text)}
+.help-body ul,.help-body ol{padding-left:22px}
+.help-body table{border-collapse:collapse;width:100%;margin:8px 0;font-size:13px}
+.help-body th,.help-body td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+.help-body th{background:var(--panel2)}
+.help-body code{font:12px ui-monospace,monospace;background:var(--deep);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+.help-body a{color:var(--accent)}
