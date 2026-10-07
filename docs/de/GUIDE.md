@@ -69,7 +69,7 @@ Eine zweite Videospur über dem Hauptbild: Reaktions-Clip, Logo-Animation, B-Rol
 
 ## 9. Alle Werkzeuge (Tab Tools)
 
-Alle 42 `lk_*`-Werkzeuge als Formular: suchen, ausfüllen, **Run**. Dieselben Werkzeuge nutzt der Hermes-Agent im Chat.
+Alle 45 `lk_*`-Werkzeuge als Formular: suchen, ausfüllen, **Run**. Dieselben Werkzeuge nutzt der Hermes-Agent im Chat.
 Beispiele für den Chat:
 
 - „Schneide die Stille aus `interview.mp4` und mach es 9:16 mit unscharfem Hintergrund.“

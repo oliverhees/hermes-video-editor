@@ -136,6 +136,28 @@ def extract_frame(args: Dict[str, Any]) -> Any:
     return job.done(op="extract_frame", time=format_time(t))
 
 
+@tool_handler
+def loudness_report(args: Dict[str, Any]) -> Any:
+    """Measure only (EBU R128): nothing is written. Shows where the sound is relative to common platform targets."""
+    import math
+    from .audio import measure_loudness
+    path = resolve_input(args.get("input"))
+    info = probe(path)
+    if not info["has_audio"]:
+        raise ToolError("Input has no audio stream, so there is nothing to measure.")
+    m = measure_loudness(path, get_timeout(args))
+    lufs, tp, lra = m["input_i"], m["input_tp"], m["input_lra"]
+    if math.isinf(lufs) or math.isnan(lufs):
+        raise ToolError("The audio is silent or too quiet to measure loudness.")
+    verdict = "ok" if -16.0 <= lufs <= -12.0 and tp <= -1.0 else ("too quiet" if lufs < -16.0 else "too loud or peaking")
+    advice = {"ok": "Close to the common -14 LUFS target; no change needed.",
+              "too quiet": "Raise it with lk_normalize_loudness (target_lufs -14).",
+              "too loud or peaking": "Lower it with lk_normalize_loudness (target_lufs -14, true_peak_db -1.5)."}[verdict]
+    return {"output": None, "duration_s": info["duration_s"],
+            "info": {"integrated_lufs": round(lufs, 1), "true_peak_db": round(tp, 1), "loudness_range_lu": round(lra, 1),
+                     "verdict": verdict, "advice": advice, "reference": "YouTube/Reels/TikTok/Shorts about -14 LUFS, podcasts -16 LUFS"}}
+
+
 SPECS = [
     ToolSpec(
         name="lk_media_doctor",
@@ -174,4 +196,10 @@ SPECS = [
         properties={"time": tprop("Time of the frame. Default 0."),
                     "format": {"type": "string", "enum": ["png", "jpg"], "default": "png",
                                "description": "Image format. png = lossless, jpg = smaller."}}),
+    ToolSpec(
+        name="lk_loudness_report",
+        description=("Measure how loud a file is (integrated LUFS, true peak, loudness range, EBU R128) and say whether it fits "
+                     "social platforms (about -14 LUFS). Only measures: no file is written. If it is off, fix it with "
+                     "lk_normalize_loudness."),
+        handler=loudness_report, common=("input", "timeout_s")),
 ]

@@ -69,7 +69,7 @@ A second video track above the main picture: reaction clip, logo animation, b-ro
 
 ## 9. Tools (tab Tools)
 
-All 42 `lk_*` tools as forms: search, fill in, **Run**. The same tools are available to the Hermes agent in chat.
+All 45 `lk_*` tools as forms: search, fill in, **Run**. The same tools are available to the Hermes agent in chat.
 Example prompts for the chat:
 
 - "Cut the silences out of `interview.mp4` and make it 9:16 with a blurred background."

@@ -1,4 +1,4 @@
-# Werkzeug-Referenz (42 Werkzeuge)
+# Werkzeug-Referenz (45 Werkzeuge)
 
 Erzeugt von `scripts/gen_docs.py`. Nicht von Hand ändern. Die vollständigen Parameterbeschreibungen stehen in der [englischen Referenz](../en/TOOLS.md); hier die Kurzfassung auf Deutsch.
 
@@ -13,6 +13,7 @@ Jedes Werkzeug gibt einen JSON-Text zurück: `{"ok": true, "output": ..., "durat
 | `lk_detect_silence` | Findet stille Abschnitte (Start/Ende/Dauer) ohne die Datei zu ändern. | `input`*, `timeout_s`, `noise_db`, `min_duration_s` |
 | `lk_detect_scenes` | Findet Szenenwechsel und gibt die Zeitpunkte zurück. | `input`*, `timeout_s`, `threshold` |
 | `lk_extract_frame` | Speichert ein einzelnes Standbild (PNG/JPG) zu einem Zeitpunkt. | `input`*, `output`, `output_dir`, `overwrite`, `timeout_s`, `time`, `format` |
+| `lk_loudness_report` | Misst, wie laut eine Datei ist (LUFS, Spitzenpegel, Lautheitsbereich) und sagt, ob sie zu Social-Media-Zielen passt. Schreibt keine Datei. | `input`*, `timeout_s` |
 
 ## B. Schneiden & Zeit
 
@@ -26,6 +27,7 @@ Jedes Werkzeug gibt einen JSON-Text zurück: `{"ok": true, "output": ..., "durat
 | `lk_change_speed` | Macht das Video schneller oder langsamer (Bild und Ton bleiben synchron). | `input`*, `output`, `output_dir`, `overwrite`, `timeout_s`, `factor`*, `crf` |
 | `lk_reverse` | Spielt kurze Clips rückwärts ab. | `input`*, `output`, `output_dir`, `overwrite`, `timeout_s`, `crf` |
 | `lk_loop` | Wiederholt einen Clip: entweder Anzahl der Durchläufe oder Ziel-Länge. | `input`*, `output`, `output_dir`, `overwrite`, `timeout_s`, `count`, `target_duration_s`, `crf` |
+| `lk_crossfade_join` | Fügt Clips mit weichem Übergang zusammen (Überblendung, Wischen, Schieben, Kreis, Pixel); Bild und Ton werden überblendet. | `output`, `output_dir`, `overwrite`, `timeout_s`, `inputs`*, `transition`, `duration_s`, `crf` |
 
 ## C. Bild
 
@@ -64,6 +66,7 @@ Jedes Werkzeug gibt einen JSON-Text zurück: `{"ok": true, "output": ..., "durat
 | `lk_adjust_volume` | Macht lauter oder leiser (in dB). | `input`*, `output`, `output_dir`, `overwrite`, `timeout_s`, `db`, `factor`, `prevent_clipping` |
 | `lk_fade_audio` | Blendet den Ton ein und/oder aus. | `input`*, `output`, `output_dir`, `overwrite`, `timeout_s`, `fade_in_s`, `fade_out_s` |
 | `lk_denoise_audio` | Reduziert Rauschen in der Tonspur. | `input`*, `output`, `output_dir`, `overwrite`, `timeout_s`, `preset` |
+| `lk_mute_video` | Entfernt den Ton aus einem Video; das Bild wird ohne Neu-Kodierung kopiert (sofort, verlustfrei). | `input`*, `output`, `output_dir`, `overwrite`, `timeout_s` |
 
 ## F. Export & Prüfung
 

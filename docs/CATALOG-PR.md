@@ -9,7 +9,7 @@
 
 **Add hermes-video-editor (community, tools)**
 
-Local video editor for your own footage: 42 FFmpeg tools for the agent plus a visual editor page in Hermes Desktop
+Local video editor for your own footage: 45 FFmpeg tools for the agent plus a visual editor page in Hermes Desktop
 (canvas, overlay track, text, music, English/German help). Licence: PolyForm Noncommercial 1.0.0 (source-available, non-commercial use).
 
 Disclosure (also in the README, section "Security and disclosures"):
