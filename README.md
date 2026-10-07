@@ -30,6 +30,7 @@
 - [The visual editor](#-the-visual-editor)
 - [Or just talk to Hermes](#-or-just-talk-to-hermes)
 - [The 42 tools](#-the-42-tools)
+- [AI generation with Kie.ai (coming soon)](#-optional-ai-generation-with-kieai-coming-soon)
 - [Documentation](#-documentation)
 - [How every tool behaves](#-how-every-tool-behaves)
 - [Troubleshooting](#-troubleshooting)
@@ -141,6 +142,15 @@ The plugin ships a skill that teaches the agent the right order (probe first, pl
 | **D. Overlays & text (6)** | `lk_add_text` `lk_burn_captions` `lk_add_image_overlay` `lk_picture_in_picture` `lk_stack_videos` `lk_blur_region` |
 | **E. Audio (8)** | `lk_extract_audio` `lk_replace_audio` `lk_mix_music` `lk_normalize_loudness` `lk_sync_audio_offset` `lk_adjust_volume` `lk_fade_audio` `lk_denoise_audio` |
 | **F. Export & check (6)** | `lk_export_preset` `lk_platform_check` `lk_compress_to_size` `lk_to_gif` `lk_contact_sheet` `lk_transcribe_captions` |
+
+## 🤖 Optional: AI generation with Kie.ai (coming soon)
+
+The editor itself stays free of any AI service. A **separate, optional plugin** is planned that connects the editor to [Kie.ai](https://kie.ai) so you can generate video scenes, images and sound by prompt (choose the aspect ratio, subject and model) and drop the results into the editor as layers: overlays, transitions, sound, voice-over.
+
+- **Not available yet.** There is no release date and no link; this is only an announcement.
+- It will be a **different plugin** that you install on purpose. This plugin never contacts Kie.ai.
+- Kie.ai is a third-party service: you would need **your own account and API key**, and generation costs are billed by Kie.ai.
+- If that plugin ever contains a referral (affiliate) link, it will be **clearly labelled and optional**, never opened automatically.
 
 ## 📚 Documentation
 
