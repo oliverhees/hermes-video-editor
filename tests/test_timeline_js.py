@@ -105,3 +105,26 @@ def test_history_undo_redo(tmp_path):
     h.push(state); assert.ok(!h.canRedo())                                                 // new edit clears redo
     for (let i = 0; i < 10; i++) h.push({v: i}); let c = 0; while (h.undo({}) ) c++; assert.strictEqual(c, 3)   // history limit
     """, tmp_path)
+
+
+def test_transform_geometry_and_tf_survives_edits(tmp_path):
+    run("""
+    assert.deepStrictEqual(T.canvasSize('9:16', 1080), [1080, 1920]); assert.deepStrictEqual(T.canvasSize('16:9', 720), [1280, 720])
+    assert.deepStrictEqual(T.canvasSize('1:1', 1080), [1080, 1080]); assert.deepStrictEqual(T.canvasSize('4:5', 1080), [1080, 1350])
+    assert.deepStrictEqual(T.canvasSize('auto', 0, 641, 361), [642, 362]); assert.deepStrictEqual(T.canvasSize('9:16', 123), [1080, 1920])
+    // a 16:9 picture "fit" into a 9:16 canvas: full width, centred, bars above and below
+    assert.deepStrictEqual(T.fgRect(1920, 1080, 1080, 1920, null), [0, 656, 1080, 608])
+    assert.deepStrictEqual(T.fgRect(1920, 1080, 1080, 1920, {s: 2, x: 0, y: 0}), [-540, 352, 2160, 1216])
+    assert.deepStrictEqual(T.fgRect(1920, 1080, 1080, 1920, {s: 1, x: 0.25, y: -0.1}), [270, 464, 1080, 608])
+    assert.ok(Math.abs(T.fillScale(1920, 1080, 1080, 1920) - 3.1604938) < 1e-6)
+    assert.deepStrictEqual(T.cleanTf({s: 99, x: 'a', y: -9}), {s: 10, x: 0, y: -3}); assert.deepStrictEqual(T.cleanTf(null), {s: 1, x: 0, y: 0})
+    assert.ok(T.isDefaultTf(undefined) && T.isDefaultTf({s:1,x:0,y:0}) && !T.isDefaultTf({s:1.1,x:0,y:0}))
+    // split / delete / trim keep the transform on every piece, and the input is not mutated
+    const clips = [{id:'a',asset:'x',in:0,out:8,tf:{s:2,x:0.1,y:0}}]
+    const r = T.split(clips, 3, 'n'); assert.deepStrictEqual(r.clips.map(c => c.tf), [{s:2,x:0.1,y:0},{s:2,x:0.1,y:0}])
+    assert.notStrictEqual(r.clips[0].tf, r.clips[1].tf)
+    assert.deepStrictEqual(T.deleteRange(clips, 2, 3, id).map(c => c.tf.s), [2, 2])
+    assert.strictEqual(T.trim(clips, 0, 'right', -1, 8)[0].tf.s, 2)
+    assert.deepStrictEqual(T.forExport(clips, {x:{path:'/p.mp4'}}), [{path:'/p.mp4', in:0, out:8, tf:{s:2,x:0.1,y:0}}])
+    assert.strictEqual(T.forExport([{id:'b',asset:'x',in:0,out:1}], {x:{path:'/p.mp4'}})[0].tf, undefined)
+    """, tmp_path)

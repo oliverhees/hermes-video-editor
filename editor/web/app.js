@@ -385,7 +385,7 @@
       g.fillText(fmt(t, step < 1), x + 4, 12);
     }
     // audio lane: waveform of every clip, mapped from timeline time back to the source file
-    var w = $("wave").getContext("2d"), H = 110, mid = H / 2, amp = mid - 6, col = cssColor("--teal", "#4ecdc4");
+    var w = $("wave").getContext("2d"), H = 110, mid = H / 2, amp = mid - 6, col = cssColor("--accent", "#8b6cf0");
     var L = TL.layout(S.clips), top = new Array(vw), px, any = false;
     for (px = 0; px < vw; px++) top[px] = 0;
     L.items.forEach(function (it) {
