@@ -11,7 +11,7 @@
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 button,input,select{font:inherit;color:inherit}
-#app{display:grid;height:100vh;grid-template-columns:300px 1fr;grid-template-rows:48px 1fr 272px;
+#app{display:grid;height:100vh;grid-template-columns:300px 1fr;grid-template-rows:48px 1fr 308px;
 grid-template-areas:"top top" "side stage" "tl tl"}
 #top{grid-area:top;display:flex;align-items:center;gap:12px;padding:0 14px;background:var(--panel);border-bottom:1px solid var(--line)}
 .brand{font-weight:700;letter-spacing:.2px;display:flex;align-items:center;gap:8px}
@@ -65,8 +65,8 @@ background:#000c;color:var(--text)}
 #track{position:relative;height:100%;min-width:100%}
 #ruler{position:absolute;left:0;top:0;height:26px}
 .lane{position:absolute;left:0;right:0}
-#clips{top:30px;height:72px;background:var(--deep);border-radius:6px}
-#wave{top:108px;width:100%;height:110px}
+#clips{top:30px;height:64px;background:var(--deep);border-radius:6px}
+#wave{top:98px;width:100%;height:72px}
 .region{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(135deg,#ff5d6c55 0 6px,#ff5d6c22 6px 12px);
 border-left:2px solid var(--red);border-right:2px solid var(--red)}
 .region.sel{outline:2px solid var(--accent)}
@@ -118,9 +118,9 @@ details.adv{margin:10px 0;color:var(--muted)}details.adv summary{cursor:pointer}
 .clip .h{position:absolute;top:0;bottom:0;width:9px;cursor:ew-resize;background:transparent}
 .clip .h.l{left:0}.clip .h.r{right:0}
 .clip:hover .h,.clip.sel .h{background:color-mix(in srgb,var(--accent) 70%,transparent)}
-#drop-ind{position:absolute;top:26px;height:80px;width:3px;margin-left:-1px;background:var(--accent);border-radius:2px;pointer-events:none}
+#drop-ind{position:absolute;top:26px;height:72px;width:3px;margin-left:-1px;background:var(--accent);border-radius:2px;pointer-events:none}
 #drop-ind[hidden]{display:none}
-#mark-range{top:26px;height:196px}
+#mark-range{top:26px;height:262px}
 #stage video{position:absolute;inset:0;width:100%;height:100%;background:#000}
 #header-spacer{flex:1}
 .row .btn{white-space:nowrap;padding:6px 6px}
@@ -156,3 +156,21 @@ background:color-mix(in srgb,var(--accent) 14%,var(--panel2));box-shadow:inset 0
 .hero h4{margin:26px 0 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left}
 .hero .list{text-align:left}
 .empty-mode #stage,.empty-mode #transport{display:none}
+
+#texts{top:176px;height:30px;background:color-mix(in srgb,var(--panel2) 70%,transparent);border-radius:6px}
+#audios{top:212px;height:62px;background:color-mix(in srgb,var(--panel2) 70%,transparent);border-radius:6px}
+#awave{top:212px;height:62px;pointer-events:none}
+.lane-label{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--muted);pointer-events:none;letter-spacing:.06em;text-transform:uppercase}
+.titem,.aitem{position:absolute;top:3px;bottom:3px;border-radius:6px;cursor:grab;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:11px;line-height:24px;padding:0 10px;border:2px solid transparent;user-select:none}
+.titem{background:color-mix(in srgb,var(--accent) 38%,var(--bg));color:var(--text)}
+.aitem{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--text);line-height:16px;padding-top:2px}
+.titem.sel,.aitem.sel{border-color:var(--accent)}
+.titem .h,.aitem .h{position:absolute;top:0;bottom:0;width:8px;cursor:ew-resize;background:transparent}
+.titem .h.l,.aitem .h.l{left:0}.titem .h.r,.aitem .h.r{right:0}
+.titem:hover .h,.aitem:hover .h,.titem.sel .h,.aitem.sel .h{background:color-mix(in srgb,var(--accent) 70%,transparent)}
+#tgizmo{position:absolute;border:2px dashed var(--accent);cursor:move;border-radius:3px}
+#tgizmo[hidden]{display:none}
+.mini{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted);flex:1}
+.row.ctl{align-items:end;flex-wrap:wrap;gap:8px}
+input[type=number]{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+input[type=color]{width:100%;min-width:36px;height:32px;padding:2px;background:var(--panel2);border:1px solid var(--line);border-radius:8px}

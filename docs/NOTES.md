@@ -105,3 +105,9 @@ needs `HERMES_ENABLE_PROJECT_PLUGINS=true`). Plugins are opt-in: must be enabled
 - Accent colour: the Desktop page looks for a vivid CSS variable (accent/primary/brand/ring/...) in the app's style
   sheets, then for painted controls (checked switch, selected item); the editor falls back to neutral violet.
 - Not yet: layers/tracks, text/overlay clips, audio tracks (music), transitions, keyframes.
+
+
+## Addendum: text layer and audio track
+- Project model: `texts[]` (id, text, start, dur, x, y, size, color, outline, box, boxColor) and `audios[]` (id, asset, in, out, start, vol dB, fi, fo, duck), absolute timeline times. Pure logic in `timeline.js`, UI in `editor/web/layers.js`.
+- Render (`editor/project.py`): text = `drawtext` with `textfile=` + `expansion=none` + `enable=between(t,a,b)`; audio = per-item `atrim/adelay/volume/afade`, optional `sidechaincompress` against the clip audio, `amix normalize=0` + `alimiter`; output is cut to the video length (`-t`).
+- Limits: see README (ripple edits do not move layers; preview approximates text and does not play ducking).

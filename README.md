@@ -86,7 +86,14 @@ python scripts/editor.py my-video.mp4    # with a file preloaded
 
 The editor never changes your original. **Export** runs the same `ve_*` tools the agent uses
 (remove cuts -> speed -> reframe -> loudness -> preset) and writes a new file next to the original (or into the folder you choose).
-It is an *assembly* editor: one video track of clips played back to back, each with its own position and size on a canvas. Layers (overlays, text, music tracks) are planned; picture-in-picture, stacking and text overlays are available as tools in the *All tools* tab.
+It is an *assembly* editor: one video track of clips played back to back, each with its own position and size on a canvas, plus a **text layer** and an **audio track**. More video tracks (overlay / picture-in-picture) are planned; picture-in-picture and stacking are available as tools in the *All tools* tab.
+
+| Layer | How |
+|---|---|
+| **Text** | *Text* tab: **Add text at the playhead**, type, pick size/colour/outline/box or a preset (Title, Lower third, Caption). Drag the text on the preview to place it, drag its item on the TEXT lane to move it, drag its edges to change the time it is visible |
+| **Music / voice-over** | *Sound* tab: **Add audio...** (any audio file, or a video with sound). Move it on the AUDIO lane, trim by its edges, set volume (dB), fade in/out, start time, and **ducking** (music gets quieter while the video speaks) |
+
+Known limits: the preview does not play ducking and cannot make audio louder than the source (export does); text looks slightly different in the preview than in the export (different font); texts and audio items sit at fixed times, so ripple edits of the clips do not shift them; recording a voice-over inside the editor is not possible (the sandboxed frame has no microphone), add a recorded file instead.
 
 How it works and what it exposes: a tiny web server inside the plugin listens on **127.0.0.1 only** (random port, random
 one-time token in the link; requests without it get 403).

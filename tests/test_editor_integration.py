@@ -575,3 +575,77 @@ def test_browser_canvas_transform_background_and_export(media, tmp_path):
         b.close()
         p.stop()
         srv.stop()
+
+
+def test_browser_text_and_audio_layers(media, tmp_path):
+    pw = pytest.importorskip("playwright.sync_api")
+    from hermes_video_editor.editor.server import EditorServer
+    music = tmp_path / "music.wav"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "sine=frequency=880:duration=3", str(music)], check=True)
+    srv = EditorServer(roots=[str(media["dir"]), str(tmp_path)])
+    p, b, page, errors = browser(pw)
+    try:
+        page.goto(srv.url(str(media["clip"])))
+        wait_ready(page)
+        # text: add, edit, move on the lane, undo
+        page.evaluate("window.__ve.seek(1)")
+        page.click("#tabs button[data-tab=text]")
+        page.click("#btn-text-add")
+        page.fill("#tx-text", "Hello Lokyy")
+        assert state(page, "s.texts.length") == 1 and state(page, "s.texts[0].text") == "Hello Lokyy"
+        assert state(page, "s.texts[0].start") == pytest.approx(1, abs=0.05)
+        page.click("#tx-p-lower")
+        assert state(page, "s.texts[0].box") is True
+        page.keyboard.press("Escape")
+        page.click("#btn-text-dup")
+        assert state(page, "s.texts.length") == 2
+        page.click("#btn-text-del")
+        assert state(page, "s.texts.length") == 1
+        page.keyboard.press("Control+z")
+        assert state(page, "s.texts.length") == 2
+        page.keyboard.press("Control+z")
+        assert state(page, "s.texts.length") == 1
+        # audio: add through the dialog, set level, lane item exists
+        page.click("#tabs button[data-tab=sound]")
+        page.click("#btn-audio-add")
+        page.fill("#dlg-path", str(music))
+        page.press("#dlg-path", "Enter")
+        for _ in range(100):
+            if state(page, "s.audios.length") == 1:
+                break
+            page.wait_for_timeout(100)
+        assert state(page, "s.audios.length") == 1
+        page.wait_for_selector("#audios .aitem", timeout=5000)
+        page.fill("#au-vol", "-6")
+        page.dispatch_event("#au-vol", "input")
+        assert state(page, "s.audios[0].vol") == -6
+        # export: text window drawn, music mixed in
+        page.click("#tabs button[data-tab=export]")
+        page.fill("#in-outdir", str(tmp_path / "layered"))
+        page.click("#btn-export")
+        page.wait_for_selector("#result .ok", timeout=120000)
+        out = list((tmp_path / "layered").glob("*.mp4"))
+        assert len(out) == 1
+        assert ffprobe(out[0])["audio"] is not None
+        # project keeps both layers
+        page.click("#btn-saveas")
+        page.fill("#dlg-name", "layers")
+        page.fill("#dlg-path", str(tmp_path))
+        page.press("#dlg-path", "Enter")
+        for _ in range(50):
+            if state(page, "s.dlgPath") == str(tmp_path):
+                break
+            page.wait_for_timeout(100)
+        page.click("#dlg-usefolder")
+        saved = tmp_path / "layers.vproj.json"
+        for _ in range(50):
+            if saved.exists():
+                break
+            page.wait_for_timeout(100)
+        data = json.loads(saved.read_text())
+        assert data["texts"][0]["text"] == "Hello Lokyy" and data["audios"][0]["vol"] == -6
+        assert not errors, errors
+    finally:
+        b.close()
+        p.stop()
+        srv.stop()
