@@ -39,7 +39,27 @@
     c.forEach(function (x) { if (out.length && x[0] <= out[out.length - 1][1]) out[out.length - 1][1] = Math.max(out[out.length - 1][1], x[1]); else out.push(x); });
     return out;
   }
-  function busy(msg) { var o = $("overlay"); o.hidden = !msg; o.textContent = msg || ""; }
+  function busy(msg) { var o = $("overlay"); o.hidden = !msg; o.textContent = msg || ""; $("empty").hidden = !!S.path; }
+
+  // ---------------------------------------------------------------- theme (sent by the Hermes Desktop page)
+  var HEX = /^#[0-9a-f]{6}$/i;
+  function applyTheme(t) {
+    if (!t) return;
+    var root = document.documentElement;
+    if (t.theme === "light" || t.theme === "dark") root.setAttribute("data-theme", t.theme);
+    if (HEX.test(t.bg || "") && HEX.test(t.fg || "")) { root.style.setProperty("--bg", t.bg); root.style.setProperty("--text", t.fg); root.setAttribute("data-derive", "1"); }
+    if (HEX.test(t.accent || "")) root.style.setProperty("--accent", t.accent);
+    if (S.dur) drawAll();
+  }
+  applyTheme({ theme: Q.get("theme"), bg: Q.get("bg"), fg: Q.get("fg"), accent: Q.get("accent") });
+  window.addEventListener("message", function (e) {          // live theme changes, only from the page that embeds us
+    if (window.parent === window || e.source !== window.parent || !e.data || e.data.type !== "ve-theme") return;
+    applyTheme(e.data);
+  });
+  function cssColor(name, fallback) {                          // resolve a CSS variable to rgb() for canvas drawing
+    var probe = document.createElement("span"); probe.style.color = "var(" + name + ")"; document.body.appendChild(probe);
+    var c = getComputedStyle(probe).color; document.body.removeChild(probe); return c || fallback;
+  }
 
   // ---------------------------------------------------------------- tabs / controls
   document.querySelectorAll("#tabs button").forEach(function (b) {
@@ -55,7 +75,16 @@
   $("in-anchor").addEventListener("change", function () { S.anchor = this.value; updateGuide(); });
 
   // ---------------------------------------------------------------- file dialog
-  function openDialog() { $("modal").hidden = false; browse(S.dlgPath || store("ve.dir") || ""); }
+  function openDialog() { $("modal").hidden = false; browse(S.dlgPath || store("ve.dir") || ""); fillRecent($("dlg-recent"), $("dlg-recent-title"), closeDialog); }
+  function fillRecent(list, title, after) {
+    api("/api/recent").then(function (r) {
+      list.textContent = ""; title.hidden = !r.files.length;
+      r.files.slice(0, 6).forEach(function (f) {
+        var it = el("div", "item"); it.appendChild(el("span", "grow", "\uD83C\uDFAC " + f.name)); it.title = f.path;
+        it.addEventListener("click", function () { if (after) after(); loadFile(f.path); }); list.appendChild(it);
+      });
+    }).catch(function () { title.hidden = true; });
+  }
   function closeDialog() { $("modal").hidden = true; }
   function browse(path) {
     $("dlg-err").textContent = "";
@@ -78,6 +107,7 @@
   }
   function sep(p) { return p.indexOf("\\") >= 0 && p.indexOf("/") < 0 ? "\\" : "/"; }
   $("btn-open").addEventListener("click", openDialog);
+  $("btn-open2").addEventListener("click", openDialog);
   $("dlg-close").addEventListener("click", closeDialog);
   $("dlg-path").addEventListener("keydown", function (e) {
     if (e.key !== "Enter") return;
@@ -90,8 +120,9 @@
     S.fitted = false; S.cuts = []; S.mark = { a: null, b: null }; S.sel = -1; S.peaks = null; S.thumbs = null; S.cacheId = null;
     $("thumbs").textContent = ""; $("result").hidden = true; $("job").hidden = true;
   }
-  function loadFile(path) {
-    resetState(); S.path = path;
+  function loadFile(path, uploaded) {
+    resetState(); S.path = path; $("empty").hidden = true;
+    if (uploaded && S.config && !$("in-outdir").value) $("in-outdir").value = S.config.videos_dir;
     $("file-chip").textContent = path; $("file-chip").title = path;
     busy("Reading file…");
     api("/api/probe", { path: path }).then(function (info) {
@@ -242,7 +273,7 @@
     });
     // ruler
     var g = $("ruler").getContext("2d"), step = [0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600].find(function (s) { return s * S.zoom >= 70; }) || 600;
-    g.fillStyle = "#8a94a8"; g.font = "11px ui-monospace, monospace"; g.strokeStyle = "#3a4560";
+    g.fillStyle = cssColor("--muted", "#8a94a8"); g.font = "11px ui-monospace, monospace"; g.strokeStyle = cssColor("--line", "#3a4560");
     for (var t = Math.floor(x0 / S.zoom / step) * step; t * S.zoom - x0 < vw + 80; t += step) {
       var x = Math.round(t * S.zoom - x0) + 0.5; g.beginPath(); g.moveTo(x, 14); g.lineTo(x, 26); g.stroke();
       g.fillText(fmt(t, step < 1), x + 4, 12);
@@ -250,7 +281,7 @@
     // waveform
     var w = $("wave").getContext("2d"), H = 88;
     if (S.peaks && S.peaks.length && S.dur) {
-      w.fillStyle = "#4ecdc4";
+      w.fillStyle = cssColor("--teal", "#4ecdc4");
       var per = S.peaks.length / S.dur;                         // peaks per second
       for (var px = 0; px < vw; px++) {
         var ta = (x0 + px) / S.zoom, tb = (x0 + px + 1) / S.zoom;
@@ -259,7 +290,7 @@
         var h = Math.max(1, m * (H - 8)); w.fillRect(px, (H - h) / 2, 1, h);
       }
     } else if (S.info && !S.info.has_audio) {
-      w.fillStyle = "#8a94a8"; w.font = "12px system-ui"; w.fillText("No audio track", 12 + 0, H / 2);
+      w.fillStyle = cssColor("--muted", "#8a94a8"); w.font = "12px system-ui"; w.fillText("No audio track", 12, H / 2);
     }
   }
   function drawThumbs() {
@@ -366,6 +397,30 @@
     }
   }
 
+  // ---------------------------------------------------------------- drag & drop (browsers hide real paths, so the file is copied)
+  (function () {
+    var depth = 0;
+    function hasFiles(e) { return e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], "Files") >= 0; }
+    window.addEventListener("dragenter", function (e) { if (hasFiles(e)) { depth++; document.body.classList.add("drop-on"); e.preventDefault(); } });
+    window.addEventListener("dragover", function (e) { if (hasFiles(e)) e.preventDefault(); });
+    window.addEventListener("dragleave", function () { depth = Math.max(0, depth - 1); if (!depth) document.body.classList.remove("drop-on"); });
+    window.addEventListener("drop", function (e) {
+      if (!hasFiles(e)) return;
+      e.preventDefault(); depth = 0; document.body.classList.remove("drop-on");
+      var f = e.dataTransfer.files && e.dataTransfer.files[0]; if (!f) return;
+      busy("Copying \u201C" + f.name + "\u201D into the editor\u2026 0%");
+      var xhr = new XMLHttpRequest();
+      xhr.open("POST", url("/api/upload", { name: f.name }));
+      xhr.upload.onprogress = function (ev) { if (ev.lengthComputable) busy("Copying \u201C" + f.name + "\u201D into the editor\u2026 " + Math.round(ev.loaded / ev.total * 100) + "%"); };
+      xhr.onload = function () {
+        var j = {}; try { j = JSON.parse(xhr.responseText); } catch (x) { /* keep empty */ }
+        if (xhr.status === 200 && j.path) loadFile(j.path, true); else busy("Could not use that file: " + (j.error || "upload failed") + (j.hint ? " (" + j.hint + ")" : ""));
+      };
+      xhr.onerror = function () { busy("Upload failed. Use Open file\u2026 instead."); };
+      xhr.send(f);
+    });
+  })();
+
   // ---------------------------------------------------------------- start
   function init() {
     api("/api/config").then(function (c) {
@@ -373,7 +428,8 @@
       var sp = $("in-speed"); c.speeds.forEach(function (v) { var o = el("option", "", v + "×" + (v === 1 ? " (normal)" : "")); o.value = v; if (v === 1) o.selected = true; sp.appendChild(o); });
       var pr = $("in-preset"); var none = el("option", "", "No preset (keep as is)"); none.value = ""; pr.appendChild(none);
       c.presets.forEach(function (p) { var o = el("option", "", p); o.value = p; pr.appendChild(o); });
-      var open = Q.get("open"); if (open) loadFile(open);
+      var open = Q.get("open"); if (open) loadFile(open); else fillRecent($("recent"), $("recent-title"), null);
+      $("in-outdir").placeholder = "Same folder as the video";
       layoutStage(); renderAll();
     }).catch(function (e) { busy("Cannot reach the editor server: " + e.message); });
   }

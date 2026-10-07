@@ -63,7 +63,7 @@ python scripts/editor.py my-video.mp4    # with a file preloaded
 
 | Do this | How |
 |---|---|
-| Open a video | **Open file...**, browse your home folder or paste a path |
+| Open a video | **Open file...** (browse your home folder or paste a path), pick one from **Recent**, or **drop a video file** into the window (dropped files are copied into the editor's cache; exports then go to `~/Videos` by default) |
 | Preview | Space = play/pause, arrows = frame step, Shift+arrows = 1 s |
 | Cut a range | `I` (in), `O` (out), `X` (cut). Or Shift+drag on the timeline |
 | Find silences | **Find silences** adds them as cuts (adjust level / length first) |
@@ -77,7 +77,8 @@ The editor never changes your original. **Export** runs the same `ve_*` tools th
 It is a *cut-and-deliver* editor: there are no layers, text animation or multi-track timelines.
 
 How it works and what it exposes: a tiny web server inside the plugin listens on **127.0.0.1 only** (random port, random
-one-time token in the link; requests without it get 403). It serves the editor page, streams the video you open
+one-time token in the link; requests without it get 403).
+The page follows the app theme (light/dark and accent colour are read from Hermes Desktop; standalone it follows your system theme). It serves the editor page, streams the video you open
 and runs the tools. It only reads/writes **media files below your home folder** (add more with the `VE_EDITOR_ROOTS`
 environment variable, separated by `:` or `;` on Windows). Nothing leaves your machine.
 

@@ -265,3 +265,53 @@ def test_export_nothing_to_do_and_job_errors(srv, media):
     j = wait_job(srv, req(srv, "/api/export", body={"path": str(media["silent"]), "loudness": -14}).json()["job"])
     assert j["state"] == "error"                                                          # silent clip has no audio to normalise
     assert req(srv, "/api/job", {"id": "nope"}).status == 404
+
+
+# ---------------------------------------------------------------- recent files and uploads
+def post_raw(srv, route, params, data, headers=None):
+    q = dict(params, t=srv.token)
+    r = urllib.request.Request("http://127.0.0.1:%d%s?%s" % (srv.port, route, urllib.parse.urlencode(q)), data=data,
+                               headers=dict({"Content-Type": "application/octet-stream"}, **(headers or {})), method="POST")
+    try:
+        with urllib.request.urlopen(r, timeout=60) as resp:
+            return Resp(resp.status, resp.headers, resp.read())
+    except urllib.error.HTTPError as e:
+        return Resp(e.code, e.headers, e.read())
+
+
+def test_recent_files(srv, media):
+    wait_job(srv, req(srv, "/api/prepare", body={"path": str(media["silent"])}).json()["job"])
+    files = req(srv, "/api/recent").json()["files"]
+    assert files and files[0]["path"] == str(media["silent"]) and files[0]["name"] == "silent.mp4"
+    assert req(srv, "/api/recent", token=False).status == 403
+
+
+def test_upload_drop(srv, media):
+    data = open(media["silent"], "rb").read()
+    r = post_raw(srv, "/api/upload", {"name": "my dropped clip.mp4"}, data)
+    assert r.status == 200, r.body
+    path = r.json()["path"]
+    assert os.path.basename(path) == "my dropped clip.mp4" and open(path, "rb").read() == data
+    assert req(srv, "/api/probe", {"path": path}).json()["has_video"]            # inside the allowed upload folder
+    again = post_raw(srv, "/api/upload", {"name": "my dropped clip.mp4"}, data).json()["path"]
+    assert again != path and again.endswith("my dropped clip_1.mp4")              # never overwrites
+    evil = post_raw(srv, "/api/upload", {"name": "../../etc/evil.mp4"}, data).json()["path"]
+    assert os.path.dirname(evil) == os.path.dirname(path)                          # path components stripped
+    for p in (path, again, evil):
+        os.unlink(p)
+
+
+def test_upload_rejects_bad_requests(srv, media):
+    assert post_raw(srv, "/api/upload", {"name": "script.exe"}, b"MZ").status == 400
+    assert post_raw(srv, "/api/upload", {"name": "x.mp4"}, b"").status == 400
+    assert post_raw(srv, "/api/upload", {}, b"abc").status == 400
+    r = urllib.request.Request("http://127.0.0.1:%d/api/upload?name=x.mp4" % srv.port, data=b"abc", method="POST")
+    with pytest.raises(urllib.error.HTTPError) as e:
+        urllib.request.urlopen(r)
+    assert e.value.code == 403                                                     # no token
+    assert not [n for n in os.listdir(str(jobs_mod.UPLOAD_DIR)) if n.endswith(".part")]
+
+
+def test_config_has_videos_dir(srv):
+    cfg = req(srv, "/api/config").json()
+    assert os.path.isdir(cfg["videos_dir"]) and str(jobs_mod.UPLOAD_DIR) in cfg["roots"]

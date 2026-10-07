@@ -30,6 +30,7 @@ CACHE_FILES = {"thumbs.jpg": "image/jpeg", "proxy.mp4": "video/mp4", "proxy.webm
 class EditorServer:
     def __init__(self, roots: Optional[List[str]] = None) -> None:
         self.roots: List[str] = list(roots or default_roots())
+        self.roots.append(str(jobs_mod.UPLOAD_DIR))          # files dropped into the editor live here
         self.token = secrets.token_urlsafe(18)
         self.jobs = jobs_mod.JobRegistry()
         self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(self))
@@ -67,7 +68,8 @@ def get_server() -> EditorServer:
 # --------------------------------------------------------------------------- API logic (pure-ish, testable)
 def api_config(srv: EditorServer) -> Dict[str, Any]:
     from ..tools.export import EXPORT_PRESETS
-    return {"home": str(Path.home()), "roots": srv.roots, "presets": list(EXPORT_PRESETS),
+    videos = Path.home() / "Videos"
+    return {"home": str(Path.home()), "videos_dir": str(videos if videos.is_dir() else Path.home()), "roots": srv.roots, "presets": list(EXPORT_PRESETS),
             "reframes": list(jobs_mod.ASPECT_REFRAME), "speeds": list(jobs_mod.SPEEDS)}
 
 
@@ -96,8 +98,26 @@ def api_probe(srv: EditorServer, raw: Optional[str]) -> Dict[str, Any]:
     return probe(safe_media_file(raw, srv.roots))
 
 
+def api_recent(srv: EditorServer) -> Dict[str, Any]:
+    keep = [p for p in jobs_mod.recent_files() if inside(p, srv.roots)]
+    return {"files": [{"path": p, "name": os.path.basename(p)} for p in keep]}
+
+
+def api_upload_target(srv: EditorServer, name: str, length: int) -> Path:
+    import shutil
+    if length <= 0:
+        raise ToolError("Empty upload.")
+    target = jobs_mod.upload_target(name)
+    free = shutil.disk_usage(str(target.parent)).free
+    if length > free - (1 << 30):
+        raise ToolError("Not enough free disk space for this file (%.1f GB needed)." % (length / 1e9),
+                        hint="Use Open file... to pick the video from its folder instead (no copy needed).")
+    return target
+
+
 def api_prepare(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
     src = safe_media_file(body.get("path"), srv.roots)
+    jobs_mod.remember(src)
     h264 = bool(body.get("h264", True))
     job = srv.jobs.start("prepare", lambda j: jobs_mod.prepare(j, src, h264))
     return {"job": job.id}
@@ -243,6 +263,8 @@ def make_handler(srv: EditorServer):
             try:
                 if method == "GET":
                     self._get(route, query)
+                elif route == "/api/upload":
+                    self._upload(query)
                 else:
                     length = int(self.headers.get("Content-Length") or 0)
                     if length > MAX_BODY:
@@ -265,6 +287,28 @@ def make_handler(srv: EditorServer):
             except Exception as exc:  # noqa: BLE001
                 self._error(500, "%s: %s" % (type(exc).__name__, exc))
 
+        def _upload(self, q: Dict[str, List[str]]) -> None:
+            """Stream a dropped file to disk (browsers do not expose real paths for dropped files)."""
+            length = int(self.headers.get("Content-Length") or 0)
+            target = api_upload_target(srv, (q.get("name") or [""])[0], length)
+            tmp = target.with_name(target.name + ".part")
+            left = length
+            try:
+                with open(str(tmp), "wb") as fh:
+                    while left > 0:
+                        chunk = self.rfile.read(min(1 << 20, left))
+                        if not chunk:
+                            break
+                        fh.write(chunk)
+                        left -= len(chunk)
+                if left:
+                    raise ToolError("Upload was interrupted.")
+                os.replace(str(tmp), str(target))
+            finally:
+                if tmp.exists():
+                    tmp.unlink()
+            self._json({"ok": True, "path": str(target)})
+
         def _get(self, route: str, q: Dict[str, List[str]]) -> None:
             first = lambda k: (q.get(k) or [None])[0]  # noqa: E731
             if route == "/":
@@ -279,6 +323,8 @@ def make_handler(srv: EditorServer):
                 self._json(api_ls(srv, first("path")))
             elif route == "/api/probe":
                 self._json(api_probe(srv, first("path")))
+            elif route == "/api/recent":
+                self._json(api_recent(srv))
             elif route == "/api/media":
                 self._serve_file(safe_media_file(first("path"), srv.roots))
             elif route == "/api/cache":

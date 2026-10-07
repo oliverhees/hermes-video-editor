@@ -260,3 +260,47 @@ def run_export(job: Job, src: Path, req: Dict[str, Any], final_dir: Path) -> Non
         if check.get("ok"):
             summary["platform_check"] = check["info"]
     job.result = summary
+
+
+# --------------------------------------------------------------------------- recent files and uploads
+UPLOAD_DIR = CACHE_ROOT / "uploads"
+MAX_RECENT = 12
+
+
+def _recent_file() -> Path:
+    CACHE_ROOT.mkdir(parents=True, exist_ok=True)
+    return CACHE_ROOT / "recent.json"
+
+
+def recent_files() -> List[str]:
+    try:
+        items = json.loads(_recent_file().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    return [p for p in items if isinstance(p, str) and os.path.isfile(p)][:MAX_RECENT]
+
+
+def remember(path: Path) -> None:
+    items = [str(path)] + [p for p in recent_files() if p != str(path)]
+    try:
+        _recent_file().write_text(json.dumps(items[:MAX_RECENT]), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def upload_target(name: str) -> Path:
+    """Safe, unique path inside UPLOAD_DIR for a dropped file (basename only, media extensions only)."""
+    from .security import MEDIA_EXTS
+    base = os.path.basename((name or "").replace("\\", "/"))
+    stem, ext = os.path.splitext(base)
+    ext = ext.lower()
+    if ext not in MEDIA_EXTS:
+        raise ToolError("That file type is not a supported video or audio file: %s" % (ext or "no extension"))
+    stem = "".join(c if (c.isalnum() or c in " ._-") else "_" for c in stem).strip(" .")[:80] or "video"
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    cand = UPLOAD_DIR / (stem + ext)
+    n = 1
+    while cand.exists():
+        cand = UPLOAD_DIR / ("%s_%d%s" % (stem, n, ext))
+        n += 1
+    return cand
