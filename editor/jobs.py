@@ -243,7 +243,8 @@ def run_export(job: Job, src: Path, req: Dict[str, Any], final_dir: Path) -> Non
     try:
         if clips:
             job.step = "Rendering the timeline"
-            rendered = project_mod.render_project(clips, final_dir if not steps else tmp, canvas=req.get("canvas"), bg=req.get("bg"))
+            rendered = project_mod.render_project(clips, final_dir if not steps else tmp, canvas=req.get("canvas"), bg=req.get("bg"),
+                                                   texts=req.get("texts"), audios=req.get("audios_info"))
             current, result = rendered, {"output": str(rendered), "duration_s": probe(rendered)["duration_s"]}
         for i, step in enumerate(steps):
             job.step = step["label"]

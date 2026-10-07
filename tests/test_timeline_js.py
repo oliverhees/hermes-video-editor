@@ -128,3 +128,38 @@ def test_transform_geometry_and_tf_survives_edits(tmp_path):
     assert.deepStrictEqual(T.forExport(clips, {x:{path:'/p.mp4'}}), [{path:'/p.mp4', in:0, out:8, tf:{s:2,x:0.1,y:0}}])
     assert.strictEqual(T.forExport([{id:'b',asset:'x',in:0,out:1}], {x:{path:'/p.mp4'}})[0].tf, undefined)
     """, tmp_path)
+
+
+def test_text_and_audio_items(tmp_path):
+    run("""
+    const t = T.newText(2.5, 3, 'x')
+    assert.deepStrictEqual([t.start, t.dur, t.x, t.y, t.color, t.outline], [2.5, 3, 0.5, 0.82, '#ffffff', true])
+    const c = T.cleanText({text: 'a'.repeat(900), start: -4, dur: 0, x: 9, size: 5, color: 'red', box: 1, boxOpacity: 7})
+    assert.ok(typeof c.id === 'string' && c.id.length > 0)
+    delete c.id
+    assert.deepStrictEqual(c, {text: 'a'.repeat(500), start: 0, dur: 0.1, x: 1.5, y: 0.82, size: 0.5, color: '#ffffff', box: true,
+      boxColor: '#000000', boxOpacity: 1, outline: true})
+    assert.strictEqual(T.cleanText({id:'k', text:'x', outline:false}).outline, false)
+    // trimming
+    let a = T.trimText(t, 'left', 1)                                   // start moves, end stays
+    assert.deepStrictEqual([a.start, a.dur, a.start + a.dur], [3.5, 2, 5.5])
+    assert.strictEqual(T.trimText(t, 'left', 99).dur, 0.2); assert.strictEqual(T.trimText(t, 'left', -99).start, 0)
+    assert.strictEqual(T.trimText(t, 'right', -99).dur, 0.2); assert.strictEqual(T.trimText(t, 'right', 2).dur, 5)
+    assert.strictEqual(t.start, 2.5)                                    // not mutated
+    // audio
+    const m = T.newAudio('a1', 10, 4, 'm')
+    assert.deepStrictEqual([m.in, m.out, m.start, T.audioDur(m), T.audioEnd(m)], [0, 10, 4, 10, 14])
+    let l = T.trimAudio(m, 'left', 2, 10)                               // sound content stays aligned with the timeline
+    assert.deepStrictEqual([l.in, l.start, T.audioEnd(l)], [2, 6, 14])
+    assert.strictEqual(T.trimAudio(m, 'right', 5, 10).out, 10); assert.strictEqual(T.trimAudio(m, 'right', -99, 10).out, 0.2)
+    assert.strictEqual(T.trimAudio(m, 'left', 99, 10).in, 9.8)
+    assert.deepStrictEqual(T.cleanAudio({id:'z', asset: 'a', in: -3, out: 5, vol: 99, fi: -1, fo: 999, start: -1, duck: 1}),
+      {id:'z', asset:'a', in:0, out:5, start:0, vol:24, fi:0, fo:60, duck:true})
+    // gain: -6 dB, 1 s fades
+    const g = T.patch(m, {vol: -6, fi: 1, fo: 1})
+    assert.ok(Math.abs(T.audioGain(g, 8) - 0.5012) < 1e-3)              // middle
+    assert.ok(Math.abs(T.audioGain(g, 4.5) - 0.5012 * 0.5) < 1e-3)      // half way into the fade-in
+    assert.ok(Math.abs(T.audioGain(g, 13.75) - 0.5012 * 0.25) < 1e-3)   // quarter of the fade-out left
+    assert.deepStrictEqual(T.activeText([t, T.newText(10, 1, 'y')], 3).map(x => x.id), ['x'])
+    assert.deepStrictEqual(T.activeAudio([m], 14).map(x => x.id), []); assert.deepStrictEqual(T.activeAudio([m], 13.9).map(x => x.id), ['m'])
+    """, tmp_path)

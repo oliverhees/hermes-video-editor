@@ -158,7 +158,8 @@ def api_tool(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
 def api_export(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
     if body.get("clips") is not None:                       # timeline export
         body = dict(body, clips_info=project_mod.sanitize_clips(body["clips"], srv.roots), cuts=[],
-                    canvas=project_mod.sanitize_canvas(body.get("canvas")), bg=project_mod.sanitize_bg(body.get("bg")))
+                    canvas=project_mod.sanitize_canvas(body.get("canvas")), bg=project_mod.sanitize_bg(body.get("bg")),
+                    texts=project_mod.sanitize_texts(body.get("texts")), audios_info=project_mod.sanitize_audios(body.get("audios"), srv.roots))
         src = Path(body["clips_info"][0]["path"])
         default_dir = Path(api_config(srv)["videos_dir"]) if inside(str(src), [str(jobs_mod.UPLOAD_DIR)]) else src.parent
     else:
