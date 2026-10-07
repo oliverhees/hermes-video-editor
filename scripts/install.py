@@ -37,7 +37,23 @@ def is_ours(path):
     return (path / "plugin.yaml").is_file() and "name: %s" % NAME in (path / "plugin.yaml").read_text(encoding="utf-8")
 
 
-def install(target_dir, copy=False):
+def desktop_dir():
+    home = os.environ.get("HERMES_HOME")
+    return (Path(home).expanduser() if home else Path.home() / ".hermes") / "desktop-plugins" / NAME
+
+
+def install_desktop_half(target_plugins_dir):
+    """Copy desktop/plugin.js to $HERMES_HOME/desktop-plugins/<id>/ (the Desktop app loads it from there)."""
+    src = ROOT / "desktop" / "plugin.js"
+    if not src.is_file():
+        return
+    dest = desktop_dir() if not target_plugins_dir else Path(target_plugins_dir).parent / "desktop-plugins" / NAME
+    dest.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(str(src), str(dest / "plugin.js"))
+    print("Installed Desktop page: %s" % (dest / "plugin.js"))
+
+
+def install(target_dir, copy=False, explicit_target=False):
     target_dir.mkdir(parents=True, exist_ok=True)
     dest = target_dir / NAME
     if os.path.lexists(str(dest)):
@@ -55,9 +71,12 @@ def install(target_dir, copy=False):
     if mode == "copy":
         shutil.copytree(str(ROOT), str(dest), ignore=IGNORE)
     print("Installed (%s): %s" % (mode, dest))
+    install_desktop_half(target_dir if explicit_target else None)
     print("Next:  hermes plugins enable %s   then   hermes plugins list" % NAME)
+    print("Then restart Hermes Desktop: the 'Video Editor' entry appears in the sidebar "
+          "(enable it under Capabilities -> Plugins if it is off).")
     if not (shutil.which("ffmpeg") and shutil.which("ffprobe")):
-        print("NOTE: ffmpeg/ffprobe not found on PATH. Linux: sudo apt install ffmpeg | macOS: brew install ffmpeg | "
+        print("NOTE: ffmpeg/ffprobe not found on PATH. Linux: apt install ffmpeg (as administrator) | macOS: brew install ffmpeg | "
               "Windows: winget install Gyan.FFmpeg", file=sys.stderr)
     return 0
 
@@ -71,13 +90,17 @@ def main():
     base = plugins_dir(a.target)
     if a.uninstall:
         dest = base / NAME
+        desk = (Path(a.target).expanduser().parent / "desktop-plugins" / NAME) if a.target else desktop_dir()
+        if desk.exists():
+            shutil.rmtree(str(desk), ignore_errors=True)
+            print("Removed", desk)
         if os.path.lexists(str(dest)) and is_ours(dest):
             remove(dest)
             print("Removed", dest)
             return 0
         print("Nothing to remove at", dest)
         return 0
-    return install(base, a.copy)
+    return install(base, a.copy, bool(a.target))
 
 
 if __name__ == "__main__":

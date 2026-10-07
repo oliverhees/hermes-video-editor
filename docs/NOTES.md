@@ -61,3 +61,19 @@ needs `HERMES_ENABLE_PROJECT_PLUGINS=true`). Plugins are opt-in: must be enabled
 - Admission rules we satisfy: pinned SHA only, no self-updating code, public `register_*` surfaces only, no core overrides,
   credentials only via `requires_env` (none), risky behaviour disclosed (subprocess ffmpeg; see README "Security").
 - Open item: the exact current Hermes release number for `requires_hermes` is unverified (`>=0.21.5` is the docs' example).
+
+## Addendum: Desktop plugin surface (from `desktop-plugin-sdk.md`, `extending-the-dashboard.md`)
+
+- Unified package: `plugin.yaml` + `dashboard/manifest.json` (`{"name": id, "api": "plugin_api.py"}`) +
+  `dashboard/plugin_api.py` (FastAPI `router`, mounted at `/api/plugins/<id>/`) + `desktop/plugin.js`.
+  Folder name, `plugin.yaml` name and the exported `id` must match. Installing copies `desktop/plugin.js` to
+  `$HERMES_HOME/desktop-plugins/<id>/`; `scripts/install.py` does the same for symlink installs.
+- Desktop JS: single ESM file, only `@hermes/plugin-sdk` and `react` imports, no JSX. We use `ROUTES_AREA` +
+  `SIDEBAR_NAV_AREA` (`registerMany`), `ctx.rest('/start')` and `SandboxedFrame`.
+- `SandboxedFrame`: absolute `http(s):` or `data:` `src` only, opaque origin, sandbox tokens limited to
+  `allow-scripts allow-forms allow-downloads ...` (no `allow-same-origin`, no `srcdoc`). No raw `<video>` and no file
+  pickers in the plugin itself, so the editor page runs inside the frame and talks to its own loopback server.
+  Consequence: the server must send CORS headers and cannot use cookies or localStorage (guarded with try/catch).
+- Unknowns (not in the docs I could read): whether the Desktop app restricts `frame-src` to loopback URLs, and how a
+  plugin can learn the gateway's base URL (we do not need it: `/start` returns our own URL).
+- Verified here with headless Chromium against the real server; **not** verified inside the real Desktop app.
