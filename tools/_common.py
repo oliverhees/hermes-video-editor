@@ -58,3 +58,26 @@ def second_input(args: Dict[str, Any], key: str):
 
 def path_prop(desc: str) -> Dict[str, Any]:
     return {"type": "string", "description": desc}
+
+
+def run_graph(job: Job, inputs: List[List[str]], graph: str, vlabel: Optional[str] = "[vo]",
+              alabel: Optional[str] = None, crf: int = 20, audio: Optional[bool] = None) -> None:
+    """Run a -filter_complex graph. inputs = list of full arg lists, e.g. [["-i", a], ["-stream_loop", "-1", "-i", b]].
+    Audio: mapped from alabel when given, else from input 0 if it has audio (re-encoded to AAC)."""
+    from pathlib import Path
+
+    from ..core.ffmpeg import filter_complex_args, new_tempdir
+    ff: List[str] = []
+    for item in inputs:
+        ff += item
+    with new_tempdir() as tmp:
+        ff += filter_complex_args(graph, Path(tmp))
+        if vlabel:
+            ff += ["-map", vlabel]
+        has_a = alabel is not None or bool(job.info["has_audio"] and audio is not False)
+        if alabel:
+            ff += ["-map", alabel]
+        elif has_a:
+            ff += ["-map", "0:a?"]
+        ff += encode_args(job.out.suffix.lower(), crf=crf, audio=has_a)
+        job.run(ff)
