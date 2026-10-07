@@ -27,8 +27,9 @@ def render(names):
     lines = [
         "name: hermes-video-editor",
         'version: "%s"' % VERSION,
-        "description: Edit your OWN local footage with FFmpeg - trim, crop, captions, audio, export. "
-        "100% local, no cloud, no API key.",
+        "description: Local FFmpeg video editor for your own footage, driven by chat. 42 tools to trim, cut "
+        "silence, crop to 9:16, add text and captions, mix music, normalize loudness, export for "
+        "Reels/TikTok/YouTube and check platform rules. No cloud, no API key.",
         "author: oliverhees",
         "license: MIT",
         "homepage: https://github.com/oliverhees/hermes-video-editor",

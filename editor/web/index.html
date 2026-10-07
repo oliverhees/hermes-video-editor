@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Video Editor</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div id="app">
+  <header id="top">
+    <div class="brand"><span class="dot"></span> Video Editor <small>local &middot; FFmpeg</small></div>
+    <div id="file-chip" class="chip" title="">No file</div>
+    <button id="btn-open" class="btn primary">Open file&hellip;</button>
+  </header>
+
+  <aside id="side">
+    <nav id="tabs">
+      <button data-tab="cuts" class="on">Cuts</button>
+      <button data-tab="picture">Picture</button>
+      <button data-tab="sound">Sound</button>
+      <button data-tab="export">Export</button>
+    </nav>
+
+    <section data-pane="cuts" class="pane on">
+      <h3>Mark &amp; cut</h3>
+      <div class="row">
+        <button id="btn-in" class="btn" title="Set in point (I)">In <kbd>I</kbd></button>
+        <button id="btn-out" class="btn" title="Set out point (O)">Out <kbd>O</kbd></button>
+        <button id="btn-cut" class="btn danger" title="Remove marked range (X)">Cut <kbd>X</kbd></button>
+      </div>
+      <div id="marks" class="muted">No range marked. Press <kbd>I</kbd> and <kbd>O</kbd> at the playhead, or drag on the timeline with Shift.</div>
+      <h3>Silence</h3>
+      <label class="field">Level <span id="v-noise">-35 dB</span>
+        <input id="in-noise" type="range" min="-60" max="-15" step="1" value="-35"></label>
+      <label class="field">Shortest silence <span id="v-minsil">0.5 s</span>
+        <input id="in-minsil" type="range" min="0.2" max="3" step="0.1" value="0.5"></label>
+      <button id="btn-silence" class="btn wide">Find silences</button>
+      <h3>Cuts <span id="cut-count" class="badge">0</span></h3>
+      <div id="cuts-list" class="list"></div>
+      <div id="summary" class="muted"></div>
+      <label class="check"><input id="in-skip" type="checkbox" checked> Skip cuts in preview</label>
+    </section>
+
+    <section data-pane="picture" class="pane">
+      <h3>Speed</h3>
+      <select id="in-speed"></select>
+      <h3>Format</h3>
+      <select id="in-reframe">
+        <option value="none">Keep original</option>
+        <option value="crop_9x16">9:16 crop (Reels / TikTok / Shorts)</option>
+        <option value="blur_9x16">9:16 with blurred bars (keeps everything)</option>
+        <option value="crop_1x1">1:1 square crop</option>
+        <option value="crop_4x5">4:5 crop</option>
+        <option value="crop_16x9">16:9 crop</option>
+      </select>
+      <div id="anchor-wrap">
+        <h3>Keep which part?</h3>
+        <select id="in-anchor">
+          <option value="center">Center</option><option value="left">Left</option><option value="right">Right</option>
+          <option value="top">Top</option><option value="bottom">Bottom</option>
+        </select>
+      </div>
+      <p class="muted">The frame on the preview shows what stays.</p>
+    </section>
+
+    <section data-pane="sound" class="pane">
+      <h3>Loudness</h3>
+      <label class="check"><input id="in-loud" type="checkbox"> Normalize loudness (EBU R128)</label>
+      <label class="field">Target <span id="v-lufs">-14 LUFS</span>
+        <input id="in-lufs" type="range" min="-24" max="-9" step="1" value="-14"></label>
+      <p class="muted">-14 LUFS suits Reels, TikTok, Shorts and YouTube. Use -16 for podcasts.</p>
+    </section>
+
+    <section data-pane="export" class="pane">
+      <h3>Platform preset</h3>
+      <select id="in-preset"></select>
+      <h3>Save in folder</h3>
+      <input id="in-outdir" type="text" placeholder="Same folder as the video">
+      <button id="btn-export" class="btn primary wide">Export</button>
+      <div id="job" class="job" hidden>
+        <div class="bar"><i id="job-bar"></i></div>
+        <div id="job-step" class="muted"></div>
+      </div>
+      <div id="result" class="result" hidden></div>
+    </section>
+  </aside>
+
+  <main id="stage-wrap">
+    <div id="stage"><video id="video" playsinline preload="auto"></video><div id="frame-guide" hidden></div>
+      <div id="overlay" class="overlay">Open a video to start.</div></div>
+    <div id="transport">
+      <button id="btn-play" class="btn round" title="Play / pause (Space)">&#9654;</button>
+      <span id="time">0:00.0 / 0:00.0</span>
+      <span class="spacer"></span>
+      <button id="btn-zoom-out" class="btn small" title="Zoom out (-)">&minus;</button>
+      <button id="btn-zoom-fit" class="btn small">Fit</button>
+      <button id="btn-zoom-in" class="btn small" title="Zoom in (+)">+</button>
+    </div>
+  </main>
+
+  <section id="timeline">
+    <div id="tl-scroll">
+      <div id="track">
+        <canvas id="ruler"></canvas>
+        <div id="thumbs" class="lane"></div>
+        <canvas id="wave" class="lane"></canvas>
+        <div id="regions"></div>
+        <div id="mark-range" hidden></div>
+        <div id="playhead"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div id="modal" hidden>
+  <div class="dialog">
+    <div class="dlg-head"><strong>Open a video</strong><button id="dlg-close" class="btn small">Close</button></div>
+    <input id="dlg-path" type="text" placeholder="Folder or file path, then Enter">
+    <div id="dlg-list" class="list tall"></div>
+    <p id="dlg-err" class="err"></p>
+  </div>
+</div>
+<script src="/static/app.js"></script>
+</body>
+</html>
