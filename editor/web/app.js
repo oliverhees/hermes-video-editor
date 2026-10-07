@@ -38,7 +38,7 @@
   }
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
-  function busy(msg) { var o = $("overlay"); o.hidden = !msg; o.textContent = msg || ""; $("empty").hidden = S.clips.length > 0; }
+  function busy(msg) { var o = $("overlay"); o.hidden = !msg; o.textContent = msg || ""; }
 
   // ---------------------------------------------------------------- theme (sent by the Hermes Desktop page)
   var HEX = /^#[0-9a-f]{6}$/i;
@@ -266,7 +266,7 @@
     ["btn-split", "btn-del", "btn-dup"].forEach(function (id) { $(id).disabled = !S.clips.length; });
     var name = S.projectName || (S.projectPath ? baseName(S.projectPath).replace(/\.vproj\.json$/, "") : "Untitled project");
     $("file-chip").textContent = (S.dirty ? "● " : "") + name; $("file-chip").title = S.projectPath || "Not saved yet";
-    $("empty").hidden = S.clips.length > 0;
+    $("empty").hidden = S.clips.length > 0; $("stage-wrap").classList.toggle("empty-mode", S.clips.length === 0);
   }
 
   // ---------------------------------------------------------------- preview: two video elements, the next clip is preloaded
@@ -883,4 +883,8 @@
     }).catch(function (e) { busy("Cannot reach the editor server: " + e.message); });
   }
   show(vids[0]); syncCanvasControls(); layoutStage(); renderAll(); init();
+  if (typeof ResizeObserver === "function") {          // the frame may be laid out after the first paint (Hermes Desktop): follow every size change
+    var ro = new ResizeObserver(function () { layoutStage(); drawAll(); });
+    ro.observe($("stage-wrap")); ro.observe($("tl-scroll"));
+  }
 })();
