@@ -214,6 +214,19 @@ def wait_ready(page, n_clips=1):
     raise AssertionError("clips were not added")
 
 
+def bbox(page, selector):
+    """Bounding box of an element that may be re-rendered at any moment: retry a few times."""
+    for _ in range(30):
+        try:
+            box = page.locator(selector).bounding_box(timeout=1000)
+        except Exception:  # noqa: BLE001 - detached while measuring
+            box = None
+        if box:
+            return box
+        page.wait_for_timeout(100)
+    raise AssertionError("no element for " + selector)
+
+
 def add_clip_via_dialog(page, path):
     page.click("#btn-open")
     page.fill("#dlg-path", str(path))
@@ -251,15 +264,15 @@ def test_browser_timeline_edit_reorder_trim_undo_and_export(media, tmp_path):
         total_before = state(page, "TL.total(s.clips)")
         assert total_before == pytest.approx(6, abs=0.35)
         # reorder by dragging the 'other' clip (now the last one) to the very start
-        box = page.locator(".clip >> nth=2").bounding_box()
-        first = page.locator(".clip >> nth=0").bounding_box()
+        box = bbox(page, ".clip >> nth=2")
+        first = bbox(page, ".clip >> nth=0")
         page.mouse.move(box["x"] + box["width"] / 2, box["y"] + 30)
         page.mouse.down()
         page.mouse.move(first["x"] + 6, box["y"] + 30, steps=8)
         page.mouse.up()
         assert [state(page, "s.assets[s.clips[%d].asset].name" % i) for i in range(3)] == ["other.mp4", "gap.mp4", "gap.mp4"]
         # trim the right edge of the first clip by dragging its handle to the left
-        c0 = page.locator(".clip >> nth=0").bounding_box()
+        c0 = bbox(page, ".clip >> nth=0")
         page.mouse.move(c0["x"] + c0["width"] - 3, c0["y"] + 30)
         page.mouse.down()
         page.mouse.move(c0["x"] + c0["width"] - 3 - 110, c0["y"] + 30, steps=6)
@@ -283,6 +296,10 @@ def test_browser_timeline_edit_reorder_trim_undo_and_export(media, tmp_path):
         page.fill("#dlg-name", "demo timeline")
         page.fill("#dlg-path", str(tmp_path))
         page.press("#dlg-path", "Enter")
+        for _ in range(50):                                            # the folder listing is loaded asynchronously
+            if state(page, "s.dlgPath") == str(tmp_path):
+                break
+            page.wait_for_timeout(100)
         page.click("#dlg-usefolder")
         saved = tmp_path / "demo timeline.vproj.json"
         for _ in range(50):
