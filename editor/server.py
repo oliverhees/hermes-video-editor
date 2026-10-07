@@ -21,7 +21,7 @@ from . import toolrun
 from .security import MEDIA_EXTS, default_roots, inside, safe_dir, safe_media_file
 
 WEB = Path(__file__).resolve().parent / "web"
-STATIC = {"app.js": "text/javascript; charset=utf-8", "timeline.js": "text/javascript; charset=utf-8", "layers.js": "text/javascript; charset=utf-8",
+STATIC = {"app.js": "text/javascript; charset=utf-8", "timeline.js": "text/javascript; charset=utf-8", "layers.js": "text/javascript; charset=utf-8", "overlays.js": "text/javascript; charset=utf-8",
           "app.css": "text/css; charset=utf-8"}
 MAX_BODY = 1 << 20
 MIME_FIX = {".mkv": "video/x-matroska", ".mov": "video/quicktime", ".m4v": "video/mp4", ".mp3": "audio/mpeg",

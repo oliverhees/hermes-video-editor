@@ -3,7 +3,7 @@ name = "hermes-video-editor"
 version = "0.1.0"
 description = "Local FFmpeg video editing tools for Hermes Agent (no cloud, no API key)."
 readme = "README.md"
-license = { text = "MIT" }
+license = { text = "PolyForm-Noncommercial-1.0.0" }
 requires-python = ">=3.9"
 dependencies = []
 

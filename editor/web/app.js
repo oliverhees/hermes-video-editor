@@ -11,7 +11,7 @@
     assets: {}, clips: [], sel: -1, t: 0, zoom: 80, mark: { a: null, b: null }, hist: TL.createHistory(100),
     projectPath: null, projectName: "", dirty: false, config: null, dlgPath: "", fitted: false,
     canvas: { aspect: "auto", short: 1080 }, bg: { mode: "blur", color: "#000000" },
-    texts: [], audios: [], selText: -1, selAudio: -1,           // layers: text on the picture, audio items (music, voice-over)
+    texts: [], audios: [], overlays: [], selText: -1, selAudio: -1, selOv: -1,           // layers: text on the picture, audio items (music, voice-over)
   };
 
   // ---------------------------------------------------------------- api
@@ -175,10 +175,11 @@
   function findAssetByPath(path) { for (var k in S.assets) if (S.assets[k].path === path) return S.assets[k]; return null; }
 
   // ---------------------------------------------------------------- editing (every change goes through edit() so undo/redo work)
-  function snap() { return { clips: S.clips, sel: S.sel, canvas: S.canvas, bg: S.bg, texts: S.texts, audios: S.audios, selText: S.selText, selAudio: S.selAudio }; }
+  function snap() { return { clips: S.clips, sel: S.sel, canvas: S.canvas, bg: S.bg, texts: S.texts, audios: S.audios, overlays: S.overlays, selText: S.selText, selAudio: S.selAudio, selOv: S.selOv }; }
   function restore(p) {
     S.clips = p.clips; S.sel = p.sel; S.canvas = p.canvas || S.canvas; S.bg = p.bg || S.bg; S.dirty = true;
     S.texts = p.texts || []; S.audios = p.audios || []; S.selText = p.selText == null ? -1 : p.selText; S.selAudio = p.selAudio == null ? -1 : p.selAudio;
+    S.overlays = p.overlays || []; S.selOv = p.selOv == null ? -1 : p.selOv;
     syncCanvasControls(); afterEdit();
   }
   function commit(fn) { S.hist.push(snap()); fn(); S.dirty = true; renderAll(); }          // for changes that are not clip edits (texts, audio items)
@@ -578,12 +579,12 @@
       var clipEl = e.target.closest ? e.target.closest(".clip") : null;
       if (clipEl && !e.shiftKey) {
         var i = +clipEl.getAttribute("data-i"), edge = e.target.getAttribute && e.target.getAttribute("data-edge");
-        S.sel = i; S.selText = -1; S.selAudio = -1; seek(tAt(e));
+        S.sel = i; S.selText = -1; S.selAudio = -1; S.selOv = -1; seek(tAt(e));
         drag = { kind: edge ? "trim" : "move", i: i, edge: edge, x0: e.clientX, base: S.clips, moved: false };
         renderAll(); e.preventDefault(); return;
       }
       drag = { kind: e.shiftKey ? "mark" : "scrub", t0: tAt(e) };
-      if (drag.kind === "scrub") { S.sel = -1; S.selText = -1; S.selAudio = -1; seek(drag.t0); renderAll(); }
+      if (drag.kind === "scrub") { S.sel = -1; S.selText = -1; S.selAudio = -1; S.selOv = -1; seek(drag.t0); renderAll(); }
       e.preventDefault();
     });
     window.addEventListener("mousemove", function (e) {
@@ -640,10 +641,10 @@
 
   // ---------------------------------------------------------------- projects (save / open)
   function projectData() {
-    var used = {}; S.clips.forEach(function (c) { used[c.asset] = true; }); S.audios.forEach(function (a) { used[a.asset] = true; });
+    var used = {}; S.clips.forEach(function (c) { used[c.asset] = true; }); S.audios.forEach(function (a) { used[a.asset] = true; }); S.overlays.forEach(function (o) { used[o.asset] = true; });
     var assets = {}; Object.keys(used).forEach(function (id) { var a = S.assets[id]; if (a) assets[id] = { path: a.path, name: a.name }; });
     return { version: 1, name: S.projectName || "", assets: assets, canvas: S.canvas, bg: S.bg, texts: S.texts.map(TL.cleanText),
-      audios: S.audios.map(TL.cleanAudio),
+      audios: S.audios.map(TL.cleanAudio), overlays: S.overlays.map(TL.cleanOverlay),
       clips: S.clips.map(function (c) { var o = { id: c.id, asset: c.asset, "in": c["in"], out: c.out }; if (c.tf) o.tf = TL.cleanTf(c.tf); return o; }) };
   }
   function saveProject(forceDialog) {
@@ -660,12 +661,12 @@
   function loadProjectFile(path) {
     busy("Opening project…");
     api("/api/project/load", { path: path }).then(function (p) {
-      S.assets = {}; S.clips = []; S.sel = -1; S.texts = []; S.audios = []; S.t = 0; S.mark = { a: null, b: null }; S.hist = TL.createHistory(100);
+      S.assets = {}; S.clips = []; S.sel = -1; S.texts = []; S.audios = []; S.overlays = []; S.selOv = -1; S.t = 0; S.mark = { a: null, b: null }; S.hist = TL.createHistory(100);
       var ids = Object.keys(p.assets);
       return Promise.all(ids.map(function (id) { return registerAsset(id, p.assets[id].path, p.assets[id].name).catch(function () { return null; }); })).then(function () {
         S.clips = p.clips.map(function (c) { var o = { id: c.id, asset: c.asset, "in": c["in"], out: c.out }; if (c.tf) o.tf = c.tf; return o; });
         S.canvas = p.canvas || { aspect: "auto", short: 1080 }; S.bg = p.bg || { mode: "blur", color: "#000000" }; syncCanvasControls();
-        S.texts = (p.texts || []).map(TL.cleanText); S.audios = (p.audios || []).map(TL.cleanAudio); S.selText = -1; S.selAudio = -1;
+        S.texts = (p.texts || []).map(TL.cleanText); S.audios = (p.audios || []).map(TL.cleanAudio); S.overlays = (p.overlays || []).map(TL.cleanOverlay); S.selText = -1; S.selAudio = -1;
         S.projectPath = p.path; S.projectName = p.name || ""; S.dirty = false; S.fitted = true; S.sel = S.clips.length ? 0 : -1;
         busy(null); invalidatePreload(); syncPlayback(); renderAll(); fit();
         var missing = ids.filter(function (id) { return S.assets[id] && S.assets[id].state === "missing"; });
@@ -681,7 +682,8 @@
     if (!S.clips.length) { openDialog(); return; }
     var body = {
       clips: TL.forExport(S.clips, S.assets), canvas: S.canvas, bg: S.bg, texts: S.texts.map(TL.cleanText),
-      audios: S.audios.filter(function (a) { return S.assets[a.asset] && !S.assets[a.asset].error; }).map(function (a) { return { path: S.assets[a.asset].path, "in": a["in"], out: a.out, start: a.start, vol: a.vol, fi: a.fi, fo: a.fo, duck: a.duck }; }), speed: +$("in-speed").value, reframe: "none",
+      audios: S.audios.filter(function (a) { return S.assets[a.asset] && !S.assets[a.asset].error; }).map(function (a) { return { path: S.assets[a.asset].path, "in": a["in"], out: a.out, start: a.start, vol: a.vol, fi: a.fi, fo: a.fo, duck: a.duck }; }),
+      overlays: S.overlays.filter(function (o) { return S.assets[o.asset] && !S.assets[o.asset].error; }).map(function (o) { return { path: S.assets[o.asset].path, "in": o["in"], out: o.out, start: o.start, tf: o.tf, op: o.op, sound: o.sound, vol: o.vol }; }), speed: +$("in-speed").value, reframe: "none",
       loudness: $("in-loud").checked ? +$("in-lufs").value : null, preset: $("in-preset").value || null,
       output_dir: $("in-outdir").value.trim() || null,
     };

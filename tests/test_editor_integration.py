@@ -649,3 +649,91 @@ def test_browser_text_and_audio_layers(media, tmp_path):
         b.close()
         p.stop()
         srv.stop()
+
+
+def test_browser_overlay_track(media, tmp_path):
+    pw = pytest.importorskip("playwright.sync_api")
+    from hermes_video_editor.editor.server import EditorServer
+    red = tmp_path / "red.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=red:s=320x180:r=25:d=2", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(red)], check=True)
+    srv = EditorServer(roots=[str(media["dir"]), str(tmp_path)])
+    p, b, page, errors = browser(pw)
+    try:
+        page.goto(srv.url(str(media["clip"])))
+        wait_ready(page)
+        page.evaluate("window.__ve.seek(1)")
+        page.click("#tabs button[data-tab=overlay]")
+        page.click("#btn-ov-add")
+        page.fill("#dlg-path", str(red))
+        page.press("#dlg-path", "Enter")
+        for _ in range(100):
+            if state(page, "s.overlays.length") == 1:
+                break
+            page.wait_for_timeout(100)
+        assert state(page, "s.overlays.length") == 1 and state(page, "s.overlays[0].start") == pytest.approx(1, abs=0.05)
+        page.wait_for_selector("#ovs .oitem", timeout=5000)
+
+        def stage_px(fx, fy):
+            return page.evaluate("(() => { const c = document.getElementById('stage-canvas'); const d = c.getContext('2d').getImageData(Math.round(c.width*%s), Math.round(c.height*%s), 1, 1).data; return [d[0], d[1], d[2]] })()" % (fx, fy))
+        red_seen = False
+        for _ in range(40):                                   # the overlay video needs a moment to load its frame
+            page.evaluate("window.__ve.seek(1.5)")
+            page.wait_for_timeout(250)
+            px = stage_px(0.77, 0.23)
+            if px[0] > 200 and px[1] < 60:
+                red_seen = True
+                break
+        assert red_seen, px
+        # drag it on the preview, undo, resize by slider, opacity
+        gz = bbox(page, "#ogizmo")
+        page.mouse.move(gz["x"] + gz["width"] / 2, gz["y"] + gz["height"] / 2)
+        page.mouse.down()
+        page.mouse.move(gz["x"] + gz["width"] / 2 - 150, gz["y"] + gz["height"] / 2 + 60, steps=6)
+        page.mouse.up()
+        tf = state(page, "s.overlays[0].tf")
+        assert tf["x"] < 0.2 and tf["y"] > -0.2
+        page.keyboard.press("Control+z")
+        assert state(page, "s.overlays[0].tf.x") == pytest.approx(0.27, abs=0.001)
+        page.click("#ov-c-bl")
+        assert state(page, "s.overlays[0].tf.x") == -0.27 and state(page, "s.overlays[0].tf.y") == 0.27
+        page.fill("#ov-s", "50")
+        page.dispatch_event("#ov-s", "input")
+        assert state(page, "s.overlays[0].tf.s") == 0.5
+        # lane: move with the mouse
+        it = bbox(page, "#ovs .oitem")
+        page.mouse.move(it["x"] + it["width"] / 2, it["y"] + it["height"] / 2)
+        page.mouse.down()
+        page.mouse.move(it["x"] + it["width"] / 2 + 40, it["y"] + it["height"] / 2, steps=4)
+        page.mouse.up()
+        assert state(page, "s.overlays[0].start") > 1.05
+        # export + project
+        page.click("#tabs button[data-tab=export]")
+        page.fill("#in-outdir", str(tmp_path / "pip"))
+        page.click("#btn-export")
+        page.wait_for_selector("#result .ok", timeout=120000)
+        assert len(list((tmp_path / "pip").glob("*.mp4"))) == 1
+        page.click("#btn-saveas")
+        page.fill("#dlg-name", "pip")
+        page.fill("#dlg-path", str(tmp_path))
+        page.press("#dlg-path", "Enter")
+        for _ in range(50):
+            if state(page, "s.dlgPath") == str(tmp_path):
+                break
+            page.wait_for_timeout(100)
+        page.click("#dlg-usefolder")
+        saved = tmp_path / "pip.vproj.json"
+        for _ in range(50):
+            if saved.exists():
+                break
+            page.wait_for_timeout(100)
+        data = json.loads(saved.read_text())
+        assert data["overlays"][0]["tf"]["s"] == 0.5 and data["overlays"][0]["tf"]["x"] == -0.27
+        # delete with the keyboard
+        page.click("#ovs .oitem")
+        page.keyboard.press("Delete")
+        assert state(page, "s.overlays.length") == 0
+        assert not errors, errors
+    finally:
+        b.close()
+        p.stop()
+        srv.stop()
