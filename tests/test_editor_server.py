@@ -265,3 +265,131 @@ def test_export_nothing_to_do_and_job_errors(srv, media):
     j = wait_job(srv, req(srv, "/api/export", body={"path": str(media["silent"]), "loudness": -14}).json()["job"])
     assert j["state"] == "error"                                                          # silent clip has no audio to normalise
     assert req(srv, "/api/job", {"id": "nope"}).status == 404
+
+
+# ---------------------------------------------------------------- recent files and uploads
+def post_raw(srv, route, params, data, headers=None):
+    q = dict(params, t=srv.token)
+    r = urllib.request.Request("http://127.0.0.1:%d%s?%s" % (srv.port, route, urllib.parse.urlencode(q)), data=data,
+                               headers=dict({"Content-Type": "application/octet-stream"}, **(headers or {})), method="POST")
+    try:
+        with urllib.request.urlopen(r, timeout=60) as resp:
+            return Resp(resp.status, resp.headers, resp.read())
+    except urllib.error.HTTPError as e:
+        return Resp(e.code, e.headers, e.read())
+
+
+def test_recent_files(srv, media):
+    wait_job(srv, req(srv, "/api/prepare", body={"path": str(media["silent"])}).json()["job"])
+    files = req(srv, "/api/recent").json()["files"]
+    assert files and files[0]["path"] == str(media["silent"]) and files[0]["name"] == "silent.mp4"
+    assert req(srv, "/api/recent", token=False).status == 403
+
+
+def test_upload_drop(srv, media):
+    data = open(media["silent"], "rb").read()
+    r = post_raw(srv, "/api/upload", {"name": "my dropped clip.mp4"}, data)
+    assert r.status == 200, r.body
+    path = r.json()["path"]
+    assert os.path.basename(path) == "my dropped clip.mp4" and open(path, "rb").read() == data
+    assert req(srv, "/api/probe", {"path": path}).json()["has_video"]            # inside the allowed upload folder
+    again = post_raw(srv, "/api/upload", {"name": "my dropped clip.mp4"}, data).json()["path"]
+    assert again != path and again.endswith("my dropped clip_1.mp4")              # never overwrites
+    evil = post_raw(srv, "/api/upload", {"name": "../../etc/evil.mp4"}, data).json()["path"]
+    assert os.path.dirname(evil) == os.path.dirname(path)                          # path components stripped
+    for p in (path, again, evil):
+        os.unlink(p)
+
+
+def test_upload_rejects_bad_requests(srv, media):
+    assert post_raw(srv, "/api/upload", {"name": "script.exe"}, b"MZ").status == 400
+    assert post_raw(srv, "/api/upload", {"name": "x.mp4"}, b"").status == 400
+    assert post_raw(srv, "/api/upload", {}, b"abc").status == 400
+    r = urllib.request.Request("http://127.0.0.1:%d/api/upload?name=x.mp4" % srv.port, data=b"abc", method="POST")
+    with pytest.raises(urllib.error.HTTPError) as e:
+        urllib.request.urlopen(r)
+    assert e.value.code == 403                                                     # no token
+    assert not [n for n in os.listdir(str(jobs_mod.UPLOAD_DIR)) if n.endswith(".part")]
+
+
+def test_config_has_videos_dir(srv):
+    cfg = req(srv, "/api/config").json()
+    assert os.path.isdir(cfg["videos_dir"]) and str(jobs_mod.UPLOAD_DIR) in cfg["roots"]
+
+
+# ---------------------------------------------------------------- all tools through the editor API
+def test_tool_catalog_lists_all_42(srv):
+    r = req(srv, "/api/tools").json()
+    names = [t["name"] for t in r["tools"]]
+    assert len(names) == 42 and len(set(names)) == 42
+    assert r["groups"] == ["Inspect", "Cut & time", "Picture", "Overlays & text", "Audio", "Export & check"]
+    assert {t["group"] for t in r["tools"]} == set(r["groups"])
+    assert {t["name"] for t in r["tools"] if t["read_only"]} == {
+        "ve_media_doctor", "ve_media_probe", "ve_detect_silence", "ve_detect_scenes", "ve_platform_check"}
+    trim = next(t for t in r["tools"] if t["name"] == "ve_trim")
+    assert "start" in trim["properties"] and "input" in trim["properties"]
+
+
+def run_tool_api(srv, name, args, expect_ok=True):
+    r = req(srv, "/api/tool", body={"name": name, "args": args})
+    if r.status != 200:
+        return r
+    j = wait_job(srv, r.json()["job"])
+    assert (j["state"] == "done") == expect_ok, j
+    return j
+
+
+def test_run_tools_from_editor(srv, media, tmp_path):
+    srv.add_root(str(tmp_path))
+    out = tmp_path / "tool-out"
+    j = run_tool_api(srv, "ve_trim", {"input": str(media["clip"]), "start": 1, "duration": 1, "output_dir": str(out)})
+    assert os.path.isfile(j["result"]["output"]) and j["result"]["output"].startswith(str(out))
+    j = run_tool_api(srv, "ve_media_probe", {"input": str(media["clip"])})
+    assert j["result"]["info"]["video"]["width"] == 640
+    j = run_tool_api(srv, "ve_split", {"input": str(media["clip"]), "times": [1, 2], "output_dir": str(out)})
+    assert len(j["result"]["info"]["outputs"]) == 3
+    j = run_tool_api(srv, "ve_join", {"inputs": [str(media["clip"]), str(media["clip"])], "output_dir": str(out)})
+    assert j["result"]["info"]["method"] == "stream_copy"
+    j = run_tool_api(srv, "ve_remove_segments", {"input": str(media["clip"]), "output_dir": str(out),
+                                                 "segments": [{"start": "0:01", "end": "0:02"}]})
+    assert j["result"]["ok"]
+    j = run_tool_api(srv, "ve_media_doctor", {})
+    assert j["result"]["info"]["encoders"]["libx264"]
+    bad = run_tool_api(srv, "ve_trim", {"input": str(media["clip"]), "start": "abc", "output_dir": str(out)}, expect_ok=False)
+    assert "Invalid start" in bad["error"]["error"]
+
+
+def test_tool_api_confines_paths_and_parameters(srv, media, tmp_path):
+    base = {"input": str(media["clip"])}
+    assert run_tool_api(srv, "ve_nope", base).status == 400
+    assert run_tool_api(srv, "ve_trim", dict(base, evil="1")).status == 400                 # not a schema parameter
+    assert run_tool_api(srv, "ve_trim", {"input": "/etc/passwd"}).status == 400
+    assert run_tool_api(srv, "ve_trim", dict(base, output_dir="/etc")).status == 400
+    assert run_tool_api(srv, "ve_trim", dict(base, output="/etc/cron.d/x.mp4")).status == 400
+    assert run_tool_api(srv, "ve_trim", dict(base, output=str(tmp_path / "x.sh"))).status == 400
+    assert run_tool_api(srv, "ve_join", {"inputs": ["/etc/passwd", str(media["clip"])]}).status == 400
+    assert run_tool_api(srv, "ve_burn_captions", dict(base, captions="/etc/passwd")).status == 400
+    assert run_tool_api(srv, "ve_add_text", dict(base, text="x", font_file=str(media["clip"]))).status == 400
+    assert run_tool_api(srv, "ve_trim", "not a dict").status == 400
+    assert req(srv, "/api/tool", body={"name": "ve_trim", "args": base}, token=False).status == 403
+
+
+def test_tool_results_for_uploaded_files_go_to_videos_folder(srv, media):
+    data = open(media["silent"], "rb").read()
+    uploaded = post_raw(srv, "/api/upload", {"name": "tooltest.mp4"}, data).json()["path"]
+    videos = req(srv, "/api/config").json()["videos_dir"]
+    j = run_tool_api(srv, "ve_trim", {"input": uploaded, "duration": 1})
+    try:
+        assert os.path.dirname(j["result"]["output"]) == videos
+    finally:
+        os.unlink(uploaded)
+        os.unlink(j["result"]["output"])
+
+
+def test_ls_kinds(srv, media):
+    (media["dir"] / "caps.srt").write_text("1\n00:00:00,000 --> 00:00:01,000\nx\n")
+    (media["dir"] / "logo.png").write_bytes(b"\x89PNG")
+    names = lambda kind: {f["name"] for f in req(srv, "/api/ls", {"path": str(media["dir"]), "kind": kind}).json()["files"]}  # noqa: E731
+    assert "caps.srt" in names("captions") and "clip.mp4" not in names("captions")
+    assert "logo.png" in names("image") and "clip.mp4" in names("image")
+    assert "clip.mp4" in names("media") and "logo.png" not in names("media")

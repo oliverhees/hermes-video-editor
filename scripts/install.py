@@ -53,9 +53,19 @@ def install_desktop_half(target_plugins_dir):
     print("Installed Desktop page: %s" % (dest / "plugin.js"))
 
 
+def is_in_place(dest):
+    """True when `dest` already IS this checkout (a real folder, or a link to it). Never delete or relink that."""
+    return os.path.lexists(str(dest)) and os.path.realpath(str(dest)) == os.path.realpath(str(ROOT))
+
+
 def install(target_dir, copy=False, explicit_target=False):
     target_dir.mkdir(parents=True, exist_ok=True)
     dest = target_dir / NAME
+    if is_in_place(dest):          # e.g. cloned there by `hermes plugins install`: only add the Desktop page
+        print("Plugin is already installed in place: %s" % dest)
+        install_desktop_half(target_dir if explicit_target else None)
+        print("Next:  hermes plugins enable %s   then restart Hermes Desktop." % NAME)
+        return 0
     if os.path.lexists(str(dest)):
         if not is_ours(dest):
             print("Refusing to replace %s: it is not this plugin. Remove it manually." % dest, file=sys.stderr)
@@ -94,6 +104,9 @@ def main():
         if desk.exists():
             shutil.rmtree(str(desk), ignore_errors=True)
             print("Removed", desk)
+        if is_in_place(dest) and not dest.is_symlink():
+            print("The plugin folder %s is this checkout; not deleting it. Use: hermes plugins remove %s" % (dest, NAME))
+            return 0
         if os.path.lexists(str(dest)) and is_ours(dest):
             remove(dest)
             print("Removed", dest)

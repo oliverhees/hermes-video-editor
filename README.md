@@ -1,5 +1,7 @@
 # hermes-video-editor
 
+> Powered by [Lokyy.de](https://lokyy.de) - German Hermes Engineering
+
 **Edit your OWN local videos from chat.** A plugin for [Hermes Agent](https://hermes-agent.nousresearch.com/)
 with **42 FFmpeg tools**. 100% local: no cloud, no API key, no network calls, no telemetry.
 
@@ -63,21 +65,39 @@ python scripts/editor.py my-video.mp4    # with a file preloaded
 
 | Do this | How |
 |---|---|
-| Open a video | **Open file...**, browse your home folder or paste a path |
-| Preview | Space = play/pause, arrows = frame step, Shift+arrows = 1 s |
-| Cut a range | `I` (in), `O` (out), `X` (cut). Or Shift+drag on the timeline |
-| Find silences | **Find silences** adds them as cuts (adjust level / length first) |
-| Skip cuts while playing | "Skip cuts in preview" |
-| Speed, 9:16 / 1:1 / 4:5 crop, blurred bars | *Picture* tab (a frame on the preview shows what stays) |
+| Add a video | **Add clip...** (browse your home folder or paste a path), pick one from **Recent**, or **drop video files** into the window. Several files can be dropped at once; they are appended in order (dropped files are copied into the editor's cache; exports then go to `~/Videos` by default) |
+| Preview | Space = play/pause (plays across clips without gaps), arrows = frame step, Shift+arrows = 1 s, Up/Down = previous/next clip boundary |
+| Split | Put the playhead where you want the cut, press `S` |
+| Delete a clip | Click it, press `Delete` (the gap closes automatically) |
+| Remove a range | `I` (in), `O` (out), `X` (cut), or Shift+drag on the timeline. Works across clip borders |
+| Reorder | Drag a clip to another position (an orange line shows where it lands) |
+| Trim | Drag the left or right edge of a clip |
+| Undo / redo | `Ctrl+Z` / `Ctrl+Shift+Z` (100 steps) |
+| Remove silences | *Edit* tab -> **Remove silences** (selected clip, or all clips if none is selected) |
+| Several videos in one | Just add more clips; different sizes, frame rates and audio formats are matched on export (black bars, silence for clips without sound) |
+| Save / open a project | **Save** / **Save as...** / **Open project...** (a `.vproj.json` file that remembers clips and cut points, not the media) |
+| **Canvas** (16:9, 9:16, 1:1, 4:5, or auto) and resolution | *Picture* tab. The preview shows the canvas; the output has exactly that size |
+| **Background** behind pictures that do not fill the canvas | *Picture* tab: blurred copy of the picture, black, or a colour |
+| **Position and size of each clip** | Select a clip, then drag the picture on the preview, drag a corner or use the mouse wheel to zoom; or use the sliders and **Fit / Fill / Center / Reset**. Split a clip first to place each part differently (e.g. re-frame when the speaker moves). Fill makes a 16:9 clip cover a 9:16 canvas |
+| Speed | *Picture* tab. Applied to the whole timeline on export |
 | Loudness | *Sound* tab |
-| Export | *Export* tab: pick a platform preset, then **Export**. A platform check is shown afterwards |
+| **Any of the 42 tools** | *All tools* tab: every `ve_*` tool as a form (search, fill in, Run). Results can be added to the timeline |
+| Export | *Export* tab: pick a platform preset, then **Export**. The timeline is rendered first, then speed/format/loudness/preset are applied, then a platform check is shown |
 
 The editor never changes your original. **Export** runs the same `ve_*` tools the agent uses
 (remove cuts -> speed -> reframe -> loudness -> preset) and writes a new file next to the original (or into the folder you choose).
-It is a *cut-and-deliver* editor: there are no layers, text animation or multi-track timelines.
+It is an *assembly* editor: one video track of clips played back to back, each with its own position and size on a canvas, plus a **text layer** and an **audio track**. More video tracks (overlay / picture-in-picture) are planned; picture-in-picture and stacking are available as tools in the *All tools* tab.
+
+| Layer | How |
+|---|---|
+| **Text** | *Text* tab: **Add text at the playhead**, type, pick size/colour/outline/box or a preset (Title, Lower third, Caption). Drag the text on the preview to place it, drag its item on the TEXT lane to move it, drag its edges to change the time it is visible |
+| **Music / voice-over** | *Sound* tab: **Add audio...** (any audio file, or a video with sound). Move it on the AUDIO lane, trim by its edges, set volume (dB), fade in/out, start time, and **ducking** (music gets quieter while the video speaks) |
+
+Known limits: the preview does not play ducking and cannot make audio louder than the source (export does); text looks slightly different in the preview than in the export (different font); texts and audio items sit at fixed times, so ripple edits of the clips do not shift them; recording a voice-over inside the editor is not possible (the sandboxed frame has no microphone), add a recorded file instead.
 
 How it works and what it exposes: a tiny web server inside the plugin listens on **127.0.0.1 only** (random port, random
-one-time token in the link; requests without it get 403). It serves the editor page, streams the video you open
+one-time token in the link; requests without it get 403).
+The page follows the app theme (light/dark and accent colour are read from Hermes Desktop; standalone it follows your system theme). It serves the editor page, streams the video you open
 and runs the tools. It only reads/writes **media files below your home folder** (add more with the `VE_EDITOR_ROOTS`
 environment variable, separated by `:` or `;` on Windows). Nothing leaves your machine.
 
@@ -194,6 +214,10 @@ come from a catalog entry, not from the plugin itself. To get the same card:
 
 The banner is `docs/banner.png` (2:1, built around a real screenshot of the editor).
 Until the entry is merged the card shows the manifest description and a "Git" badge.
+
+## Credits
+
+Powered by [Lokyy.de](https://lokyy.de) - German Hermes Engineering. The credit is also shown at the bottom of the editor's side panel.
 
 ## License
 

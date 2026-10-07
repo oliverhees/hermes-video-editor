@@ -10,58 +10,111 @@
 <div id="app">
   <header id="top">
     <div class="brand"><span class="dot"></span> Video Editor <small>local &middot; FFmpeg</small></div>
-    <div id="file-chip" class="chip" title="">No file</div>
-    <button id="btn-open" class="btn primary">Open file&hellip;</button>
+    <div id="file-chip" class="chip" title="">Untitled project</div>
+    <button id="btn-openproj" class="btn">Open project&hellip;</button>
+    <button id="btn-save" class="btn" title="Save project (Ctrl+S)">Save</button>
+    <button id="btn-saveas" class="btn">Save as&hellip;</button>
+    <button id="btn-open" class="btn primary">Add clip&hellip;</button>
   </header>
 
   <aside id="side">
     <nav id="tabs">
-      <button data-tab="cuts" class="on">Cuts</button>
+      <button data-tab="cuts" class="on">Edit</button>
       <button data-tab="picture">Picture</button>
+      <button data-tab="text">Text</button>
       <button data-tab="sound">Sound</button>
+      <button data-tab="tools">All tools</button>
       <button data-tab="export">Export</button>
     </nav>
 
     <section data-pane="cuts" class="pane on">
-      <h3>Mark &amp; cut</h3>
+      <h3>Clips</h3>
+      <div class="row">
+        <button id="btn-split" class="btn" title="Split at the playhead (S)">Split <kbd>S</kbd></button>
+        <button id="btn-del" class="btn danger" title="Delete the selected clip and close the gap (Delete)">Delete <kbd>Del</kbd></button>
+        <button id="btn-dup" class="btn" title="Duplicate the selected clip">Copy</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button id="btn-undo" class="btn" title="Undo (Ctrl+Z)">Undo</button>
+        <button id="btn-redo" class="btn" title="Redo (Ctrl+Shift+Z)">Redo</button>
+      </div>
+      <div id="clip-info" class="muted" style="margin-top:8px"></div>
+      <h3>Remove a range</h3>
       <div class="row">
         <button id="btn-in" class="btn" title="Set in point (I)">In <kbd>I</kbd></button>
         <button id="btn-out" class="btn" title="Set out point (O)">Out <kbd>O</kbd></button>
-        <button id="btn-cut" class="btn danger" title="Remove marked range (X)">Cut <kbd>X</kbd></button>
+        <button id="btn-cut" class="btn danger" title="Remove the marked range and close the gap (X)">Cut <kbd>X</kbd></button>
       </div>
-      <div id="marks" class="muted">No range marked. Press <kbd>I</kbd> and <kbd>O</kbd> at the playhead, or drag on the timeline with Shift.</div>
+      <div id="marks" class="muted">No range marked.</div>
       <h3>Silence</h3>
       <label class="field">Level <span id="v-noise">-35 dB</span>
         <input id="in-noise" type="range" min="-60" max="-15" step="1" value="-35"></label>
       <label class="field">Shortest silence <span id="v-minsil">0.5 s</span>
         <input id="in-minsil" type="range" min="0.2" max="3" step="0.1" value="0.5"></label>
-      <button id="btn-silence" class="btn wide">Find silences</button>
-      <h3>Cuts <span id="cut-count" class="badge">0</span></h3>
-      <div id="cuts-list" class="list"></div>
+      <button id="btn-silence" class="btn wide">Remove silences</button>
+      <p class="muted">Works on the selected clip, or on all clips if none is selected.</p>
       <div id="summary" class="muted"></div>
-      <label class="check"><input id="in-skip" type="checkbox" checked> Skip cuts in preview</label>
     </section>
 
     <section data-pane="picture" class="pane">
-      <h3>Speed</h3>
-      <select id="in-speed"></select>
-      <h3>Format</h3>
-      <select id="in-reframe">
-        <option value="none">Keep original</option>
-        <option value="crop_9x16">9:16 crop (Reels / TikTok / Shorts)</option>
-        <option value="blur_9x16">9:16 with blurred bars (keeps everything)</option>
-        <option value="crop_1x1">1:1 square crop</option>
-        <option value="crop_4x5">4:5 crop</option>
-        <option value="crop_16x9">16:9 crop</option>
-      </select>
-      <div id="anchor-wrap">
-        <h3>Keep which part?</h3>
-        <select id="in-anchor">
-          <option value="center">Center</option><option value="left">Left</option><option value="right">Right</option>
-          <option value="top">Top</option><option value="bottom">Bottom</option>
+      <h3>Canvas</h3>
+      <div class="row">
+        <select id="in-aspect">
+          <option value="auto">Auto (first clip)</option><option value="16:9">16:9 landscape</option><option value="9:16">9:16 Reels / TikTok / Shorts</option>
+          <option value="1:1">1:1 square</option><option value="4:5">4:5 feed</option>
+        </select>
+        <select id="in-short" title="Short side of the picture in pixels">
+          <option value="360">360</option><option value="480">480</option><option value="720">720</option>
+          <option value="1080" selected>1080</option><option value="1440">1440</option><option value="2160">2160</option>
         </select>
       </div>
-      <p class="muted">The frame on the preview shows what stays.</p>
+      <div id="canvas-size" class="muted"></div>
+      <h3>Background</h3>
+      <div class="row">
+        <select id="in-bg"><option value="blur">Blurred picture</option><option value="black">Black</option><option value="color">Colour</option></select>
+        <input id="in-bgcolor" type="color" value="#000000" hidden title="Background colour">
+      </div>
+      <h3>Selected clip</h3>
+      <div id="tf-hint" class="muted"></div>
+      <label class="field">Size <span id="v-scale">100%</span><input id="in-scale" type="range" min="5" max="400" step="1" value="100"></label>
+      <label class="field">Left / right <span id="v-x">0%</span><input id="in-x" type="range" min="-100" max="100" step="1" value="0"></label>
+      <label class="field">Up / down <span id="v-y">0%</span><input id="in-y" type="range" min="-100" max="100" step="1" value="0"></label>
+      <div class="row">
+        <button id="btn-tf-fit" class="btn" title="Whole picture visible">Fit</button>
+        <button id="btn-tf-fill" class="btn" title="Picture covers the whole canvas">Fill</button>
+        <button id="btn-tf-center" class="btn">Center</button>
+        <button id="btn-tf-reset" class="btn">Reset</button>
+      </div>
+      <button id="btn-tf-all" class="btn wide">Use this position for all clips</button>
+      <p class="muted">Tip: drag the picture on the preview to move it, drag a corner or use the mouse wheel to zoom. Split a clip first to place each part differently.</p>
+      <h3>Speed</h3>
+      <select id="in-speed"></select>
+    </section>
+
+    <section data-pane="text" class="pane">
+      <button id="btn-text-add" class="btn primary wide">Add text at the playhead</button>
+      <p id="tx-none" class="muted">Texts appear on the picture for the time you choose. Click a text on the timeline to edit it.</p>
+      <div id="tx-edit" hidden>
+        <h3>Text</h3>
+        <textarea id="tx-text" rows="3" placeholder="Your text"></textarea>
+        <h3>Look</h3>
+        <label class="field">Size <span id="v-txsize">7%</span><input id="tx-size" type="range" min="2" max="30" step="0.5" value="7"></label>
+        <div class="row ctl" style="flex-wrap:wrap;gap:8px 12px">
+          <label class="mini">Colour <input id="tx-color" type="color" value="#ffffff"></label>
+          <label class="check"><input id="tx-outline" type="checkbox" checked> Outline</label>
+          <label class="check"><input id="tx-box" type="checkbox"> Box <input id="tx-boxcolor" type="color" value="#000000" title="Box colour"></label>
+        </div>
+        <h3>Position</h3>
+        <div class="row">
+          <button id="tx-p-title" class="btn" title="Big, centred">Title</button>
+          <button id="tx-p-lower" class="btn" title="Lower third">Lower third</button>
+          <button id="tx-p-caption" class="btn" title="Bottom caption">Caption</button>
+        </div>
+        <p class="muted">Or drag the text on the preview (mouse wheel changes the size).</p>
+        <h3>Timing (seconds)</h3>
+        <div class="row ctl"><label class="mini">Start <input id="tx-start" type="number" min="0" step="0.1"></label><label class="mini">Length <input id="tx-dur" type="number" min="0.1" step="0.1"></label></div>
+        <div class="row" style="margin-top:10px"><button id="btn-text-dup" class="btn">Copy</button><button id="btn-text-del" class="btn danger">Delete</button></div>
+      </div>
     </section>
 
     <section data-pane="sound" class="pane">
@@ -70,13 +123,41 @@
       <label class="field">Target <span id="v-lufs">-14 LUFS</span>
         <input id="in-lufs" type="range" min="-24" max="-9" step="1" value="-14"></label>
       <p class="muted">-14 LUFS suits Reels, TikTok, Shorts and YouTube. Use -16 for podcasts.</p>
+      <h3>Audio track (music, voice-over)</h3>
+      <button id="btn-audio-add" class="btn wide">Add audio at the playhead&hellip;</button>
+      <p id="au-none" class="muted">Any audio file (or a video with sound). Move it on the audio lane, drag its edges to trim.</p>
+      <div id="au-edit" hidden>
+        <div id="au-name" class="muted"></div>
+        <label class="field">Volume <span id="v-auvol">-10 dB</span><input id="au-vol" type="range" min="-40" max="12" step="1" value="-10"></label>
+        <label class="field">Fade in <span id="v-aufi">0 s</span><input id="au-fi" type="range" min="0" max="10" step="0.5" value="0"></label>
+        <label class="field">Fade out <span id="v-aufo">1 s</span><input id="au-fo" type="range" min="0" max="10" step="0.5" value="1"></label>
+        <label class="check"><input id="au-duck" type="checkbox" checked> Lower it while the video speaks (ducking)</label>
+        <div class="row ctl"><label class="mini">Start (s) <input id="au-start" type="number" min="0" step="0.1"></label></div>
+        <p class="muted">The preview plays the sound but not the ducking; the export applies it. Boosts above 0 dB are only heard in the export.</p>
+        <button id="btn-audio-del" class="btn danger wide">Delete this audio</button>
+      </div>
+    </section>
+
+    <section data-pane="tools" class="pane">
+      <input id="tool-search" type="text" placeholder="Search the 42 tools&hellip;">
+      <div id="tool-list"></div>
+      <div id="tool-form" hidden>
+        <button id="tool-back" class="btn small">&larr; All tools</button>
+        <h3 id="tool-title"></h3>
+        <p id="tool-desc" class="muted"></p>
+        <div id="tool-fields"></div>
+        <details class="adv"><summary>Advanced</summary><div id="tool-adv"></div></details>
+        <button id="tool-run" class="btn primary wide">Run</button>
+        <div id="tool-job" class="job" hidden><div class="bar"><i id="tool-bar"></i></div><div id="tool-step" class="muted"></div></div>
+        <div id="tool-result" class="result" hidden></div>
+      </div>
     </section>
 
     <section data-pane="export" class="pane">
       <h3>Platform preset</h3>
       <select id="in-preset"></select>
       <h3>Save in folder</h3>
-      <input id="in-outdir" type="text" placeholder="Same folder as the video">
+      <input id="in-outdir" type="text" placeholder="Same folder as the first clip">
       <button id="btn-export" class="btn primary wide">Export</button>
       <div id="job" class="job" hidden>
         <div class="bar"><i id="job-bar"></i></div>
@@ -84,11 +165,37 @@
       </div>
       <div id="result" class="result" hidden></div>
     </section>
+    <div id="brand"><a id="powered" href="https://lokyy.de" target="_blank" rel="noopener noreferrer">Powered by Lokyy.de</a><span class="tag">German Hermes Engineering</span></div>
   </aside>
 
   <main id="stage-wrap">
-    <div id="stage"><video id="video" playsinline preload="auto"></video><div id="frame-guide" hidden></div>
-      <div id="overlay" class="overlay">Open a video to start.</div></div>
+    <div id="stage"><video id="video" playsinline preload="auto"></video><video id="video2" playsinline preload="auto"></video>
+      <canvas id="stage-canvas"></canvas>
+      <div id="tgizmo" hidden></div>
+      <div id="gizmo" hidden><b class="gh" data-corner="nw"></b><b class="gh" data-corner="ne"></b><b class="gh" data-corner="sw"></b><b class="gh" data-corner="se"></b></div>
+      <div id="overlay" class="overlay" hidden></div>
+    </div>
+    <div id="empty">
+      <div class="hero">
+        <div class="hero-icon" aria-hidden="true">
+          <svg viewBox="0 0 48 48" width="46" height="46" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="9" width="38" height="28" rx="6"/><path d="M21 17.5v13l10.5-6.5z" fill="currentColor" stroke="none"/><path d="M14 43h20"/>
+          </svg>
+        </div>
+        <h2>Drop your videos here</h2>
+        <p class="lead">Cut, reframe and export your own footage. Everything stays on this computer.</p>
+        <div class="hero-actions">
+          <button id="btn-open2" class="btn primary big pill">Add clip&hellip;</button>
+          <button id="btn-openproj2" class="btn big pill">Open project&hellip;</button>
+        </div>
+        <div class="hero-hints">
+          <span><kbd>S</kbd> split</span><span><kbd>I</kbd><kbd>O</kbd><kbd>X</kbd> cut a range</span>
+          <span><kbd>Space</kbd> play</span><span><kbd>Ctrl</kbd>+<kbd>Z</kbd> undo</span>
+        </div>
+        <h4 id="recent-title" hidden>Recent</h4>
+        <div id="recent" class="list"></div>
+      </div>
+    </div>
     <div id="transport">
       <button id="btn-play" class="btn round" title="Play / pause (Space)">&#9654;</button>
       <span id="time">0:00.0 / 0:00.0</span>
@@ -103,10 +210,13 @@
     <div id="tl-scroll">
       <div id="track">
         <canvas id="ruler"></canvas>
-        <div id="thumbs" class="lane"></div>
+        <div id="clips" class="lane"></div>
         <canvas id="wave" class="lane"></canvas>
-        <div id="regions"></div>
+        <div id="texts" class="lane"><span class="lane-label">Text</span></div>
+        <canvas id="awave" class="lane"></canvas>
+        <div id="audios" class="lane"><span class="lane-label">Audio</span></div>
         <div id="mark-range" hidden></div>
+        <div id="drop-ind" hidden></div>
         <div id="playhead"></div>
       </div>
     </div>
@@ -115,12 +225,19 @@
 
 <div id="modal" hidden>
   <div class="dialog">
-    <div class="dlg-head"><strong>Open a video</strong><button id="dlg-close" class="btn small">Close</button></div>
+    <div class="dlg-head"><strong id="dlg-title">Add a video</strong><button id="dlg-close" class="btn small">Close</button></div>
     <input id="dlg-path" type="text" placeholder="Folder or file path, then Enter">
+    <div class="row" style="margin-top:6px"><input id="dlg-name" type="text" placeholder="Project name" hidden>
+      <button id="dlg-usefolder" class="btn small" hidden>Use this folder</button></div>
+    <div id="dlg-recent-title" class="sect" hidden>Recent</div>
+    <div id="dlg-recent" class="list"></div>
+    <div class="sect">Folders</div>
     <div id="dlg-list" class="list tall"></div>
     <p id="dlg-err" class="err"></p>
   </div>
 </div>
+<script src="/static/timeline.js"></script>
 <script src="/static/app.js"></script>
+<script src="/static/layers.js"></script>
 </body>
 </html>

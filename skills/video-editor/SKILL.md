@@ -23,7 +23,7 @@ no stock library, no upload. If the user wants something that needs those, say s
 ## The visual editor (for the user, not for you)
 
 Besides your tools the plugin has a visual cut editor: sidebar entry **Video Editor** in Hermes Desktop (or
-`python scripts/editor.py` in a browser). The user can mark cuts, find silences, reframe and export there by clicking.
+`python scripts/editor.py` in a browser). The user can mark cuts, find silences, reframe, place clips on a canvas, add text and a music track, and export there by clicking.
 Point them to it when they want to scrub, preview or fine-tune cuts by eye; you cannot operate it yourself.
 Files the user exports there appear as new files next to the original.
 
