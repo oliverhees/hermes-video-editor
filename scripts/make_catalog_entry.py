@@ -29,7 +29,7 @@ def main():
         "sha: %s" % sha,
         'version: "%s"' % VERSION,
         "description: >-",
-        "  Local video editor for your own footage: 42 FFmpeg tools for the agent (cut, silence removal, 9:16 reframe,",
+        "  Local video editor for your own footage: 45 FFmpeg tools for the agent (cut, silence removal, 9:16 reframe,",
         "  captions, music with ducking, loudness, platform export and checks) plus a visual editor in Hermes Desktop",
         "  with canvas, overlay, text and music tracks and an English/German help. 100% local, no API key.",
         "  Licence: PolyForm Noncommercial 1.0.0.",

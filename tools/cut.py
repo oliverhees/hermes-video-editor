@@ -222,6 +222,68 @@ def join(args: Dict[str, Any]) -> Any:
     return job.done(op="join", method="stream_copy" if use_copy else "reencode", clips=len(paths))
 
 
+XFADES = ('fade', 'fadeblack', 'fadewhite', 'dissolve', 'wipeleft', 'wiperight', 'slideleft', 'slideright', 'circleopen', 'circleclose', 'pixelize')
+
+
+def crossfade_graph(infos: List[Dict[str, Any]], width: int, height: int, fps: float, transition: str, d: float) -> Tuple[str, bool, float]:
+    """Pure: filter_complex that joins the clips with an xfade of d seconds between each pair. Returns (graph, has_audio, total_s)."""
+    any_audio = any(i["has_audio"] for i in infos)
+    parts: List[str] = []
+    for n, i in enumerate(infos):
+        parts.append("[%d:v:0]scale=%d:%d:force_original_aspect_ratio=decrease,pad=%d:%d:(ow-iw)/2:(oh-ih)/2,"
+                     "setsar=1,fps=%s,format=yuv420p,settb=AVTB,setpts=PTS-STARTPTS[v%d]" % (n, width, height, width, height, fps, n))
+        if any_audio:
+            if i["has_audio"]:
+                parts.append("[%d:a:0]aresample=48000,aformat=channel_layouts=stereo,apad,atrim=duration=%.3f,asetpts=PTS-STARTPTS[a%d]"
+                             % (n, i["duration_s"], n))
+            else:
+                parts.append("anullsrc=r=48000:cl=stereo:d=%.3f[a%d]" % (i["duration_s"], n))
+    length = infos[0]["duration_s"]
+    vcur, acur = "v0", "a0"
+    for k in range(1, len(infos)):
+        last = k == len(infos) - 1
+        vout, aout = ("vo" if last else "vx%d" % k), ("ao" if last else "ax%d" % k)
+        parts.append("[%s][v%d]xfade=transition=%s:duration=%s:offset=%.3f[%s]" % (vcur, k, transition, round(d, 3), length - d, vout))
+        if any_audio:
+            parts.append("[%s][a%d]acrossfade=d=%s[%s]" % (acur, k, round(d, 3), aout))
+        vcur, acur = vout, aout
+        length += infos[k]["duration_s"] - d
+    return ";".join(parts), any_audio, length
+
+
+@tool_handler
+def crossfade_join(args: Dict[str, Any]) -> Any:
+    from ..core.ffmpeg import require_filter
+    raw = args.get("inputs")
+    if not isinstance(raw, list) or len(raw) < 2:
+        raise ToolError("'inputs' must be a list of at least 2 file paths, in play order.")
+    transition = get_choice(args, "transition", XFADES, "fade")
+    d = get_num(args, "duration_s", 1.0, lo=0.1, hi=5.0)
+    crf = crf_of(args)
+    require_filter("xfade", "transitions between clips")
+    paths = [resolve_input(p, "inputs[]") for p in raw]
+    infos = [probe(p) for p in paths]
+    if not all(i["has_video"] for i in infos):
+        raise ToolError("All inputs must contain a video stream.")
+    for n, i in enumerate(infos):
+        need = d if n in (0, len(infos) - 1) else 2 * d              # a clip in the middle has a transition at both ends
+        if not i["duration_s"] or i["duration_s"] <= need + 0.05:
+            raise ToolError("Clip %d is too short for a %s s transition (needs more than %s s)." % (n + 1, d, round(need, 2)),
+                            hint="Use a shorter duration_s or longer clips.")
+    job = Job(dict(args, input=str(paths[0])), "crossfade", ext="av", need_video=True)
+    v = infos[0]["video"]
+    width, height = v["display_width"] // 2 * 2, v["display_height"] // 2 * 2
+    graph, any_audio, total = crossfade_graph(infos, width, height, _norm_fps(v["fps"]), transition, d)
+    with new_tempdir() as tmp:
+        ff: List[str] = []
+        for p in paths:
+            ff += ["-i", str(p)]
+        ff += filter_complex_args(graph, Path(tmp)) + ["-map", "[vo]"] + (["-map", "[ao]"] if any_audio else [])
+        ff += encode_args(job.out.suffix.lower(), crf=crf, audio=any_audio)
+        job.run(ff)
+    return job.done(op="crossfade_join", transition=transition, transition_s=d, clips=len(paths), expected_duration_s=round(total, 3))
+
+
 def silence_cuts(ranges: List[List[float]], padding: float) -> List[Seg]:
     cuts = []
     for s, e in ranges:
@@ -433,4 +495,16 @@ SPECS = [
         properties={"count": {"type": "integer", "minimum": 2, "maximum": 200,
                               "description": "Total number of plays including the first."},
                     "target_duration_s": tprop("Final length to reach."), "crf": CRF_PROP}),
+    ToolSpec(
+        name="lk_crossfade_join",
+        description=("Join clips in the order given with a smooth transition between each pair (fade, dissolve, wipe, slide, "
+                     "circle, pixelize). Picture and sound cross-fade; the result is shorter than the sum of the clips by one "
+                     "transition each. Always re-encodes to the first clip's size and fps (letterboxed). Every clip must be "
+                     "longer than the transition (clips in the middle: twice as long). For hard cuts use lk_join."),
+        handler=crossfade_join, common=("output", "output_dir", "overwrite", "timeout_s"), required=["inputs"],
+        properties={"inputs": {"type": "array", "items": {"type": "string"}, "minItems": 2,
+                               "description": "Paths of the clips in play order (at least 2)."},
+                    "transition": {"type": "string", "enum": list(XFADES), "default": "fade", "description": "Transition style."},
+                    "duration_s": {"type": "number", "default": 1.0, "description": "Length of each transition in seconds (0.1 to 5)."},
+                    "crf": CRF_PROP}),
 ]
