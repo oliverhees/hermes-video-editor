@@ -18,7 +18,7 @@ with **42 FFmpeg tools**. 100% local: no cloud, no API key, no network calls, no
 
    | OS | Command |
    |---|---|
-   | Linux | `sudo apt install ffmpeg` |
+   | Linux | `apt install ffmpeg` (with admin rights) |
    | macOS | `brew install ffmpeg` |
    | Windows | `winget install Gyan.FFmpeg` |
 

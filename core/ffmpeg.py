@@ -17,7 +17,7 @@ from .paths import plan_output, resolve_input
 from .result import ToolError, fail, ok
 from .validate import get_bool, get_timeout
 
-INSTALL_HINT = ("Install FFmpeg: Linux `sudo apt install ffmpeg`, macOS `brew install ffmpeg`, "
+INSTALL_HINT = ("Install FFmpeg: Linux `apt install ffmpeg` (as administrator), macOS `brew install ffmpeg`, "
                 "Windows `winget install Gyan.FFmpeg`. Then restart Hermes.")
 VIDEO_EXTS_COPYABLE = (".mp4", ".mov", ".mkv", ".m4v")
 
