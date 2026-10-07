@@ -56,7 +56,7 @@ def main():
         "  requires_env: []",
         "known_issues:",
         "  - Requires FFmpeg and ffprobe on PATH (apt install ffmpeg / brew install ffmpeg / winget install Gyan.FFmpeg).",
-        "  - ve_transcribe_captions is optional and needs 'pip install faster-whisper' plus a model already on disk.",
+        "  - lk_transcribe_captions is optional and needs 'pip install faster-whisper' plus a model already on disk.",
         "  - The visual editor is a cut-and-deliver editor (cuts, speed, reframe, loudness, export); no layers or multi-track timeline.",
         "  - The editor preview needs H.264 or VP8 playback in the app's browser engine; editing and export work without it.",
         ""]))

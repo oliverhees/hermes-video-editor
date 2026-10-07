@@ -217,12 +217,12 @@ def test_silence_endpoint(srv, media):
 def test_build_steps_pure():
     steps = jobs_mod.build_steps({"cuts": [[1, 2]], "speed": 1.5, "reframe": "crop_9x16", "anchor": "left",
                                   "loudness": -14, "preset": "reels"})
-    assert [s["tool"] for s in steps] == ["ve_remove_segments", "ve_change_speed", "ve_crop_to_aspect",
-                                         "ve_normalize_loudness", "ve_export_preset"]
+    assert [s["tool"] for s in steps] == ["lk_remove_segments", "lk_change_speed", "lk_crop_to_aspect",
+                                         "lk_normalize_loudness", "lk_export_preset"]
     assert steps[2]["args"] == {"aspect": "9:16", "anchor": "left"}
     assert steps[0]["args"]["segments"] == [{"start": 1.0, "end": 2.0}]
     assert jobs_mod.build_steps({}) == []
-    assert jobs_mod.build_steps({"reframe": "blur_9x16"})[0]["tool"] == "ve_pad_blur_background"
+    assert jobs_mod.build_steps({"reframe": "blur_9x16"})[0]["tool"] == "lk_pad_blur_background"
 
 
 def test_export_pipeline(srv, media, tmp_path):
@@ -325,8 +325,8 @@ def test_tool_catalog_lists_all_42(srv):
     assert r["groups"] == ["Inspect", "Cut & time", "Picture", "Overlays & text", "Audio", "Export & check"]
     assert {t["group"] for t in r["tools"]} == set(r["groups"])
     assert {t["name"] for t in r["tools"] if t["read_only"]} == {
-        "ve_media_doctor", "ve_media_probe", "ve_detect_silence", "ve_detect_scenes", "ve_platform_check"}
-    trim = next(t for t in r["tools"] if t["name"] == "ve_trim")
+        "lk_media_doctor", "lk_media_probe", "lk_detect_silence", "lk_detect_scenes", "lk_platform_check"}
+    trim = next(t for t in r["tools"] if t["name"] == "lk_trim")
     assert "start" in trim["properties"] and "input" in trim["properties"]
 
 
@@ -342,43 +342,43 @@ def run_tool_api(srv, name, args, expect_ok=True):
 def test_run_tools_from_editor(srv, media, tmp_path):
     srv.add_root(str(tmp_path))
     out = tmp_path / "tool-out"
-    j = run_tool_api(srv, "ve_trim", {"input": str(media["clip"]), "start": 1, "duration": 1, "output_dir": str(out)})
+    j = run_tool_api(srv, "lk_trim", {"input": str(media["clip"]), "start": 1, "duration": 1, "output_dir": str(out)})
     assert os.path.isfile(j["result"]["output"]) and j["result"]["output"].startswith(str(out))
-    j = run_tool_api(srv, "ve_media_probe", {"input": str(media["clip"])})
+    j = run_tool_api(srv, "lk_media_probe", {"input": str(media["clip"])})
     assert j["result"]["info"]["video"]["width"] == 640
-    j = run_tool_api(srv, "ve_split", {"input": str(media["clip"]), "times": [1, 2], "output_dir": str(out)})
+    j = run_tool_api(srv, "lk_split", {"input": str(media["clip"]), "times": [1, 2], "output_dir": str(out)})
     assert len(j["result"]["info"]["outputs"]) == 3
-    j = run_tool_api(srv, "ve_join", {"inputs": [str(media["clip"]), str(media["clip"])], "output_dir": str(out)})
+    j = run_tool_api(srv, "lk_join", {"inputs": [str(media["clip"]), str(media["clip"])], "output_dir": str(out)})
     assert j["result"]["info"]["method"] == "stream_copy"
-    j = run_tool_api(srv, "ve_remove_segments", {"input": str(media["clip"]), "output_dir": str(out),
+    j = run_tool_api(srv, "lk_remove_segments", {"input": str(media["clip"]), "output_dir": str(out),
                                                  "segments": [{"start": "0:01", "end": "0:02"}]})
     assert j["result"]["ok"]
-    j = run_tool_api(srv, "ve_media_doctor", {})
+    j = run_tool_api(srv, "lk_media_doctor", {})
     assert j["result"]["info"]["encoders"]["libx264"]
-    bad = run_tool_api(srv, "ve_trim", {"input": str(media["clip"]), "start": "abc", "output_dir": str(out)}, expect_ok=False)
+    bad = run_tool_api(srv, "lk_trim", {"input": str(media["clip"]), "start": "abc", "output_dir": str(out)}, expect_ok=False)
     assert "Invalid start" in bad["error"]["error"]
 
 
 def test_tool_api_confines_paths_and_parameters(srv, media, tmp_path):
     base = {"input": str(media["clip"])}
     assert run_tool_api(srv, "ve_nope", base).status == 400
-    assert run_tool_api(srv, "ve_trim", dict(base, evil="1")).status == 400                 # not a schema parameter
-    assert run_tool_api(srv, "ve_trim", {"input": "/etc/passwd"}).status == 400
-    assert run_tool_api(srv, "ve_trim", dict(base, output_dir="/etc")).status == 400
-    assert run_tool_api(srv, "ve_trim", dict(base, output="/etc/cron.d/x.mp4")).status == 400
-    assert run_tool_api(srv, "ve_trim", dict(base, output=str(tmp_path / "x.sh"))).status == 400
-    assert run_tool_api(srv, "ve_join", {"inputs": ["/etc/passwd", str(media["clip"])]}).status == 400
-    assert run_tool_api(srv, "ve_burn_captions", dict(base, captions="/etc/passwd")).status == 400
-    assert run_tool_api(srv, "ve_add_text", dict(base, text="x", font_file=str(media["clip"]))).status == 400
-    assert run_tool_api(srv, "ve_trim", "not a dict").status == 400
-    assert req(srv, "/api/tool", body={"name": "ve_trim", "args": base}, token=False).status == 403
+    assert run_tool_api(srv, "lk_trim", dict(base, evil="1")).status == 400                 # not a schema parameter
+    assert run_tool_api(srv, "lk_trim", {"input": "/etc/passwd"}).status == 400
+    assert run_tool_api(srv, "lk_trim", dict(base, output_dir="/etc")).status == 400
+    assert run_tool_api(srv, "lk_trim", dict(base, output="/etc/cron.d/x.mp4")).status == 400
+    assert run_tool_api(srv, "lk_trim", dict(base, output=str(tmp_path / "x.sh"))).status == 400
+    assert run_tool_api(srv, "lk_join", {"inputs": ["/etc/passwd", str(media["clip"])]}).status == 400
+    assert run_tool_api(srv, "lk_burn_captions", dict(base, captions="/etc/passwd")).status == 400
+    assert run_tool_api(srv, "lk_add_text", dict(base, text="x", font_file=str(media["clip"]))).status == 400
+    assert run_tool_api(srv, "lk_trim", "not a dict").status == 400
+    assert req(srv, "/api/tool", body={"name": "lk_trim", "args": base}, token=False).status == 403
 
 
 def test_tool_results_for_uploaded_files_go_to_videos_folder(srv, media):
     data = open(media["silent"], "rb").read()
     uploaded = post_raw(srv, "/api/upload", {"name": "tooltest.mp4"}, data).json()["path"]
     videos = req(srv, "/api/config").json()["videos_dir"]
-    j = run_tool_api(srv, "ve_trim", {"input": uploaded, "duration": 1})
+    j = run_tool_api(srv, "lk_trim", {"input": uploaded, "duration": 1})
     try:
         assert os.path.dirname(j["result"]["output"]) == videos
     finally:

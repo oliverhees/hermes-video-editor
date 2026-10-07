@@ -418,10 +418,10 @@ def test_browser_tools_tab_lists_all_42_and_runs_one(media, tmp_path):
         assert page.locator(".tool-item").count() == 42
         page.fill("#tool-search", "silence")
         assert 2 <= page.locator(".tool-item").count() < 42
-        assert page.locator('.tool-item[data-tool="ve_detect_silence"]').count() == 1
-        assert page.locator('.tool-item[data-tool="ve_remove_silence"]').count() == 1
+        assert page.locator('.tool-item[data-tool="lk_detect_silence"]').count() == 1
+        assert page.locator('.tool-item[data-tool="lk_remove_silence"]').count() == 1
         page.fill("#tool-search", "")
-        page.click('.tool-item[data-tool="ve_trim"]')
+        page.click('.tool-item[data-tool="lk_trim"]')
         assert page.input_value("#tool-input").endswith("clip.mp4")          # the clip under the playhead is prefilled
         page.fill("#tool-fields .fld:has(label:text-is('duration')) input", "1")
         page.click("#tool-adv >> xpath=ancestor::details/summary")

@@ -138,21 +138,21 @@ def extract_frame(args: Dict[str, Any]) -> Any:
 
 SPECS = [
     ToolSpec(
-        name="ve_media_doctor",
+        name="lk_media_doctor",
         description=("Check that FFmpeg/ffprobe are installed and which encoders/filters exist "
                      "(libx264, aac, libx265, drawtext, subtitles, loudnorm...). Run this once if "
-                     "any other ve_* tool reports a missing binary or filter. Takes no media file."),
+                     "any other lk_* tool reports a missing binary or filter. Takes no media file."),
         handler=media_doctor, common=("timeout_s",)),
     ToolSpec(
-        name="ve_media_probe",
+        name="lk_media_probe",
         description=("Read-only inspection of a media file: duration (seconds), resolution, fps, "
                      "codecs, bitrate, rotation, audio streams, has_audio/has_video. ALWAYS call this "
                      "before editing a clip. Does not create any file."),
         handler=media_probe, common=("input", "timeout_s")),
     ToolSpec(
-        name="ve_detect_silence",
+        name="lk_detect_silence",
         description=("Find silent stretches in the audio track and return their start/end times in seconds. "
-                     "Read-only (no file created). Use ve_remove_silence to actually cut them out."),
+                     "Read-only (no file created). Use lk_remove_silence to actually cut them out."),
         handler=detect_silence, common=("input", "timeout_s"),
         properties={
             "noise_db": {"type": "number", "default": -35, "minimum": -90, "maximum": 0,
@@ -160,15 +160,15 @@ SPECS = [
             "min_duration_s": {"type": "number", "default": 0.5,
                                "description": "Minimum silence length in seconds. Default 0.5."}}),
     ToolSpec(
-        name="ve_detect_scenes",
+        name="lk_detect_scenes",
         description=("Find scene-change (cut) timestamps in a video. Read-only. Returns seconds and "
-                     "HH:MM:SS.mmm. Useful before ve_split or for choosing thumbnails."),
+                     "HH:MM:SS.mmm. Useful before lk_split or for choosing thumbnails."),
         handler=detect_scenes, common=("input", "timeout_s"),
         properties={"threshold": {"type": "number", "default": 0.3, "minimum": 0.01, "maximum": 1,
                                   "description": "Scene-change sensitivity 0.01-1. Lower = more cuts found. Default 0.3."}}),
     ToolSpec(
-        name="ve_extract_frame",
-        description=("Save one still image (png or jpg) from a video at a given time. Use ve_contact_sheet "
+        name="lk_extract_frame",
+        description=("Save one still image (png or jpg) from a video at a given time. Use lk_contact_sheet "
                      "for many frames at once."),
         handler=extract_frame,
         properties={"time": tprop("Time of the frame. Default 0."),

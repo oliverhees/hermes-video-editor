@@ -59,7 +59,7 @@ def check_schema(name, schema):
 
 def test_all_schemas_valid():
     for name, tool in registered().tools.items():
-        assert name.startswith("ve_") and tool["toolset"] == "video_editor"
+        assert name.startswith("lk_") and tool["toolset"] == "video_editor"
         check_schema(name, tool["schema"])
         assert callable(tool["handler"])
 
@@ -67,13 +67,13 @@ def test_all_schemas_valid():
 def test_common_params_present():
     for name, tool in registered().tools.items():
         props = tool["schema"]["parameters"]["properties"]
-        if name in ("ve_media_doctor",):
+        if name in ("lk_media_doctor",):
             assert "timeout_s" in props
-        elif name in ("ve_media_probe", "ve_detect_silence", "ve_detect_scenes", "ve_platform_check"):
+        elif name in ("lk_media_probe", "lk_detect_silence", "lk_detect_scenes", "lk_platform_check"):
             assert "input" in props and "timeout_s" in props
-        elif name == "ve_join":
+        elif name == "lk_join":
             assert {"output", "output_dir", "overwrite", "timeout_s"} <= set(props)
-        elif name == "ve_split":      # writes several files, so no single 'output'
+        elif name == "lk_split":      # writes several files, so no single 'output'
             assert {"input", "output_dir", "overwrite", "timeout_s"} <= set(props)
         else:
             assert {"input", "output", "output_dir", "overwrite", "timeout_s"} <= set(props), name
@@ -129,7 +129,7 @@ def test_installed_plugin_loads_like_hermes(tmp_path):
         ctx = FakeCtx()
         mod.register(ctx)
         assert len(ctx.tools) == EXPECTED_TOOLS and "video-editor" in ctx.skills
-        assert json.loads(ctx.tools["ve_media_doctor"]["handler"]({}))["ok"] in (True, False)
+        assert json.loads(ctx.tools["lk_media_doctor"]["handler"]({}))["ok"] in (True, False)
     finally:
         for key in [k for k in sys.modules if k == name or k.startswith(name + ".")]:
             del sys.modules[key]

@@ -78,7 +78,7 @@ def add_text(args: Dict[str, Any]) -> Any:
     box_opacity = get_num(args, "box_opacity", 0.5, lo=0, hi=1)
     start, end = get_time(args, "start"), get_time(args, "end")
     check_window(start, end)
-    require_filter("drawtext", "ve_add_text")
+    require_filter("drawtext", "lk_add_text")
     job = Job(args, "text", ext="av", need_video=True)
     dw, dh = display_size(job.info)
     size = int(size or max(16, round(min(dw, dh) * 0.06)))
@@ -142,7 +142,7 @@ def burn_captions(args: Dict[str, Any]) -> Any:
     reels_safe = get_bool(args, "reels_safe", False)
     color = str(args.get("color") or "white")
     bold = get_bool(args, "bold", True)
-    require_filter("subtitles", "ve_burn_captions (needs libass)")
+    require_filter("subtitles", "lk_burn_captions (needs libass)")
     job = Job(args, "captions", ext="av", need_video=True)
     dw, dh = display_size(job.info)
     font_px = int(font_px or max(14, round(min(dw, dh) * 0.055)))
@@ -296,10 +296,10 @@ def _timing(prefix: str = "") -> Dict[str, Any]:
 
 SPECS = [
     ToolSpec(
-        name="ve_add_text",
+        name="lk_add_text",
         description=("Draw text on the video (title, lower third, label). Position by preset, size in pixels, optional "
                      "outline and background box, optional time window. Supports multi-line text and any language. "
-                     "For subtitles from an SRT file use ve_burn_captions."),
+                     "For subtitles from an SRT file use lk_burn_captions."),
         handler=add_text, required=["text"],
         properties={"text": {"type": "string", "description": "Text to show. Use \\n for line breaks. No % expansion."},
                     "position": {"type": "string", "enum": list(POSITIONS), "default": "bottom", "description": "Where to place the text."},
@@ -313,11 +313,11 @@ SPECS = [
                     "font_file": {"type": "string", "description": "Optional path to a .ttf/.otf font. Default: a system font per OS."},
                     **_timing(), "crf": CRF_PROP}),
     ToolSpec(
-        name="ve_burn_captions",
+        name="lk_burn_captions",
         description=("Burn (hard-code) subtitles from an .srt, .vtt or .ass file into the picture. Style: size/outline/"
                      "margin in pixels of the output video. reels_safe=true lifts the captions above the Reels/TikTok/"
                      "Shorts interface (bottom ~18%). A .ass file keeps its own styling unless you pass style options. "
-                     "Make the captions first with ve_transcribe_captions if you have none."),
+                     "Make the captions first with lk_transcribe_captions if you have none."),
         handler=burn_captions, required=["captions"],
         properties={"captions": {"type": "string", "description": "Path to the .srt / .vtt / .ass / .ssa file."},
                     "font_size": {"type": "integer", "description": "Font size in pixels. Default 5.5% of the short side."},
@@ -329,7 +329,7 @@ SPECS = [
                     "font_name": {"type": "string", "description": "Optional installed font family name."},
                     "crf": CRF_PROP}),
     ToolSpec(
-        name="ve_add_image_overlay",
+        name="lk_add_image_overlay",
         description=("Place a logo/watermark image (PNG with transparency works best) on the video: corner, size as % of "
                      "video width, opacity, optional time window."),
         handler=add_image_overlay, required=["image"],
@@ -340,10 +340,10 @@ SPECS = [
                     "margin_px": {"type": "integer", "default": 20, "description": "Distance from the edge in pixels."},
                     **_timing(), "crf": CRF_PROP}),
     ToolSpec(
-        name="ve_picture_in_picture",
+        name="lk_picture_in_picture",
         description=("Show a second video as a small inset on top of the main video (reaction/facecam style). Output length "
                      "follows the main video; the inset disappears when it ends unless loop_pip=true. For two videos "
-                     "next to each other use ve_stack_videos."),
+                     "next to each other use lk_stack_videos."),
         handler=picture_in_picture, required=["pip_input"],
         properties={"pip_input": {"type": "string", "description": "Path to the inset video."},
                     "corner": {"type": "string", "enum": list(CORNERS), "default": "bottom_right", "description": "Inset position."},
@@ -353,9 +353,9 @@ SPECS = [
                     "loop_pip": {"type": "boolean", "default": False, "description": "Repeat the inset until the main video ends."},
                     **_timing(), "crf": CRF_PROP}),
     ToolSpec(
-        name="ve_stack_videos",
+        name="lk_stack_videos",
         description=("Put two videos side by side (horizontal) or one above the other (vertical). The second is scaled to match "
-                     "the first; output ends with the shorter video. For an inset use ve_picture_in_picture."),
+                     "the first; output ends with the shorter video. For an inset use lk_picture_in_picture."),
         handler=stack_videos, required=["input2"],
         properties={"input2": {"type": "string", "description": "Path to the second video."},
                     "layout": {"type": "string", "enum": ["horizontal", "vertical"], "default": "horizontal",
@@ -363,7 +363,7 @@ SPECS = [
                     "audio": {"type": "string", "enum": ["first", "second", "mix", "none"], "default": "first", "description": "Which audio to keep."},
                     "crf": CRF_PROP}),
     ToolSpec(
-        name="ve_blur_region",
+        name="lk_blur_region",
         description=("Blur or pixelate a rectangle (faces, licence plates, passwords) for the whole clip or a time window. "
                      "The box is fixed on screen: it does NOT track a moving object. x,y = top-left in pixels."),
         handler=blur_region, required=["x", "y", "width", "height"],

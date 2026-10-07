@@ -44,7 +44,7 @@ _ERROR_MAP = [
     (r"Output file .* does not contain any stream", "Nothing to write: selected streams do not exist.", None),
     (r"Stream specifier .* matches no streams|Stream map .* matches no streams",
      "A required stream (video or audio) is missing in the input.",
-     "Run ve_media_probe to see which streams exist."),
+     "Run lk_media_probe to see which streams exist."),
     (r"Error (parsing|initializing) filter|Error reinitializing filters|Invalid argument",
      "FFmpeg rejected the filter/arguments.", "Check parameter values (ranges, even sizes, units)."),
 ]
@@ -231,7 +231,7 @@ class Job:
             raise ToolError("Input has no video stream.", hint="Use an audio tool, or pick a video file.")
         if need_audio and not self.info["has_audio"]:
             raise ToolError("Input has no audio stream.",
-                            hint="This clip is silent; skip audio tools or add audio first (ve_replace_audio).")
+                            hint="This clip is silent; skip audio tools or add audio first (lk_replace_audio).")
         if ext == "av":   # keep a video container for video, pick an audio container for audio-only
             ext = output_ext(self.src) if self.info["has_video"] else audio_ext(self.src)
         self.out = plan_output(self.src, op, ext or self.src.suffix, args.get("output"),
@@ -294,7 +294,7 @@ def has_encoder(name: str) -> bool:
 def require_filter(name: str, what: str) -> None:
     if not has_filter(name):
         raise ToolError("This FFmpeg build has no '%s' filter (needed for %s)." % (name, what),
-                        hint="Install a full FFmpeg build (with libass/libfreetype). Run ve_media_doctor.")
+                        hint="Install a full FFmpeg build (with libass/libfreetype). Run lk_media_doctor.")
 
 
 def filter_complex_args(graph: str, workdir: Path) -> List[str]:

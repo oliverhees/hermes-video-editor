@@ -385,3 +385,79 @@ def test_text_and_audio_via_api_and_project_file(srv, media, tone, tmp_path):
     with pytest.raises(ToolError):
         P.validate_project(dict(proj, audios=[{"id": "x", "asset": "nope", "in": 0, "out": 1}]))
     assert P.validate_project({"version": 1, "assets": {}, "clips": []})["texts"] == []     # older projects still open
+
+
+# ---------------------------------------------------------------- overlay track (picture-in-picture)
+@pytest.fixture(scope="module")
+def red(media):
+    f = media["dir"] / "red.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=red:s=160x90:r=25:d=2", "-f", "lavfi", "-i", "sine=frequency=2000:duration=2",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", str(f)], check=True)
+    return f
+
+
+def test_sanitize_overlays(media, red):
+    roots = [str(media["dir"])]
+    o = P.sanitize_overlays([{"path": str(red), "in": -1, "out": 99, "start": 1, "tf": {"s": 99, "x": 0.3}, "op": 5, "sound": 1, "vol": -99}], roots)
+    assert o[0]["in"] == 0 and o[0]["out"] == pytest.approx(2, abs=0.2) and o[0]["op"] == 1 and o[0]["tf"]["s"] == 10 and o[0]["vol"] == -60 and o[0]["sound"] is True
+    assert P.sanitize_overlays([{"path": str(red)}], roots)[0]["tf"] == {"s": 0.4, "x": 0.27, "y": -0.27}   # default: small, top right
+    assert P.sanitize_overlays(None, roots) == []
+    for bad in ([{"path": "/etc/passwd"}], "x", [{"path": str(red)}] * 31, [{"path": str(red), "in": 1.99, "out": 2}]):
+        with pytest.raises(ToolError):
+            P.sanitize_overlays(bad, roots)
+
+
+def test_overlay_shows_only_in_its_window_at_its_place(media, red, tmp_path):
+    roots = [str(media["dir"])]
+    clips = P.sanitize_clips([clip(media, "clip", 0, 4)], roots)
+    ov = P.sanitize_overlays([{"path": str(red), "in": 0, "out": 2, "start": 1, "tf": {"s": 0.25, "x": 0.35, "y": -0.35}}], roots)
+    out = P.render_project(clips, tmp_path / "pip", overlays=ov)
+    assert ffprobe(out)["duration"] == pytest.approx(4, abs=0.3)
+    inside = "crop=100:50:494:29"                      # inside the overlay rectangle (464..624 x 9..99 on a 640x360 canvas)
+    outside = "crop=100:50:20:300"                     # nowhere near it
+
+    def redness(t, crop):
+        px = raw_frame(out, crop, t)
+        n = len(px) // 3
+        return sum(px[0::3]) / n, sum(px[1::3]) / n
+    r, g = redness(2.0, inside)
+    assert r > 200 and g < 40                          # red picture is there
+    for t in (0.4, 3.5):
+        r, g = redness(t, inside)
+        assert not (r > 200 and g < 40), t             # before and after its window the main picture is visible
+    r, g = redness(2.0, outside)
+    assert not (r > 200 and g < 40)
+
+
+def test_overlay_opacity_and_sound(media, red, tmp_path):
+    roots = [str(media["dir"])]
+    clips = P.sanitize_clips([clip(media, "silent", 0, 2)], roots)                 # main picture has no sound
+    half = P.sanitize_overlays([{"path": str(red), "in": 0, "out": 2, "start": 0, "tf": {"s": 1, "x": 0, "y": 0}, "op": 0.5}], roots)
+    out = P.render_project(clips, tmp_path / "op", overlays=half)
+    px = raw_frame(out, "crop=20:20:150:110", 1.0)
+    n = len(px) // 3
+    assert 60 < sum(px[0::3]) / n < 235                # a mix of the red overlay and the picture below, neither fully
+    assert ffprobe(out)["audio"] is None               # muted overlay adds no sound
+    loud = P.sanitize_overlays([{"path": str(red), "in": 0, "out": 2, "start": 0.5, "sound": True, "vol": -3}], roots)
+    inputs, graph, has_audio = P.build_render_graph(clips, 320, 240, 25.0, None, None, None, None, loud)
+    assert has_audio and inputs.count("-i") == 3 and "adelay=500|500" in graph
+    out2 = P.render_project(clips, tmp_path / "snd", overlays=loud)
+    assert ffprobe(out2)["audio"] is not None
+
+
+def test_overlay_via_api_and_project_file(srv, media, red, tmp_path):
+    srv.add_root(str(tmp_path))
+    body = {"clips": [clip(media, "silent", 0, 2)], "overlays": [{"path": str(red), "in": 0, "out": 1, "start": 0.5, "tf": {"s": 0.3, "x": 0.3, "y": 0.3}}],
+            "texts": [{"text": "On top", "start": 0, "dur": 2}], "output_dir": str(tmp_path / "pipout")}
+    j = wait_job(srv, req(srv, "/api/export", body=body).json()["job"])
+    assert j["state"] == "done", j
+    assert req(srv, "/api/export", body=dict(body, overlays=[{"path": "/etc/passwd"}])).status == 400
+    proj = {"version": 1, "assets": {"a": {"path": str(media["silent"])}, "r": {"path": str(red)}},
+            "clips": [{"id": "c", "asset": "a", "in": 0, "out": 2}],
+            "overlays": [{"id": "o1", "asset": "r", "in": 0, "out": 2, "start": 1, "tf": {"s": 0.5, "x": -0.2, "y": 0.1}, "op": 0.7, "sound": True, "vol": -6}]}
+    back = P.load_project(P.save_project(str(tmp_path / "pip"), proj, [str(tmp_path)]), [str(tmp_path)])
+    o = back["overlays"][0]
+    assert o["asset"] == "r" and o["start"] == 1 and o["tf"] == {"s": 0.5, "x": -0.2, "y": 0.1} and o["op"] == 0.7 and o["sound"] is True and o["vol"] == -6
+    with pytest.raises(ToolError):
+        P.validate_project(dict(proj, overlays=[{"id": "x", "asset": "nope", "in": 0, "out": 1}]))
+    assert P.validate_project({"version": 1, "assets": {}, "clips": []})["overlays"] == []

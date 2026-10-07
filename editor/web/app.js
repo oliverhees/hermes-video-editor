@@ -766,7 +766,7 @@
         n++;
         var b = el("button", "tool-item"); b.setAttribute("data-tool", t.name);
         b.appendChild(el("span", "tag", t.read_only ? "reads" : "makes file"));
-        b.appendChild(el("b", "", t.name.replace(/^ve_/, "")));
+        b.appendChild(el("b", "", t.name.replace(/^lk_/, "")));
         b.appendChild(el("small", "", t.description.split(". ")[0].slice(0, 110)));
         b.addEventListener("click", function () { openTool(t); });
         box.appendChild(b);

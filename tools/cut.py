@@ -18,7 +18,7 @@ from .info import detect_silence_ranges
 
 def build_trim_args(src: str, start: float, duration: Any, mode: str, ext: str, crf: int,
                     has_audio: bool, vf: Any = None) -> list:
-    """Pure function: ffmpeg arguments (without output path) for ve_trim."""
+    """Pure function: ffmpeg arguments (without output path) for lk_trim."""
     args = ["-ss", "%.3f" % start, "-i", src]
     if duration is not None:
         args += ["-t", "%.3f" % duration]
@@ -53,7 +53,7 @@ def trim(args: Dict[str, Any]) -> Any:
     total = job.info["duration_s"]
     if total is not None and start >= total:
         raise ToolError("'start' (%.2fs) is at or beyond the clip length (%.2fs)." % (start, total),
-                        hint="Run ve_media_probe for the duration.")
+                        hint="Run lk_media_probe for the duration.")
     if end is not None:
         duration = end - start
     if duration is not None and total is not None:
@@ -317,7 +317,7 @@ def reverse(args: Dict[str, Any]) -> Any:
     job = Job(args, "reversed", ext="av", need_video=True)
     if (job.info["duration_s"] or 0) > MAX_REVERSE_S:
         raise ToolError("Clip is longer than %ds; reversing buffers the whole clip in RAM." % MAX_REVERSE_S,
-                        hint="Use ve_trim to cut a shorter section first.")
+                        hint="Use lk_trim to cut a shorter section first.")
     has_a = job.info["has_audio"]
     ff = ["-i", str(job.src), "-map", "0:v:0", "-map", "0:a?", "-vf", vchain("reverse")]
     if has_a:
@@ -352,11 +352,11 @@ def loop(args: Dict[str, Any]) -> Any:
 
 SPECS = [
     ToolSpec(
-        name="ve_trim",
+        name="lk_trim",
         description=("Keep one section of a video: from 'start' to 'end' (or start + 'duration'), all "
                      "in seconds or MM:SS / HH:MM:SS. mode 'accurate' (default) re-encodes with frame-exact "
                      "cuts; mode 'fast' stream-copies (instant, lossless, but cuts snap to keyframes). "
-                     "Use ve_split to cut into several parts and ve_remove_segments to delete middle sections."),
+                     "Use lk_split to cut into several parts and lk_remove_segments to delete middle sections."),
         handler=trim,
         properties={
             "start": {"type": ["number", "string"], "default": 0,
@@ -371,10 +371,10 @@ SPECS = [
                     "description": "H.264 quality for accurate mode (lower = better/larger). Default 20."},
         }),
     ToolSpec(
-        name="ve_split",
+        name="lk_split",
         description=("Cut one video into consecutive parts at the given timestamps (N split points -> N+1 "
                      "files named <name>_part1, _part2...). Result 'output' is the first part; all files are in "
-                     "info.outputs. To keep only one section use ve_trim instead."),
+                     "info.outputs. To keep only one section use lk_trim instead."),
         handler=split, common=("input", "output_dir", "overwrite", "timeout_s"), required=["times"],
         properties={"times": {"type": "array", "items": {"type": ["number", "string"]},
                               "description": "Split points inside the clip, e.g. [10, \"00:25\"]. Seconds or MM:SS."},
@@ -382,7 +382,7 @@ SPECS = [
                              "description": "accurate = re-encode (frame-exact); fast = stream copy (keyframe-snapped)."},
                     "crf": CRF_PROP}),
     ToolSpec(
-        name="ve_join",
+        name="lk_join",
         description=("Concatenate clips in the order given. If all clips share codec/size/fps/audio format they "
                      "are joined by stream copy (instant); otherwise they are re-encoded to the first clip's size "
                      "(letterboxed) and fps. Clips without audio get silence when others have audio."),
@@ -393,19 +393,19 @@ SPECS = [
                              "description": "auto = copy when compatible else re-encode."},
                     "crf": CRF_PROP}),
     ToolSpec(
-        name="ve_remove_silence",
+        name="lk_remove_silence",
         description=("Automatically cut silent stretches out of a clip with a little padding so speech is not "
                      "clipped (tighten talking-head/podcast videos). Needs an audio track. Returns the input "
-                     "path unchanged if no silence is found. Use ve_detect_silence first to preview."),
+                     "path unchanged if no silence is found. Use lk_detect_silence first to preview."),
         handler=remove_silence,
         properties={"noise_db": {"type": "number", "default": -35, "description": "Silence level in dB (-35 default, -45 stricter)."},
                     "min_silence_s": {"type": "number", "default": 0.5, "description": "Only cut silences at least this long (seconds)."},
                     "padding_s": {"type": "number", "default": 0.1, "description": "Seconds of silence kept around speech on each side."},
                     "crf": CRF_PROP}),
     ToolSpec(
-        name="ve_remove_segments",
+        name="lk_remove_segments",
         description=("Delete one or more time ranges from the middle of a clip and keep the rest (joined "
-                     "seamlessly). To keep ONE range use ve_trim."),
+                     "seamlessly). To keep ONE range use lk_trim."),
         handler=remove_segments, required=["segments"],
         properties={"segments": {"type": "array", "description": "Ranges to REMOVE.",
                                  "items": {"type": "object", "required": ["start", "end"],
@@ -413,7 +413,7 @@ SPECS = [
                                                           "end": tprop("Range end.")}}},
                     "crf": CRF_PROP}),
     ToolSpec(
-        name="ve_change_speed",
+        name="lk_change_speed",
         description=("Speed up or slow down video and audio together (0.25x-4x). Audio pitch is preserved. "
                      "factor 2 = twice as fast, 0.5 = half speed."),
         handler=change_speed, required=["factor"],
@@ -421,12 +421,12 @@ SPECS = [
                                "description": "Speed multiplier. 2 = 2x faster, 0.5 = slow motion."},
                     "crf": CRF_PROP}),
     ToolSpec(
-        name="ve_reverse",
+        name="lk_reverse",
         description=("Play a clip backwards (video and audio). Whole clip is held in RAM, so it refuses clips "
                      "over 300 s: trim first."),
         handler=reverse, properties={"crf": CRF_PROP}),
     ToolSpec(
-        name="ve_loop",
+        name="lk_loop",
         description=("Repeat a clip. Give 'count' (total number of plays, e.g. 3 = original + 2 repeats) OR "
                      "'target_duration_s' (loop and cut to this length). Exactly one of them."),
         handler=loop,
