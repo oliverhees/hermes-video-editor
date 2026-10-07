@@ -21,8 +21,10 @@ from . import toolrun
 from .security import MEDIA_EXTS, default_roots, inside, safe_dir, safe_media_file
 
 WEB = Path(__file__).resolve().parent / "web"
-STATIC = {"app.js": "text/javascript; charset=utf-8", "timeline.js": "text/javascript; charset=utf-8", "layers.js": "text/javascript; charset=utf-8", "overlays.js": "text/javascript; charset=utf-8",
+STATIC = {"app.js": "text/javascript; charset=utf-8", "timeline.js": "text/javascript; charset=utf-8", "layers.js": "text/javascript; charset=utf-8", "overlays.js": "text/javascript; charset=utf-8", "help.js": "text/javascript; charset=utf-8",
           "app.css": "text/css; charset=utf-8"}
+DOCS = Path(__file__).resolve().parents[1] / "docs"
+HELP_DOCS = {"/help/en.md": DOCS / "en" / "GUIDE.md", "/help/de.md": DOCS / "de" / "GUIDE.md"}
 MAX_BODY = 1 << 20
 MIME_FIX = {".mkv": "video/x-matroska", ".mov": "video/quicktime", ".m4v": "video/mp4", ".mp3": "audio/mpeg",
             ".m4a": "audio/mp4", ".flac": "audio/flac", ".opus": "audio/ogg", ".ts": "video/mp2t"}
@@ -347,6 +349,8 @@ def make_handler(srv: EditorServer):
                                                        "style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'"})
             elif route.startswith("/static/") and route[8:] in STATIC:
                 self._send(200, (WEB / route[8:]).read_bytes(), STATIC[route[8:]])
+            elif route in HELP_DOCS:                                  # the user guide, one markdown file per language
+                self._send(200, HELP_DOCS[route].read_bytes(), "text/markdown; charset=utf-8")
             elif route == "/api/config":
                 self._json(api_config(srv))
             elif route == "/api/ls":

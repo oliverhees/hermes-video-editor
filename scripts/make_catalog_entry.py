@@ -33,7 +33,8 @@ def main():
         "  silence, crop to 9:16, blurred-background vertical, text and captions, picture-in-picture, music with",
         "  ducking, EBU R128 loudness, GIF, contact sheets, platform export presets (Reels, TikTok, Shorts,",
         "  YouTube, X, Discord) and a platform rule check. 100% local: no cloud, no API key, no network calls.",
-        "  Includes a visual cut editor (sidebar page in Hermes Desktop). Requires ffmpeg and ffprobe on PATH.",
+        "  Includes a visual editor with canvas, overlay track, text and music (sidebar page in Hermes Desktop,",
+        "  with an English/German Help tab). Requires ffmpeg and ffprobe on PATH. Licence: PolyForm Noncommercial 1.0.0.",
         "  Disclosure - runs ffmpeg/ffprobe as subprocesses on the files you name and writes new output files",
         "  next to them; never modifies inputs. The editor page starts a local HTTP listener on 127.0.0.1",
         "  (random port, one-time token, media files below the home folder only) and caches previews in the",
@@ -43,7 +44,7 @@ def main():
         "category: tools",
         "tier: community",
         'requires_hermes: ">=0.21.5"',
-        "docs_url: %s/blob/%s/README.md" % (REPO, sha),
+        "docs_url: %s/blob/%s/README.md" % (REPO, sha),   # bilingual README, links the EN/DE guides
         "image: %s/%s/docs/banner.png" % (RAW, sha),
         "screenshots:",
         "  - %s/%s/docs/editor.png" % (RAW, sha),
@@ -57,7 +58,8 @@ def main():
         "known_issues:",
         "  - Requires FFmpeg and ffprobe on PATH (apt install ffmpeg / brew install ffmpeg / winget install Gyan.FFmpeg).",
         "  - lk_transcribe_captions is optional and needs 'pip install faster-whisper' plus a model already on disk.",
-        "  - The visual editor is a cut-and-deliver editor (cuts, speed, reframe, loudness, export); no layers or multi-track timeline.",
+        "  - The visual editor has one main video track plus an overlay track, a text layer and an audio track; texts, overlays and audio items sit at fixed times.",
+        "  - Licence is PolyForm Noncommercial 1.0.0 (source-available): free for non-commercial use, commercial use needs a separate licence from Lokyy.de.",
         "  - The editor preview needs H.264 or VP8 playback in the app's browser engine; editing and export work without it.",
         ""]))
 

@@ -1,6 +1,6 @@
 [project]
 name = "hermes-video-editor"
-version = "0.1.0"
+version = "0.2.0"
 description = "Local FFmpeg video editing tools for Hermes Agent (no cloud, no API key)."
 readme = "README.md"
 license = { text = "PolyForm-Noncommercial-1.0.0" }
