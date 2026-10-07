@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import json
+import math
 import os
+import re
 import shutil
 import tempfile
 from pathlib import Path
@@ -42,22 +44,127 @@ def sanitize_clips(raw: Any, roots: List[str]) -> List[Dict[str, Any]]:
         a, b = max(0.0, a), min(b, total)
         if b - a < 0.05:
             raise ToolError("Clip %d is shorter than 0.05 s after clamping to the file length." % (i + 1))
-        out.append({"path": path, "in": a, "out": b, "info": info})
+        entry = {"path": path, "in": a, "out": b, "info": info}
+        if isinstance(c.get("tf"), dict):
+            entry["tf"] = clean_tf(c["tf"])
+        out.append(entry)
     return out
 
 
-def canvas_for(clips: List[Dict[str, Any]]) -> Tuple[int, int, float]:
-    """Width, height, fps of the output: taken from the first clip that has video."""
+ASPECTS = {"16:9": (16, 9), "9:16": (9, 16), "1:1": (1, 1), "4:5": (4, 5)}
+SHORTS = (360, 480, 720, 1080, 1440, 2160)
+BG_MODES = ("blur", "black", "color")
+COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def _jsround(x: float) -> int:
+    """Math.round of JavaScript (halves go up), so the preview and the render agree to the pixel."""
+    return int(math.floor(x + 0.5))
+
+
+def _even(n: float) -> int:
+    return max(2, _jsround(n / 2.0) * 2)
+
+
+def sanitize_canvas(raw: Any) -> Dict[str, Any]:
+    raw = raw if isinstance(raw, dict) else {}
+    aspect = raw.get("aspect") if raw.get("aspect") in ASPECTS else "auto"
+    short = raw.get("short") if raw.get("short") in SHORTS else 1080
+    return {"aspect": aspect, "short": short}
+
+
+def sanitize_bg(raw: Any) -> Dict[str, str]:
+    raw = raw if isinstance(raw, dict) else {}
+    mode = raw.get("mode") if raw.get("mode") in BG_MODES else "blur"
+    color = raw.get("color") if isinstance(raw.get("color"), str) and COLOR_RE.match(raw.get("color")) else "#000000"
+    return {"mode": mode, "color": color}
+
+
+def clean_tf(tf: Any) -> Dict[str, float]:
+    """Per-clip transform: s = scale relative to 'fit inside the canvas', x/y = centre offset as a fraction of the canvas."""
+    tf = tf if isinstance(tf, dict) else {}
+
+    def num(v: Any, default: float, lo: float, hi: float) -> float:
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            return default
+        return default if math.isnan(f) or math.isinf(f) else max(lo, min(hi, f))
+    return {"s": num(tf.get("s"), 1.0, 0.05, 10.0), "x": num(tf.get("x"), 0.0, -3.0, 3.0), "y": num(tf.get("y"), 0.0, -3.0, 3.0)}
+
+
+def canvas_size(aspect: str, short: int, first_w: int = 1280, first_h: int = 720) -> Tuple[int, int]:
+    if aspect not in ASPECTS:
+        return _even(first_w), _even(first_h)
+    aw, ah = ASPECTS[aspect]
+    sh = short if short in SHORTS else 1080
+    return (_even(sh * aw / ah), _even(sh)) if aw >= ah else (_even(sh), _even(sh * ah / aw))
+
+
+def fg_rect(iw: int, ih: int, W: int, H: int, tf: Any) -> Tuple[int, int, int, int]:
+    """Where the picture sits on the canvas: (x, y, w, h). Identical to fgRect() in editor/web/timeline.js."""
+    t = clean_tf(tf)
+    f = min(W / float(iw), H / float(ih))
+    w, h = _even(iw * f * t["s"]), _even(ih * f * t["s"])
+    return (_jsround(W / 2.0 + t["x"] * W - w / 2.0), _jsround(H / 2.0 + t["y"] * H - h / 2.0), w, h)
+
+
+def canvas_for(clips: List[Dict[str, Any]], canvas: Any = None) -> Tuple[int, int, float]:
+    """Width, height, fps of the output. 'auto' takes the size of the first clip that has video."""
+    cv = sanitize_canvas(canvas)
+    fw, fh, fps = 1280, 720, 30.0
     for c in clips:
         v = c["info"].get("video")
         if v:
-            w, h = (v["display_width"] or 1280) // 2 * 2, (v["display_height"] or 720) // 2 * 2
-            return max(2, w), max(2, h), round(v.get("fps") or 30.0, 2)
-    return 1280, 720, 30.0
+            fw, fh, fps = v["display_width"] or 1280, v["display_height"] or 720, round(v.get("fps") or 30.0, 2)
+            break
+    w, h = canvas_size(cv["aspect"], cv["short"], fw // 2 * 2, fh // 2 * 2)
+    return max(2, w), max(2, h), fps
 
 
-def build_render_graph(clips: List[Dict[str, Any]], width: int, height: int, fps: float) -> Tuple[List[str], str, bool]:
+def _color_source(bg: Dict[str, str], W: int, H: int, fps: Any, d: float, label: str) -> str:
+    colour = "0x" + bg["color"][1:] if bg["mode"] == "color" else "black"
+    return "color=c=%s:s=%dx%d:r=%s:d=%.3f,format=yuv420p,setsar=1[%s]" % (colour, W, H, fps, d, label)
+
+
+def video_chain(i: int, c: Dict[str, Any], W: int, H: int, fps: Any, d: float, bg: Dict[str, str]) -> List[str]:
+    """Filter pieces that turn input i into a W x H picture of duration d with the clip's transform applied."""
+    v = c["info"].get("video")
+    if not v:                                                  # audio-only clip: just the background
+        return [_color_source(bg, W, H, fps, d, "v%d" % i)]
+    iw, ih = v["display_width"], v["display_height"]
+    x, y, w, h = fg_rect(iw, ih, W, H, c.get("tf"))
+    tail = "setsar=1,format=yuv420p,trim=duration=%.3f,setpts=PTS-STARTPTS" % d
+    base = "[%d:v:0]setpts=PTS-STARTPTS,fps=%s" % (i, fps)
+    if (x, y, w, h) == (0, 0, W, H):                           # the picture fills the canvas exactly
+        return ["%s,scale=%d:%d,%s[v%d]" % (base, W, H, tail, i)]
+    vx0, vy0, vx1, vy1 = max(0, -x), max(0, -y), min(w, W - x), min(h, H - y)
+    if vx1 - vx0 < 2 or vy1 - vy0 < 2:                         # completely off canvas
+        return [_color_source(bg, W, H, fps, d, "v%d" % i)]
+    vw, vh = vx1 - vx0, vy1 - vy0
+    crop = ""                                                  # only decode/scale what is visible (zoomed-in pictures stay cheap)
+    if (vx0, vy0, vw, vh) != (0, 0, w, h):
+        crop = "crop=%d:%d:%d:%d," % (max(2, _jsround(iw * vw / float(w))), max(2, _jsround(ih * vh / float(h))),
+                                       _jsround(iw * vx0 / float(w)), _jsround(ih * vy0 / float(h)))
+    ox, oy = max(x, 0), max(y, 0)
+    covers = x <= 0 and y <= 0 and x + w >= W and y + h >= H
+    if bg["mode"] == "blur" and not covers:
+        bw, bh = max(8, W // 8), max(8, H // 8)
+        r = max(1, min(4, bw // 4, bh // 4))
+        return ["%s,split[b%d][f%d]" % (base, i, i),
+                "[b%d]scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d,boxblur=%d:2,scale=%d:%d:flags=bicubic,setsar=1[g%d]"
+                % (i, bw, bh, bw, bh, r, W, H, i),
+                "[f%d]%sscale=%d:%d[h%d]" % (i, crop, vw, vh, i),
+                "[g%d][h%d]overlay=%d:%d:format=auto,%s[v%d]" % (i, i, ox, oy, tail, i)]
+    return [_color_source(bg, W, H, fps, d, "g%d" % i),
+            "%s,%sscale=%d:%d[h%d]" % (base, crop, vw, vh, i),
+            "[g%d][h%d]overlay=%d:%d:format=auto:shortest=0,%s[v%d]" % (i, i, ox, oy, tail, i)]
+
+
+def build_render_graph(clips: List[Dict[str, Any]], width: int, height: int, fps: float,
+                       bg: Any = None) -> Tuple[List[str], str, bool]:
     """Pure: ffmpeg input args and a filter_complex that plays all clips back to back. Returns (inputs, graph, has_audio)."""
+    bgs = sanitize_bg(bg)
     any_audio = any(c["info"]["has_audio"] for c in clips)
     inputs: List[str] = []
     parts: List[str] = []
@@ -65,12 +172,7 @@ def build_render_graph(clips: List[Dict[str, Any]], width: int, height: int, fps
     for i, c in enumerate(clips):
         d = c["out"] - c["in"]
         inputs += ["-ss", "%.3f" % c["in"], "-t", "%.3f" % d, "-i", c["path"]]
-        if c["info"]["has_video"]:
-            parts.append("[%d:v:0]setpts=PTS-STARTPTS,scale=%d:%d:force_original_aspect_ratio=decrease,"
-                         "pad=%d:%d:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=%s,format=yuv420p,trim=duration=%.3f,"
-                         "setpts=PTS-STARTPTS[v%d]" % (i, width, height, width, height, fps, d, i))
-        else:
-            parts.append("color=c=black:s=%dx%d:r=%s:d=%.3f,format=yuv420p[v%d]" % (width, height, fps, d, i))
+        parts += video_chain(i, c, width, height, fps, d, bgs)
         labels += "[v%d]" % i
         if any_audio:
             if c["info"]["has_audio"]:
@@ -83,10 +185,11 @@ def build_render_graph(clips: List[Dict[str, Any]], width: int, height: int, fps
     return inputs, ";".join(parts), any_audio
 
 
-def render_project(clips: List[Dict[str, Any]], out_dir: Path, crf: int = 20, timeout: int = 3600) -> Path:
+def render_project(clips: List[Dict[str, Any]], out_dir: Path, crf: int = 20, timeout: int = 3600,
+                   canvas: Any = None, bg: Any = None) -> Path:
     """Render the sequence to <first clip name>_project.mp4 in out_dir. Inputs are never modified."""
-    width, height, fps = canvas_for(clips)
-    inputs, graph, has_audio = build_render_graph(clips, width, height, fps)
+    width, height, fps = canvas_for(clips, canvas)
+    inputs, graph, has_audio = build_render_graph(clips, width, height, fps, bg)
     out = plan_output(Path(clips[0]["path"]), "project", ".mp4", None, str(out_dir), False)
     tmp = Path(tempfile.mkdtemp(prefix="ve_render_"))
     try:
@@ -125,10 +228,14 @@ def validate_project(obj: Any) -> Dict[str, Any]:
         if not isinstance(c, dict) or str(c.get("asset")) not in clean_assets:
             raise ToolError("A clip points to an asset that is not in the project.")
         try:
-            clean_clips.append({"id": str(c.get("id"))[:40], "asset": str(c["asset"]), "in": float(c["in"]), "out": float(c["out"])})
+            item = {"id": str(c.get("id"))[:40], "asset": str(c["asset"]), "in": float(c["in"]), "out": float(c["out"])}
+            if isinstance(c.get("tf"), dict):
+                item["tf"] = clean_tf(c["tf"])
+            clean_clips.append(item)
         except (KeyError, TypeError, ValueError):
             raise ToolError("A clip has invalid times.")
-    return {"version": 1, "name": str(obj.get("name") or "")[:120], "assets": clean_assets, "clips": clean_clips}
+    return {"version": 1, "name": str(obj.get("name") or "")[:120], "assets": clean_assets, "clips": clean_clips,
+            "canvas": sanitize_canvas(obj.get("canvas")), "bg": sanitize_bg(obj.get("bg"))}
 
 
 def project_path(raw: Any, roots: List[str], must_exist: bool) -> Path:

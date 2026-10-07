@@ -49,8 +49,11 @@ def main():
                 page.fill("#dlg-path", str(broll))
                 page.press("#dlg-path", "Enter")
                 page.wait_for_timeout(5000)
-                page.evaluate("window.__ve.seek(9.5)")
-                page.wait_for_timeout(1200)
+                page.click("#tabs button[data-tab=picture]")             # 9:16 canvas, the 16:9 picture fitted on a blurred background
+                page.select_option("#in-aspect", "9:16")
+                page.evaluate("window.__ve.seek(3.0)")
+                page.click("#clips .clip >> nth=1")
+                page.wait_for_timeout(1500)
                 page.screenshot(path=str(ROOT / "docs" / "editor.png"))
                 browser.close()
         finally:

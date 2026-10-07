@@ -98,4 +98,10 @@ needs `HERMES_ENABLE_PROJECT_PLUGINS=true`). Plugins are opt-in: must be enabled
   size, concat) and renders `<first clip>_project.mp4`; then the existing steps (speed, reframe, loudness, preset) run.
 - Projects: `.vproj.json` (version 1) with assets (path, name) and clips; validated on save and load, paths confined to
   the allowed folders.
-- Not yet: layers/tracks, per-clip transform (position/scale), text/overlay clips, audio tracks (music), transitions.
+- Canvas: project `canvas` = {aspect auto|16:9|9:16|1:1|4:5, short side 360..2160} and `bg` = {mode blur|black|color, color}.
+  Per clip `tf` = {s, x, y}: s is relative to 'fit inside the canvas', x/y the centre offset as a fraction of the canvas.
+  `fgRect()` (JS) and `fg_rect()` (Python) are identical; a parity test compares 300 random cases. The preview is a
+  <canvas> that draws the active <video> with that rectangle; the render crops to the visible part before scaling.
+- Accent colour: the Desktop page looks for a vivid CSS variable (accent/primary/brand/ring/...) in the app's style
+  sheets, then for painted controls (checked switch, selected item); the editor falls back to neutral violet.
+- Not yet: layers/tracks, text/overlay clips, audio tracks (music), transitions, keyframes.
