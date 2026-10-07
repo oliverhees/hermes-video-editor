@@ -183,6 +183,21 @@ def output_ext(src: Path, force_mp4: bool = False) -> str:
     return ext if (ext in VIDEO_EXTS_COPYABLE and not force_mp4) else ".mp4"
 
 
+def audio_ext(src: Path) -> str:
+    ext = src.suffix.lower()
+    return ext if ext in (".mp3", ".wav", ".flac", ".m4a") else ".m4a"
+
+
+def audio_codec_args(ext: str, bitrate_kbps: int = 192) -> List[str]:
+    if ext == ".mp3":
+        return ["-c:a", "libmp3lame", "-b:a", "%dk" % bitrate_kbps]
+    if ext == ".wav":
+        return ["-c:a", "pcm_s16le"]
+    if ext == ".flac":
+        return ["-c:a", "flac"]
+    return ["-c:a", "aac", "-b:a", "%dk" % bitrate_kbps]
+
+
 def encode_args(ext: str, crf: int = 20, preset: str = "veryfast", audio: bool = True) -> List[str]:
     args = ["-c:v", "libx264", "-preset", preset, "-crf", str(crf), "-pix_fmt", "yuv420p"]
     if audio:
@@ -217,8 +232,8 @@ class Job:
         if need_audio and not self.info["has_audio"]:
             raise ToolError("Input has no audio stream.",
                             hint="This clip is silent; skip audio tools or add audio first (ve_replace_audio).")
-        if ext == "av":
-            ext = output_ext(self.src)
+        if ext == "av":   # keep a video container for video, pick an audio container for audio-only
+            ext = output_ext(self.src) if self.info["has_video"] else audio_ext(self.src)
         self.out = plan_output(self.src, op, ext or self.src.suffix, args.get("output"),
                                args.get("output_dir"), self.overwrite)
 
