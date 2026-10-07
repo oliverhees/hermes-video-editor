@@ -1,28 +1,21 @@
 name: hermes-video-editor
 title: Video Editor (local FFmpeg)
 repo: https://github.com/oliverhees/hermes-video-editor
-sha: 46ad5107016fabd8f38f50d32c7ca4bfb774e78b
+sha: e511019f73504d0f58df7d7a177df460179807fe
 version: "0.2.0"
 description: >-
-  Local FFmpeg video editor for your own footage, driven by chat. 42 tools: trim, split, join, remove
-  silence, crop to 9:16, blurred-background vertical, text and captions, picture-in-picture, music with
-  ducking, EBU R128 loudness, GIF, contact sheets, platform export presets (Reels, TikTok, Shorts,
-  YouTube, X, Discord) and a platform rule check. 100% local: no cloud, no API key, no network calls.
-  Includes a visual editor with canvas, overlay track, text and music (sidebar page in Hermes Desktop,
-  with an English/German Help tab). Requires ffmpeg and ffprobe on PATH. Licence: PolyForm Noncommercial 1.0.0.
-  Disclosure - runs ffmpeg/ffprobe as subprocesses on the files you name and writes new output files
-  next to them; never modifies inputs. The editor page starts a local HTTP listener on 127.0.0.1
-  (random port, one-time token, media files below the home folder only) and caches previews in the
-  system temp folder. No outbound network access. Optional captions tool needs faster-whisper and a
-  model already on disk.
+  Local video editor for your own footage: 42 FFmpeg tools for the agent (cut, silence removal, 9:16 reframe,
+  captions, music with ducking, loudness, platform export and checks) plus a visual editor in Hermes Desktop
+  with canvas, overlay, text and music tracks and an English/German help. 100% local, no API key.
+  Licence: PolyForm Noncommercial 1.0.0.
 maintainer: oliverhees
 category: tools
 tier: community
 requires_hermes: ">=0.21.5"
-docs_url: https://github.com/oliverhees/hermes-video-editor/blob/46ad5107016fabd8f38f50d32c7ca4bfb774e78b/README.md
-image: https://raw.githubusercontent.com/oliverhees/hermes-video-editor/46ad5107016fabd8f38f50d32c7ca4bfb774e78b/docs/banner.png
+docs_url: https://github.com/oliverhees/hermes-video-editor/blob/e511019f73504d0f58df7d7a177df460179807fe/README.md
+image: https://raw.githubusercontent.com/oliverhees/hermes-video-editor/e511019f73504d0f58df7d7a177df460179807fe/docs/banner.png
 screenshots:
-  - https://raw.githubusercontent.com/oliverhees/hermes-video-editor/46ad5107016fabd8f38f50d32c7ca4bfb774e78b/docs/editor.png
+  - https://raw.githubusercontent.com/oliverhees/hermes-video-editor/e511019f73504d0f58df7d7a177df460179807fe/docs/editor.png
 readme: true
 capabilities:
   provides_tools:
