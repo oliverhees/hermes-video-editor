@@ -5,12 +5,15 @@ with **42 FFmpeg tools**. 100% local: no cloud, no API key, no network calls, no
 
 > Not "generate me a video". It is "cut / crop / caption / master **my** footage".
 
+![Video Editor](docs/banner.png)
+
 ## TL;DR
 
 - 42 tools, all prefixed `ve_` (`ve_trim`, `ve_crop_to_aspect`, `ve_burn_captions`, ...)
 - Needs only **FFmpeg + ffprobe** on your PATH and Python 3.9+. No pip packages for the core.
 - Never touches your original file. Results are new files: `<name>_<op>.<ext>`.
 - Ships a skill that teaches the agent the right order of steps (probe first, platform check last).
+- Ships a **visual cut editor** (sidebar entry "Video Editor" in Hermes Desktop, or standalone in any browser).
 
 ## Install (3 steps)
 
@@ -28,6 +31,7 @@ with **42 FFmpeg tools**. 100% local: no cloud, no API key, no network calls, no
    git clone https://github.com/oliverhees/hermes-video-editor
    cd hermes-video-editor
    python scripts/install.py        # symlink (Linux/macOS) or copy (Windows) into ~/.hermes/plugins
+                                    # and copies the Desktop page to ~/.hermes/desktop-plugins/
    ```
 
    Or directly from Git: `hermes plugins install oliverhees/hermes-video-editor`
@@ -43,7 +47,41 @@ with **42 FFmpeg tools**. 100% local: no cloud, no API key, no network calls, no
 
 Uninstall: `python scripts/install.py --uninstall`.
 
-## 5 things to say to Hermes
+## The visual editor
+
+![Editor screenshot](docs/editor.png)
+
+*(Real screenshot of the editor; the demo clip is a synthetic test video.)*
+
+Open **Video Editor** in the Hermes Desktop sidebar (enable the plugin under *Capabilities -> Plugins* if it is off),
+or run it on its own in any browser:
+
+```bash
+python scripts/editor.py                 # prints a link and opens your browser
+python scripts/editor.py my-video.mp4    # with a file preloaded
+```
+
+| Do this | How |
+|---|---|
+| Open a video | **Open file...**, browse your home folder or paste a path |
+| Preview | Space = play/pause, arrows = frame step, Shift+arrows = 1 s |
+| Cut a range | `I` (in), `O` (out), `X` (cut). Or Shift+drag on the timeline |
+| Find silences | **Find silences** adds them as cuts (adjust level / length first) |
+| Skip cuts while playing | "Skip cuts in preview" |
+| Speed, 9:16 / 1:1 / 4:5 crop, blurred bars | *Picture* tab (a frame on the preview shows what stays) |
+| Loudness | *Sound* tab |
+| Export | *Export* tab: pick a platform preset, then **Export**. A platform check is shown afterwards |
+
+The editor never changes your original. **Export** runs the same `ve_*` tools the agent uses
+(remove cuts -> speed -> reframe -> loudness -> preset) and writes a new file next to the original (or into the folder you choose).
+It is a *cut-and-deliver* editor: there are no layers, text animation or multi-track timelines.
+
+How it works and what it exposes: a tiny web server inside the plugin listens on **127.0.0.1 only** (random port, random
+one-time token in the link; requests without it get 403). It serves the editor page, streams the video you open
+and runs the tools. It only reads/writes **media files below your home folder** (add more with the `VE_EDITOR_ROOTS`
+environment variable, separated by `:` or `;` on Windows). Nothing leaves your machine.
+
+## Or just talk to Hermes: 5 examples
 
 1. **Look first**: *"Probe `~/Videos/interview.mp4` and show me a contact sheet."*
 2. **Tighten a talking head**: *"Remove the silences from `interview.mp4`, normalise to -14 LUFS, burn captions."*
@@ -111,6 +149,9 @@ downloads anything. Without the package the tool answers `ok:false` with this hi
 | `timed out` | Raise `timeout_s` for big files. |
 | `Could not reach X MB` | Target too small for the length: shorten the clip, raise `target_mb`. |
 | `ve_reverse` refuses | It needs the whole clip in RAM (limit 300 s): `ve_trim` first. |
+| No "Video Editor" in the sidebar | Enable it under *Capabilities -> Plugins*, make sure you are in the right Hermes profile, restart the app. Check `~/.hermes/desktop-plugins/hermes-video-editor/plugin.js` exists (`python scripts/install.py`). |
+| Editor page says "could not start" | `hermes plugins list` must show the plugin enabled. As a fallback run `python scripts/editor.py` and open the link in a browser. |
+| Editor: "Preview unavailable" | The preview needs H.264 or VP8 support. Editing and export still work. |
 | Plugin not listed | `hermes plugins list`, then `hermes plugins enable hermes-video-editor`, restart Hermes. |
 | Windows: install copies instead of linking | Normal without developer mode. Re-run `scripts/install.py` after `git pull`. |
 
@@ -124,14 +165,21 @@ python scripts/gen_docs.py           # regenerate docs/TOOLS.md
 ```
 
 Layout: `core/` (FFmpeg runner, paths, time parsing, results), `tools/` (one module per group),
-`schemas.py` (the single `TOOLS` table), `skills/video-editor/SKILL.md`, `tests/`, `docs/`.
+`schemas.py` (the single `TOOLS` table), `skills/video-editor/SKILL.md`, `editor/` (local server + web UI),
+`dashboard/` (backend route for the Desktop page), `desktop/` (Desktop page), `tests/`, `docs/`.
+Optional dev extras for the full test run: `pip install fastapi httpx playwright` (those tests skip when missing).
+Regenerate the images with `python scripts/make_screenshot.py && python scripts/make_banner.py` (needs Pillow, Playwright).
 CI runs on Ubuntu, macOS and Windows (`.github/workflows/test.yml`).
 
 ## Security and disclosures
 
 - Runs `ffmpeg` / `ffprobe` as subprocesses with argument lists (`shell=False`), only on files you name.
-- No network access at runtime, no telemetry, no self-updating, no downloads, no credentials read, no hooks,
-  no core overrides. Uses only `register_tool` and `register_skill`.
+- No outbound network access, no telemetry, no self-updating, no downloads, no credentials read, no hooks,
+  no core overrides. Agent side uses only `register_tool` and `register_skill`.
+- The visual editor starts a **local listener on 127.0.0.1** (random port, one-time token, Host header checked,
+  CORS open only because the sandboxed frame has an opaque origin, access limited to media files below your home
+  folder). It is started on demand by the Desktop page or `scripts/editor.py` and stops with the process.
+- Caches previews (low-res proxy, waveform, thumbnails) in the system temp folder under `hermes-video-editor-cache`.
 - Reads your input files and writes new files (outputs, plus short-lived temp files in the system temp folder).
 - Declared capabilities in `plugin.yaml` are generated from the real registrations and checked by a test.
 
@@ -144,7 +192,7 @@ come from a catalog entry, not from the plugin itself. To get the same card:
 2. `hermes plugins validate . --install-deps`
 3. Open a PR to `NousResearch/hermes-agent` adding that output as `plugin-catalog/hermes-video-editor.yaml`.
 
-The banner is `docs/banner.png` (2:1), rendered by `scripts/make_banner.py` (needs Pillow).
+The banner is `docs/banner.png` (2:1, built around a real screenshot of the editor).
 Until the entry is merged the card shows the manifest description and a "Git" badge.
 
 ## License

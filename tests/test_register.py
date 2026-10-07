@@ -95,16 +95,21 @@ def test_docs_in_sync():
 
 
 def test_no_forbidden_patterns():
-    banned = ["shell=True", "urllib", "requests", "http.client", "socket", "TODO", "FIXME"]
-    for path in list(ROOT.glob("core/*.py")) + list(ROOT.glob("tools/*.py")) + [ROOT / "__init__.py", ROOT / "schemas.py"]:
+    """No shell=True, no outbound network code, no placeholders. The editor may LISTEN on loopback (http.server)."""
+    files = (list(ROOT.glob("core/*.py")) + list(ROOT.glob("tools/*.py")) + list(ROOT.glob("editor/*.py"))
+             + [ROOT / "__init__.py", ROOT / "schemas.py", ROOT / "dashboard" / "plugin_api.py"])
+    banned_text = ["shell=True", "TODO", "FIXME", "os.system", "eval(", "exec("]
+    banned_modules = ["urllib.request", "urllib2", "requests", "http.client", "socket", "ftplib", "smtplib",
+                      "telnetlib", "websocket", "aiohttp", "httpx"]
+    for path in files:
         text = path.read_text(encoding="utf-8")
-        for pat in banned:
-            if pat == "http.client" or pat == "requests":
-                assert ("import " + pat) not in text, (path, pat)
-            elif pat == "socket":
-                assert "import socket" not in text, path
-            else:
-                assert pat not in text, (path, pat)
+        for pat in banned_text:
+            assert pat not in text, (path, pat)
+        for line in text.splitlines():
+            stripped = line.strip()
+            if stripped.startswith(("import ", "from ")):
+                module = stripped.split()[1]
+                assert module not in banned_modules and module.split(".")[0] not in banned_modules, (path, stripped)
 
 
 def test_installed_plugin_loads_like_hermes(tmp_path):

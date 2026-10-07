@@ -20,6 +20,13 @@ no stock library, no upload. If the user wants something that needs those, say s
 5. **Social clips end with `ve_platform_check`.** Apply the `fixes` it returns, then re-check.
 6. **Be honest about limits** (see the end).
 
+## The visual editor (for the user, not for you)
+
+Besides your tools the plugin has a visual cut editor: sidebar entry **Video Editor** in Hermes Desktop (or
+`python scripts/editor.py` in a browser). The user can mark cuts, find silences, reframe and export there by clicking.
+Point them to it when they want to scrub, preview or fine-tune cuts by eye; you cannot operate it yourself.
+Files the user exports there appear as new files next to the original.
+
 ## Units and formats
 
 - Times: seconds (`12.5`), `MM:SS` or `HH:MM:SS(.ms)`.
