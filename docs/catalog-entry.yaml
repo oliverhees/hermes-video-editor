@@ -1,0 +1,72 @@
+name: hermes-video-editor
+title: Video Editor (local FFmpeg)
+repo: https://github.com/oliverhees/hermes-video-editor
+sha: d7354bd4c344d86c6a36f77424f073b43a071dc0
+version: "0.1.0"
+description: >-
+  Local FFmpeg video editor for your own footage, driven by chat. 42 tools: trim, split, join, remove
+  silence, crop to 9:16, blurred-background vertical, text and captions, picture-in-picture, music with
+  ducking, EBU R128 loudness, GIF, contact sheets, platform export presets (Reels, TikTok, Shorts,
+  YouTube, X, Discord) and a platform rule check. 100% local: no cloud, no API key, no network calls.
+  Requires ffmpeg and ffprobe on PATH. Disclosure - runs ffmpeg/ffprobe as subprocesses on the files you
+  name and writes new output files next to them; never modifies inputs. Optional captions tool needs
+  faster-whisper and a model already on disk.
+maintainer: oliverhees
+category: tools
+tier: community
+requires_hermes: ">=0.21.5"
+docs_url: https://github.com/oliverhees/hermes-video-editor/blob/d7354bd4c344d86c6a36f77424f073b43a071dc0/README.md
+image: https://raw.githubusercontent.com/oliverhees/hermes-video-editor/d7354bd4c344d86c6a36f77424f073b43a071dc0/docs/banner.png
+readme: true
+capabilities:
+  provides_tools:
+    - ve_media_doctor
+    - ve_media_probe
+    - ve_detect_silence
+    - ve_detect_scenes
+    - ve_extract_frame
+    - ve_trim
+    - ve_split
+    - ve_join
+    - ve_remove_silence
+    - ve_remove_segments
+    - ve_change_speed
+    - ve_reverse
+    - ve_loop
+    - ve_crop
+    - ve_crop_to_aspect
+    - ve_resize
+    - ve_rotate_flip
+    - ve_pad_blur_background
+    - ve_color_adjust
+    - ve_denoise_video
+    - ve_fade_video
+    - ve_stabilize
+    - ve_add_text
+    - ve_burn_captions
+    - ve_add_image_overlay
+    - ve_picture_in_picture
+    - ve_stack_videos
+    - ve_blur_region
+    - ve_extract_audio
+    - ve_replace_audio
+    - ve_mix_music
+    - ve_normalize_loudness
+    - ve_sync_audio_offset
+    - ve_adjust_volume
+    - ve_fade_audio
+    - ve_denoise_audio
+    - ve_export_preset
+    - ve_platform_check
+    - ve_compress_to_size
+    - ve_to_gif
+    - ve_contact_sheet
+    - ve_transcribe_captions
+  provides_hooks: []
+  provides_middleware: []
+  requires_env: []
+known_issues:
+  - Requires FFmpeg and ffprobe on PATH (apt install ffmpeg / brew install ffmpeg / winget install Gyan.FFmpeg).
+  - ve_transcribe_captions is optional and needs 'pip install faster-whisper' plus a model already on disk.
+  - There is no visual editor UI; you edit by chatting with the agent.
+
