@@ -737,3 +737,53 @@ def test_browser_overlay_track(media, tmp_path):
         b.close()
         p.stop()
         srv.stop()
+
+
+def test_docs_are_bilingual_and_consistent():
+    import re
+    for lang in ("en", "de"):
+        for name in ("GUIDE.md", "TOOLS.md"):
+            assert (ROOT / "docs" / lang / name).is_file(), (lang, name)
+    en, de = [(ROOT / "docs" / l / "GUIDE.md").read_text(encoding="utf-8") for l in ("en", "de")]
+    heads = lambda t: [h for h in re.findall(r"^## (\d+)\.", t, re.M)]
+    assert heads(en) == heads(de) and len(heads(en)) >= 12            # same chapters in both languages
+    for text in (en, de):
+        assert "PolyForm" in text and "https://lokyy.de" in text and "lk_" in text and not re.search(r"\bve_", text)
+    readme_en, readme_de = [(ROOT / n).read_text(encoding="utf-8") for n in ("README.md", "README.de.md")]
+    for t in (readme_en, readme_de):
+        for link in ("docs/en/GUIDE.md", "docs/de/GUIDE.md", "docs/en/TOOLS.md", "docs/de/TOOLS.md", "LICENSE"):
+            assert "(%s)" % link in t, link
+        assert "(README.de.md)" in readme_en and "(README.md)" in readme_de
+        assert "PolyForm" in t
+    lic = (ROOT / "LICENSE").read_text(encoding="utf-8")
+    assert lic.startswith("# PolyForm Noncommercial License 1.0.0") and "Required Notice" in lic and "MIT" not in lic
+    assert "PolyForm-Noncommercial-1.0.0" in (ROOT / "plugin.yaml").read_text(encoding="utf-8")
+
+
+def test_catalog_entry_links_the_docs(tmp_path):
+    out = subprocess.run([sys.executable, str(ROOT / "scripts" / "make_catalog_entry.py")], capture_output=True, text=True, check=True).stdout
+    assert "docs_url: https://github.com/oliverhees/hermes-video-editor/blob/" in out and "PolyForm" in out and "\n    - ve_" not in out and "lk_trim" in out
+
+
+def test_browser_help_in_english_and_german(media, tmp_path):
+    pw = pytest.importorskip("playwright.sync_api")
+    from hermes_video_editor.editor.server import EditorServer
+    srv = EditorServer(roots=[str(media["dir"]), str(tmp_path)])
+    p, b, page, errors = browser(pw)
+    try:
+        page.goto(srv.url())
+        page.wait_for_selector("#btn-help")
+        page.click("#btn-help")
+        page.wait_for_selector("#help-body h1", timeout=10000)
+        assert "user guide" in page.inner_text("#help-body h1").lower() and page.locator("#help-body table").count() >= 4
+        page.click("#help-de")
+        page.wait_for_function("((document.querySelector('#help-body h1') || {innerText: ''}).innerText).indexOf('Anleitung') >= 0", timeout=10000)
+        assert "Leinwand" in page.inner_text("#help-body")
+        assert page.locator("#help-body script").count() == 0 and "<" not in page.inner_text("#help-body h1")
+        page.keyboard.press("Escape")
+        assert page.is_hidden("#help")
+        assert not errors, errors
+    finally:
+        b.close()
+        p.stop()
+        srv.stop()
