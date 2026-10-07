@@ -114,4 +114,8 @@ Reference: [Tool reference](TOOLS.md).
 Runs locally. The editor listens only on `127.0.0.1` and reads only media below your home folder. It makes no outbound network calls.
 Licence: [PolyForm Noncommercial 1.0.0](../../LICENSE): free for personal, educational, research and other non-commercial use. Commercial use needs a separate licence: contact [Lokyy.de](https://lokyy.de).
 
+## 14. Coming soon: AI generation with Kie.ai
+
+A separate, optional plugin is planned that lets you generate video scenes, images and sound by prompt through [Kie.ai](https://kie.ai) and place them in this editor as layers. It is **not available yet**, and this editor never contacts Kie.ai on its own. You would need your own Kie.ai account and API key, and Kie.ai bills the generation. Any referral link in that plugin will be clearly labelled and optional.
+
 Powered by [Lokyy.de](https://lokyy.de), German Hermes Engineering.
