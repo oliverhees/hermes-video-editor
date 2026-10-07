@@ -57,7 +57,7 @@ def install(target_dir, copy=False):
     print("Installed (%s): %s" % (mode, dest))
     print("Next:  hermes plugins enable %s   then   hermes plugins list" % NAME)
     if not (shutil.which("ffmpeg") and shutil.which("ffprobe")):
-        print("NOTE: ffmpeg/ffprobe not found on PATH. Linux: sudo apt install ffmpeg | macOS: brew install ffmpeg | "
+        print("NOTE: ffmpeg/ffprobe not found on PATH. Linux: apt install ffmpeg (as administrator) | macOS: brew install ffmpeg | "
               "Windows: winget install Gyan.FFmpeg", file=sys.stderr)
     return 0
 
