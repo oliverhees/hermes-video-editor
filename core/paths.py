@@ -38,10 +38,19 @@ def unique_path(path: Path) -> Path:
         n += 1
 
 
+# What a tool may write. An explicit `output` with any other suffix (.sh, .py, .bashrc, no dot ...) is refused,
+# so a tool can never be pointed at a script or a config file.
+VIDEO_OUT = {".mp4", ".m4v", ".mov", ".mkv", ".webm", ".avi", ".mpg", ".mpeg", ".ts", ".mts", ".m2ts", ".wmv", ".flv", ".3gp"}
+AUDIO_OUT = {".mp3", ".wav", ".m4a", ".flac", ".aac", ".ogg", ".opus"}
+IMAGE_OUT = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
+ALLOWED_OUTPUT_EXTS = VIDEO_OUT | AUDIO_OUT | IMAGE_OUT | {".srt"}
+
+
 def plan_output(input_path: Path, op: str, ext: Optional[str] = None,
                 output: Any = None, output_dir: Any = None,
-                overwrite: bool = False) -> Path:
-    """Decide where the result goes. Never returns the input path."""
+                overwrite: bool = False, strict_ext: bool = False) -> Path:
+    """Decide where the result goes. Never returns the input path.
+    An explicit `output` must end in a media, picture or .srt suffix; with strict_ext it must be exactly `ext`."""
     ext = ext if ext is not None else input_path.suffix
     if ext and not ext.startswith("."):
         ext = "." + ext
@@ -49,6 +58,12 @@ def plan_output(input_path: Path, op: str, ext: Optional[str] = None,
         out = Path(str(output)).expanduser()
         if not out.suffix:
             out = out.with_suffix(ext)
+        suffix = out.suffix.lower()
+        if suffix not in ALLOWED_OUTPUT_EXTS:
+            raise ToolError("Output files must end in a media, picture or .srt suffix, not '%s'." % (out.suffix or "(none)"),
+                            hint="Allowed: %s" % ", ".join(sorted(ALLOWED_OUTPUT_EXTS)))
+        if strict_ext and suffix != ext.lower():
+            raise ToolError("This tool writes %s files, so 'output' must end in %s (got '%s')." % (ext, ext, out.suffix))
     else:
         directory = Path(str(output_dir)).expanduser() if output_dir else input_path.parent
         out = directory / ("%s_%s%s" % (input_path.stem, op, ext))
@@ -60,6 +75,8 @@ def plan_output(input_path: Path, op: str, ext: Optional[str] = None,
         out.parent.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
         raise ToolError("Cannot create output directory %s: %s" % (out.parent, exc))
+    if out.is_dir():
+        raise ToolError("Output path is an existing folder: %s" % out, hint="Give a file name, or use output_dir for a folder.")
     if out.exists() and not overwrite:
         out = unique_path(out)
     return out

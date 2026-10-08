@@ -3,17 +3,19 @@ from __future__ import annotations
 
 import functools
 import json
+import os
 import re
 import shutil
 import subprocess
 import tempfile
 import time
 import traceback
+import uuid
 from fractions import Fraction
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from .paths import plan_output, resolve_input
+from .paths import plan_output, resolve_input, unique_path
 from .result import ToolError, fail, ok
 from .validate import get_bool, get_timeout
 
@@ -220,7 +222,7 @@ class Job:
     """One validated input -> one output. Handles naming, running, cleanup, result."""
 
     def __init__(self, args: Dict[str, Any], op: str, ext: Optional[str] = None,
-                 need_video: bool = False, need_audio: bool = False, key: str = "input") -> None:
+                 need_video: bool = False, need_audio: bool = False, key: str = "input", strict_ext: bool = False) -> None:
         self.args = args
         self.started = time.time()
         self.timeout = get_timeout(args)
@@ -235,26 +237,53 @@ class Job:
         if ext == "av":   # keep a video container for video, pick an audio container for audio-only
             ext = output_ext(self.src) if self.info["has_video"] else audio_ext(self.src)
         self.out = plan_output(self.src, op, ext or self.src.suffix, args.get("output"),
-                               args.get("output_dir"), self.overwrite)
+                               args.get("output_dir"), self.overwrite, strict_ext)
+        self.tmp: Optional[Path] = None
 
-    def run(self, ff_args: List[str], loglevel: str = "error") -> None:
-        """Run ffmpeg writing to self.out. ff_args must not contain the output path."""
-        flag = "-y" if self.overwrite else "-n"
+    def temp_path(self) -> Path:
+        """A hidden sibling of the output that only this run owns (same suffix, so FFmpeg picks the container)."""
+        return self.out.with_name(".%s.%s.part%s" % (self.out.stem, uuid.uuid4().hex[:8], self.out.suffix))
+
+    def run(self, ff_args: List[str], loglevel: str = "error", commit: bool = True) -> None:
+        """Run ffmpeg into a temporary file next to the output; ff_args must not contain the output path.
+        The real output is only created (or replaced, with overwrite) once FFmpeg succeeded, by commit()."""
+        self.discard()
+        self.tmp = self.temp_path()
         try:
-            run_ffmpeg([flag] + ff_args + [str(self.out)], self.timeout, loglevel)
+            run_ffmpeg(["-y"] + ff_args + [str(self.tmp)], self.timeout, loglevel)
         except ToolError:
-            self._cleanup()
+            self.discard()
             raise
-        if not self.out.exists() or self.out.stat().st_size == 0:
-            self._cleanup()
+        if not self.tmp.exists() or self.tmp.stat().st_size == 0:
+            self.discard()
             raise ToolError("FFmpeg finished but produced no output.", hint="Check parameters.")
+        if commit:
+            self.commit()
 
-    def _cleanup(self) -> None:
+    def commit(self) -> None:
+        """Move the finished temporary file to the output name (a new name if the file appeared meanwhile and overwrite is off)."""
+        if self.tmp is None:
+            return
+        target = self.out
+        if target.exists() and not self.overwrite:
+            target = unique_path(target)
         try:
-            if self.out.exists():
-                self.out.unlink()
-        except OSError:
-            pass
+            os.replace(str(self.tmp), str(target))
+        except OSError as exc:
+            self.discard()
+            raise ToolError("Could not write the output file %s: %s" % (target, exc))
+        self.out, self.tmp = target, None
+
+    def discard(self) -> None:
+        """Remove the temporary file of the current run. Never touches the output name: that file is not ours until commit()."""
+        tmp, self.tmp = self.tmp, None
+        if tmp is not None:
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
+
+    _cleanup = discard
 
     def done(self, **extra: Any) -> Dict[str, Any]:
         """Probe the output and build the ok() payload."""

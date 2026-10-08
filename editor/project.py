@@ -7,12 +7,13 @@ import os
 import re
 import shutil
 import tempfile
+import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 from ..core.ffmpeg import (encode_args, filter_complex_args, probe, require_filter, run_ffmpeg)
 from ..core.fonts import resolve_font
-from ..core.paths import ff_escape_path, plan_output
+from ..core.paths import ff_escape_path, plan_output, unique_path
 from ..core.result import ToolError
 from .security import inside, safe_dir, safe_image_file, safe_media_file
 
@@ -510,25 +511,29 @@ def render_project(clips: List[Dict[str, Any]], out_dir: Path, crf: int = 20, ti
     """Render the sequence (+ texts, + audio items) to <first clip name>_project.mp4 in out_dir. Inputs are never modified."""
     width, height, fps = canvas_for(clips, canvas)
     out = plan_output(Path(clips[0]["path"]), "project", ".mp4", None, str(out_dir), False)
+    part = out.with_name(".%s.%s.part.mp4" % (out.stem, uuid.uuid4().hex[:8]))     # only this run owns it
     tmp = Path(tempfile.mkdtemp(prefix="ve_render_"))
     try:
         inputs, graph, has_audio = build_render_graph(clips, width, height, fps, bg, texts, audios, tmp, overlays, shapes)
-        ff = ["-n"] + inputs + filter_complex_args(graph, tmp) + ["-map", "[vo]"]
+        ff = ["-y"] + inputs + filter_complex_args(graph, tmp) + ["-map", "[vo]"]
         if has_audio:
             ff += ["-map", "[ao]"]
         if audios or overlays or shapes:                             # music / overlays may be longer than the picture
             ff += ["-t", "%.3f" % sum(c["out"] - c["in"] for c in clips)]
         ff += encode_args(".mp4", crf=crf, audio=has_audio)
         try:
-            run_ffmpeg(ff + [str(out)], timeout)
+            run_ffmpeg(ff + [str(part)], timeout)
         except ToolError:
-            if out.exists():
-                out.unlink()
+            if part.exists():
+                part.unlink()
             raise
     finally:
         shutil.rmtree(str(tmp), ignore_errors=True)
-    if not out.exists() or out.stat().st_size == 0:
+    if not part.exists() or part.stat().st_size == 0:
         raise ToolError("Rendering produced no output.")
+    if out.exists():                                     # a file with that name appeared meanwhile: keep it, use the next free name
+        out = unique_path(out)
+    os.replace(str(part), str(out))
     return out
 
 
@@ -605,9 +610,16 @@ def save_project(raw_path: Any, project: Any, roots: List[str]) -> str:
     if len(text.encode("utf-8")) > MAX_PROJECT_BYTES:
         raise ToolError("Project is too large.")
     safe_dir(str(p.parent), roots, create=True)
-    tmp = p.with_name(p.name + ".tmp")
-    tmp.write_text(text, encoding="utf-8")
-    os.replace(str(tmp), str(p))
+    tmp = p.with_name(".%s.%s.part" % (p.name, uuid.uuid4().hex[:8]))        # only this save owns it
+    try:
+        tmp.write_text(text, encoding="utf-8")
+        os.replace(str(tmp), str(p))
+    except OSError as exc:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise ToolError("Could not save the project: %s" % exc)
     return str(p)
 
 

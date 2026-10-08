@@ -237,8 +237,8 @@ def _compress(job: Job, args: Dict[str, Any], target_mb: float, audio_kbps: int,
             if has_a:
                 ff += ["-map", "0:a:0", "-c:a", "aac", "-b:a", "%dk" % a_kbps, "-ar", "48000"]
                 ff += ["-ac", "1"] if a_kbps <= 64 else []
-            job.run(ff)
-            final_size = job.out.stat().st_size
+            job.run(ff, commit=False)                              # the result stays a temporary file until the size is right
+            final_size = job.tmp.stat().st_size
             if final_size <= target_mb * 1e6 or attempts >= 3:
                 break
             vk = vk * (target_mb * 1e6 / final_size) * 0.93
@@ -246,9 +246,10 @@ def _compress(job: Job, args: Dict[str, Any], target_mb: float, audio_kbps: int,
             if vk < 40:
                 break
     if final_size > target_mb * 1e6:
-        job._cleanup()
+        job.discard()
         raise ToolError("Could not reach %.1f MB (got %.2f MB)." % (target_mb, final_size / 1e6),
                         hint="Raise target_mb or shorten the clip.")
+    job.commit()
     return job.done(op=op, target_mb=target_mb, result_mb=round(final_size / 1e6, 3), video_kbps=int(vk),
                     audio_kbps=a_kbps, attempts=attempts, scaled_to_height=height if height < dh else None)
 
@@ -347,7 +348,7 @@ def transcribe_captions(args: Dict[str, Any]) -> Any:
     lang = args.get("language")
     if lang is not None and not (isinstance(lang, str) and 2 <= len(lang) <= 3 and lang.isalpha()):
         raise ToolError("'language' must be a 2-3 letter code like 'de' or 'en' (omit to auto-detect).")
-    job = Job(args, "captions", ext=".srt", need_audio=True)
+    job = Job(args, "captions", ext=".srt", need_audio=True, strict_ext=True)
     with new_tempdir() as tmp:
         wav = Path(tmp) / "audio.wav"
         run_ffmpeg(["-y", "-i", str(job.src), "-vn", "-map", "0:a:0", "-ac", "1", "-ar", "16000", str(wav)], job.timeout)
@@ -363,7 +364,13 @@ def transcribe_captions(args: Dict[str, Any]) -> Any:
         segments = [(s.start, s.end, s.text) for s in seg_iter]
     if not segments:
         raise ToolError("No speech was detected.", hint="Check that the audio contains speech; try a larger model.")
-    job.out.write_text(segments_to_srt(segments), encoding="utf-8")
+    job.tmp = job.temp_path()                                      # written next to the target, moved into place when complete
+    try:
+        job.tmp.write_text(segments_to_srt(segments), encoding="utf-8")
+    except OSError as exc:
+        job.discard()
+        raise ToolError("Could not write the captions file: %s" % exc)
+    job.commit()
     return {"output": str(job.out), "duration_s": job.info["duration_s"],
             "info": {"op": "transcribe_captions", "segments": len(segments), "model": str(model_path or model_name),
                      "language": getattr(tinfo, "language", lang), "next_step": "lk_burn_captions with this .srt"}}
