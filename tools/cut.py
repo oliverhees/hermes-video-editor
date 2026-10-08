@@ -133,21 +133,28 @@ def split(args: Dict[str, Any]) -> Any:
         raise ToolError("Split points must be unique and strictly inside the clip (0 < t < %.2fs)." % total)
     bounds = [0.0] + times + [total]
     ext = job.src.suffix.lower() if mode == "fast" else output_ext(job.src)
+    staged = []                                         # (temporary file, final job output) of every finished part
     outputs = []
     try:
         for i in range(len(bounds) - 1):
             a, b = bounds[i], bounds[i + 1]
-            out = plan_output(job.src, "part%d" % (i + 1), ext, None, args.get("output_dir"), job.overwrite)
-            job.out = out
+            job.out = plan_output(job.src, "part%d" % (i + 1), ext, None, args.get("output_dir"), job.overwrite)
             job.run(build_trim_args(str(job.src), a, b - a, mode, ext, crf, job.info["has_audio"],
-                                    even_filter(job.info)))
-            outputs.append(str(out))
+                                    even_filter(job.info)), commit=False)
+            staged.append((job.tmp, job.out))
+            job.tmp = None
+        for tmp, out in staged:                          # every part worked: only now do the files appear
+            job.tmp, job.out = tmp, out
+            job.commit()
+            outputs.append(str(job.out))
     except ToolError:
-        for o in outputs:
+        for tmp, _ in staged:                            # a failure removes temporary files only, never an existing file
             try:
-                Path(o).unlink()
+                if tmp is not None and Path(tmp).exists():
+                    Path(tmp).unlink()
             except OSError:
                 pass
+        job.discard()
         raise
     return {"output": outputs[0], "duration_s": total,
             "info": {"op": "split", "outputs": outputs, "parts": len(outputs), "mode": mode,

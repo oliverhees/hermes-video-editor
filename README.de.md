@@ -208,7 +208,7 @@ Optionale Extras für den vollen Testlauf: `pip install fastapi httpx playwright
 - Kein ausgehender Netzwerkzugriff, keine Telemetrie, keine Selbst-Updates, keine Downloads, keine Zugangsdaten gelesen, keine Hooks, keine Überschreibung des Kerns. Die Agentenseite nutzt nur `register_tool` und `register_skill`.
 - Der Editor startet einen **lokalen Listener auf 127.0.0.1** (zufälliger Port, einmaliges Token, Host-Header geprüft, CORS nur offen, weil der Sandbox-Frame einen opaken Origin hat, Zugriff auf Mediendateien unterhalb deines Home-Ordners begrenzt). Er startet bei Bedarf und endet mit dem Prozess.
 - Legt Vorschau-Caches (kleines Proxy-Video, Wellenform, Vorschaubilder) im Temp-Ordner unter `hermes-video-editor-cache` ab.
-- Liest deine Eingabedateien und schreibt neue Dateien (Ausgaben plus kurzlebige Temp-Dateien).
+- Liest deine Eingabedateien und schreibt neue Dateien. Ausgabenamen müssen auf ein Medien-, Bild- oder `.srt`-Suffix enden. Jedes Ergebnis entsteht in einer versteckten temporären Datei neben dem Ziel und wird erst nach erfolgreichem FFmpeg-Lauf an seinen Platz verschoben; ein fehlgeschlagener Lauf entfernt nur seine eigene temporäre Datei und fasst nie eine vorhandene Datei an.
 - Die in `plugin.yaml` deklarierten Fähigkeiten werden aus den echten Registrierungen erzeugt und per Test geprüft.
 
 ## 🏷️ Katalog-Eintrag
