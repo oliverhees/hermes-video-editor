@@ -1,6 +1,6 @@
 [🇬🇧 English](README.md) · **🇩🇪 Deutsch**
 
-**🚧 STATUS: BETA v0.3.1**
+**🚧 STATUS: BETA v0.4.0**
 
 ![Video Editor](docs/banner.png)
 
@@ -107,8 +107,12 @@ python scripts/editor.py my-video.mp4    # mit vorgeladener Datei
 |---|---|
 | Videos hinzufügen | **Add clip...**, **Recent** oder Dateien ins Fenster **ziehen** (mehrere auf einmal) |
 | Schneiden | `S` teilen, `Entf` Clip löschen (Lücke schließt sich), `I` `O` `X` Bereich entfernen, Ränder ziehen zum Kürzen, Clips ziehen zum Umsortieren, `Strg+Z` rückgängig |
+| **Werkzeugleiste** | Über der Zeitleiste: Rückgängig, Wiederholen, Teilen, **Anfang / Ende auf den Abspielkopf kürzen** (`Q` / `W`), **Klonen** (`Strg+D`), Löschen und der **Magnet** (Elemente rasten am Abspielkopf und aneinander ein) |
 | Stille entfernen | Tab *Edit* -> **Remove silences** |
 | Leinwand, Hintergrund, Position, Größe | Tab *Picture*; Bild in der Vorschau ziehen, Mausrad zoomt, **Fit / Fill / Center / Reset** |
+| **Hintergrund-Streifen** | Tab *Picture* + Spur *BG strip*: Leinwand-Hintergrund für beliebige Zeitbereiche ändern (Unschärfe, Farbe, Verlauf, Bild) |
+| **Tab Clip** | Tempo 0,25x-4x, **Standbild**, **Übergänge** zwischen Clips, Helligkeit / Kontrast / Sättigung, Lautstärke, Stumm, Ein-/Ausblenden |
+| **Auto-Untertitel** | Tab *Text*: Sprache zu Text mit dem optionalen lokalen `faster-whisper`; das Ergebnis ist normaler, bearbeitbarer Text (Szene *Captions*) |
 | **Video obendrauf** | Tab *Overlay*: Videos über dem Bild (Position, Größe, Deckkraft, eigener Ton), beliebig viele Spuren |
 | **Formen** | Tab *Shape*: Rechteck, abgerundete Box, Ellipse, Caption bar, Card, Farbfeld (Farbe, Deckkraft, Größe, Zeit) |
 | **Szenen** | Tab *Scene*: Texte, Formen, Videos und Töne bündeln; Szene ziehen, alles wandert mit |

@@ -10,7 +10,7 @@
   var TOP = 176, GAP = 4;
   var KINDS = {
     scene: { h: 26, label: "Scene", items: function () { return S.scenes; } },
-    bg: { h: 26, label: "Background", items: function () { return S.bgs; } },
+    bg: { h: 26, label: "BG strip", items: function () { return S.bgs; } },
     text: { h: 30, label: "Text", items: function () { return S.texts; } },
     overlay: { h: 34, label: "Overlay", items: function () { return S.overlays; } },
     shape: { h: 30, label: "Shape", items: function () { return S.shapes; } },

@@ -237,3 +237,4 @@ input[type=color]{width:100%;min-width:36px;height:32px;padding:2px;background:v
 /* Clip tab, transitions on the timeline */
 .clip .trz{position:absolute;left:0;top:0;bottom:0;background:repeating-linear-gradient(135deg,#ffffff55 0 5px,#ffffff11 5px 10px);border-right:2px solid #fff;pointer-events:none}
 #fx-speeds{flex-wrap:wrap;gap:4px}#fx-speeds .btn.on{border-color:var(--accent);color:var(--accent)}
+#fx-speeds .btn{flex:1 1 0;min-width:0;padding:6px 2px}

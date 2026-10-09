@@ -30,7 +30,11 @@ Der Editor verändert nie deine Originaldateien. Jeder Export erzeugt eine neue 
 | Reihenfolge ändern | Clip nach links oder rechts ziehen |
 | Clip kürzen | Linken oder rechten Rand ziehen |
 | Alle Stille entfernen | Pegel und kürzeste Stille einstellen, **Remove silences** klicken (für den gewählten Clip oder alle) |
+| Auf den Abspielkopf kürzen | **Q** schneidet alles vor dem Abspielkopf weg, **W** alles danach (die Knöpfe *Trim start* / *Trim end* der Werkzeugleiste) |
+| Klonen | **Strg+D** oder der Knopf *Clone*: eine Kopie direkt hinter dem Original |
 | Rückgängig / Wiederholen | **Strg+Z** / **Strg+Umschalt+Z** |
+
+**Die Werkzeugleiste über der Zeitleiste** hat *Undo, Redo, Split, Trim start, Trim end, Clone, Delete* und den **Magneten**. Die Knöpfe wirken auf das, was ausgewählt ist: ein Clip oder ein Element einer Ebene (Text, Form, Video obendrauf, Ton, Hintergrund-Streifen). Ist nichts ausgewählt, gilt der Clip unter dem Abspielkopf. Bei eingeschaltetem **Magneten** rasten gezogene Elemente am Abspielkopf, am Anfang der Zeitleiste und an den Rändern anderer Elemente ein (eine dünne Linie zeigt wo).
 
 ## 4. Bild (Tab Picture)
 
@@ -39,6 +43,19 @@ Der Editor verändert nie deine Originaldateien. Jeder Export erzeugt eine neue 
 - **Position und Größe jedes Clips**: Clip auswählen, dann in der Vorschau ziehen, mit dem Mausrad zoomen, oder die Regler und **Fit / Fill / Center / Reset** nutzen.
   Teile einen Clip zuerst, um jeden Teil anders zu platzieren (z. B. wenn sich die Person bewegt).
   **Fill** lässt einen 16:9-Clip eine 9:16-Leinwand ausfüllen.
+
+### Hintergrund-Streifen
+
+In der Spur **BG strip** kann sich der Hintergrund der Leinwand über die Zeit ändern: einen Zeitbereich wählen und ihm einen eigenen Look geben (unscharfes Bild, Schwarz, eine Farbe, ein Verlauf oder ein Bild). Im Tab Picture auf **Add a strip at the playhead** klicken, den Streifen in der Spur **BG strip** verschieben, an den Rändern die Länge ändern und mit den Hintergrund-Reglern gestalten. Ist kein Streifen ausgewählt, ändern die Regler den Projekt-Hintergrund, der überall sonst gilt. Streifen dürfen sich auf getrennten Spuren überlappen; die höhere Spur liegt vorn. Ein Streifen ist nur sichtbar, wo das Bild die Leinwand nicht ausfüllt.
+
+### Tab Clip: Tempo, Standbild, Übergänge, Look und Ton
+
+Alles hier gilt für den ausgewählten Clip (oder den Clip unter dem Abspielkopf):
+
+- **Tempo** von 0,25× bis 4×. Der Ton folgt, ohne die Tonhöhe zu ändern. Der Clip wird auf der Zeitleiste kürzer oder länger.
+- **Freeze frame here** teilt den Clip am Abspielkopf und fügt das Bild als Standbild für die eingestellte Zeit ein. Es hat keinen Ton.
+- **Transition into this clip** blendet vom Clip davor in diesen über (Überblenden, Abblenden auf Schwarz oder Weiß, Dissolve, Wischer, Schieber, Kreis, Pixel). Die beiden Clips überlappen um die Länge des Übergangs, höchstens um die Hälfte des kürzeren Clips. Die Vorschau zeigt einen harten Schnitt, der Export blendet.
+- **Look**: Helligkeit, Kontrast, Sättigung. **Ton**: Lautstärke, Stumm, Ein- und Ausblenden (das Bild taucht in den Hintergrund ab). *Use for all clips* überträgt Look und Ton auf alle Clips. Die Vorschau nähert den Look an; der Export ist exakt.
 
 ## 5. Video obendrauf (Tab Overlay)
 
@@ -55,7 +72,12 @@ Eine zweite Videospur über dem Hauptbild: Reaktions-Clip, Logo-Animation, B-Rol
 1. Abspielkopf setzen, **Add text at the playhead** klicken und tippen.
 2. Größe, Farbe, Umriss und Box. Vorlagen: **Title, Lower third, Caption**.
 3. Text in der Vorschau ziehen. In der Spur **Text** verschieben, an den Rändern ändern, wie lange er sichtbar ist.
-4. Mehrere Texte nacheinander: den nächsten an einer späteren Position des Abspielkopfs hinzufügen. Mehrere zur selben Zeit liegen auf getrennten Spuren.
+4. **Fade in** und **Fade out** machen Anfang und Ende eines Textes weich; Formen und Videos obendrauf haben dieselben zwei Regler.
+5. Mehrere Texte nacheinander: den nächsten an einer späteren Position des Abspielkopfs hinzufügen. Mehrere zur selben Zeit liegen auf getrennten Spuren.
+
+### Automatische Untertitel
+
+Im Tab **Text** die Clips, die gesprochene Sprache und eine Modellgröße wählen und **Make subtitles from speech** klicken. Das Gesprochene deiner Clips wird zu normalen Texten (unten im Bild, mit Box) in einer Szene namens *Captions*. Einen Text korrigierst du per Klick, du kannst ihn umgestalten oder die ganze Szene verschieben. Das nutzt das optionale lokale Paket `faster-whisper` und ein Sprachmodell, das schon auf deinem Rechner liegt; es wird nichts heruntergeladen und nichts verlässt deinen Rechner. Schnitte und Tempoänderungen werden berücksichtigt.
 
 ### Formen
 
@@ -94,7 +116,9 @@ Nachschlagewerk: [Werkzeug-Referenz](TOOLS.md).
 | Taste | Aktion |
 |---|---|
 | Leertaste | Abspielen / Pause |
-| S | Am Abspielkopf teilen |
+| S | Gewähltes Element (oder den Clip) am Abspielkopf teilen |
+| Q / W | Anfang / Ende auf den Abspielkopf kürzen |
+| Strg+D | Gewähltes Element oder Clip klonen |
 | I / O / X | Anfang setzen / Ende setzen / Bereich entfernen |
 | Entf | Gewählten Clip, Text, Form, Szene, Ton oder Overlay löschen |
 | Links / Rechts | Ein Bild zurück / vor (mit Umschalt: eine Sekunde) |
@@ -109,6 +133,7 @@ Nachschlagewerk: [Werkzeug-Referenz](TOOLS.md).
 - Die Vorschau ist eine schnelle Kopie in niedriger Auflösung. Der Export nutzt deine Original-Qualität.
 - Die Vorschau spielt kein Ducking ab und kann Ton nicht lauter machen als die Quelle. Der Export kann beides.
 - Text sieht in der Vorschau etwas anders aus als im Export (andere Schrift).
+- Tempo, Standbilder und Übergänge ändern die Länge der Hauptspur. Texte, Formen, Overlays, Hintergrund-Streifen und Audio-Elemente liegen auf festen Zeiten und folgen nicht; bündle sie in einer Szene und verschiebe diese.
 - Texte, Formen, Overlays und Audio-Elemente liegen auf festen Zeiten. Schneidest du danach die Hauptclips, verschiebe sie von Hand (oder bündle sie in einer Szene und verschiebe diese).
 - Die Vorschau braucht H.264- oder VP8-Wiedergabe in der Browser-Engine der App. Schneiden und Export gehen auch ohne.
 

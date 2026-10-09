@@ -1,6 +1,6 @@
 **🇬🇧 English** · [🇩🇪 Deutsch](README.de.md)
 
-**🚧 STATUS: BETA v0.3.1**
+**🚧 STATUS: BETA v0.4.0**
 
 ![Video Editor](docs/banner.png)
 
@@ -107,8 +107,12 @@ python scripts/editor.py my-video.mp4    # with a file preloaded
 |---|---|
 | Add videos | **Add clip...**, **Recent**, or **drop files** into the window (several at once) |
 | Cut | `S` split, `Delete` remove a clip (gap closes), `I` `O` `X` cut a range, drag edges to trim, drag clips to reorder, `Ctrl+Z` undo |
+| **Edit toolbar** | Above the timeline: undo, redo, split, **trim start / end to the playhead** (`Q` / `W`), **clone** (`Ctrl+D`), delete and the **magnet** (items snap to the playhead and to each other) |
 | Remove silences | *Edit* tab -> **Remove silences** |
 | Canvas, background, position, size | *Picture* tab; drag the picture in the preview, mouse wheel zooms, **Fit / Fill / Center / Reset** |
+| **Background strips** | *Picture* tab + *BG strip* lane: change the canvas background for any time range (blur, colour, gradient, picture) |
+| **Clip tab** | Speed 0.25x-4x, **freeze frame**, **transitions** between clips, brightness / contrast / saturation, volume, mute, fades |
+| **Auto subtitles** | *Text* tab: speech to text with the optional local `faster-whisper`; the result is normal, editable text (scene *Captions*) |
 | **Video on top** | *Overlay* tab: videos above the picture (position, size, opacity, own sound), as many tracks as you like |
 | **Shapes** | *Shape* tab: rectangle, rounded box, ellipse, caption bar, card, colour field (colour, opacity, size, time) |
 | **Scenes** | *Scene* tab: bundle texts, shapes, videos and sounds; drag the scene and everything moves along |

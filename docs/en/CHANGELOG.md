@@ -1,6 +1,28 @@
 # What's new
 
-Every release lists what is new in it. The first entry (0.3.1) describes everything that is in the editor today; later entries only list what changed.
+Every release lists what is new in it. The oldest entry (0.3.1) describes everything that was in the editor at that point; newer entries only list what changed.
+
+## 0.4.0 (2026-10-09)
+
+More of what a modern editor offers: an edit toolbar, backgrounds that change over time, per-clip speed, transitions and look, fades and automatic subtitles.
+
+### Timeline
+- **Edit toolbar** above the timeline: undo, redo, split, **trim start / end to the playhead** (Q / W), **clone** (Ctrl+D), delete. It works on a clip or on any selected item of a layer.
+- **Magnet**: dragged items snap to the playhead, the start and the edges of other items; a thin line shows where. Switch it off with one click.
+- A new **BG strip** lane: give any time range its own background (blurred picture, black, colour, gradient, picture). Strips can overlap on separate tracks.
+
+### Clips (new Clip tab)
+- **Speed** from 0.25x to 4x with the sound following, and a **freeze frame** at the playhead.
+- **Transitions** between clips: fade, dip to black or white, dissolve, wipes, slides, circle, pixelate. The preview shows a hard cut; the export blends.
+- **Look and sound** per clip: brightness, contrast, saturation, volume, mute, fade in and fade out.
+
+### Layers
+- **Fade in / fade out** for texts, shapes and videos on top.
+- **Automatic subtitles**: the speech of your clips becomes editable texts in a scene (optional local `faster-whisper`, nothing is downloaded or uploaded).
+
+### Fixes
+- Dragging an item on a layer lane no longer moves the playhead along with the mouse.
+- Project files and the export keep all of the above.
 
 ## 0.3.1 (2026-10-09)
 

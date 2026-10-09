@@ -1,6 +1,28 @@
 # Was ist neu
 
-Jede Version listet, was neu ist. Der erste Eintrag (0.3.1) beschreibt alles, was der Editor heute kann; spätere Einträge nennen nur die Änderungen.
+Jede Version listet, was neu ist. Der älteste Eintrag (0.3.1) beschreibt alles, was der Editor damals konnte; neuere Einträge nennen nur die Änderungen.
+
+## 0.4.0 (2026-10-09)
+
+Mehr von dem, was ein moderner Editor bietet: eine Werkzeugleiste, Hintergründe, die sich über die Zeit ändern, Tempo, Übergänge und Look pro Clip, Ein-/Ausblenden und automatische Untertitel.
+
+### Zeitleiste
+- **Werkzeugleiste** über der Zeitleiste: Rückgängig, Wiederholen, Teilen, **Anfang / Ende auf den Abspielkopf kürzen** (Q / W), **Klonen** (Strg+D), Löschen. Sie wirkt auf einen Clip oder auf jedes ausgewählte Element einer Ebene.
+- **Magnet**: gezogene Elemente rasten am Abspielkopf, am Anfang und an den Rändern anderer Elemente ein; eine dünne Linie zeigt wo. Mit einem Klick abschaltbar.
+- Eine neue Spur **BG strip**: jeder Zeitbereich bekommt seinen eigenen Hintergrund (unscharfes Bild, Schwarz, Farbe, Verlauf, Bild). Streifen dürfen sich auf getrennten Spuren überlappen.
+
+### Clips (neuer Tab Clip)
+- **Tempo** von 0,25x bis 4x, der Ton folgt, und ein **Standbild** am Abspielkopf.
+- **Übergänge** zwischen Clips: Überblenden, Abblenden auf Schwarz oder Weiß, Dissolve, Wischer, Schieber, Kreis, Pixel. Die Vorschau zeigt einen harten Schnitt; der Export blendet.
+- **Look und Ton** pro Clip: Helligkeit, Kontrast, Sättigung, Lautstärke, Stumm, Ein- und Ausblenden.
+
+### Ebenen
+- **Ein- und Ausblenden** für Texte, Formen und Videos obendrauf.
+- **Automatische Untertitel**: das Gesprochene deiner Clips wird zu bearbeitbaren Texten in einer Szene (optionales lokales `faster-whisper`, nichts wird heruntergeladen oder hochgeladen).
+
+### Korrekturen
+- Ein Element in einer Ebenen-Spur zu ziehen schiebt den Abspielkopf nicht mehr mit der Maus mit.
+- Projektdateien und der Export behalten alles Obige.
 
 ## 0.3.1 (2026-10-09)
 
