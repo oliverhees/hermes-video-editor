@@ -110,6 +110,13 @@ def test_transitions_overlap_clips(media, tmp_path, kind):
     assert ffprobe(out)["audio"]
 
 
+def test_transition_after_hard_cuts_and_still_frames(media, tmp_path):
+    clips = sanitized(media, [clip(media, "clip", 0, 1), dict(clip(media, "clip", 1, 1.1), freeze=1.5), clip(media, "clip", 1, 2),
+                              dict(clip(media, "clip", 2, 4), sp=2, tr={"type": "slideleft", "dur": 0.5}, adj={"br": 0.4})])
+    out = P.render_project(clips, tmp_path / "mix")
+    assert ffprobe(out)["duration"] == pytest.approx(4.0, abs=0.2) and ffprobe(out)["audio"]
+
+
 def test_background_strip_uses_clip_start_after_transition(media, tmp_path):
     clips = sanitized(media, [clip(media, "clip", 0, 2), dict(clip(media, "clip", 0, 2), tr={"type": "fade", "dur": 1})])
     strips = P.sanitize_bgsegs([{"mode": "color", "color": "#ff0000", "start": 2.6, "dur": 0.4}])

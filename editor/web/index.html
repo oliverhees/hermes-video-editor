@@ -22,6 +22,7 @@
   <aside id="side">
     <nav id="tabs">
       <button data-tab="cuts" class="on">Edit</button>
+      <button data-tab="clip">Clip</button>
       <button data-tab="picture">Picture</button>
       <button data-tab="text">Text</button>
       <button data-tab="shape">Shape</button>
@@ -61,6 +62,33 @@
       <div id="summary" class="muted"></div>
     </section>
 
+    <section data-pane="clip" class="pane">
+      <h3>Selected clip</h3>
+      <div id="fx-hint" class="muted"></div>
+      <h3>Speed <span id="v-fxspeed" class="muted">1&times;</span></h3>
+      <div id="fx-speeds" class="row ctl"></div>
+      <input id="fx-speed" type="range" min="0.25" max="4" step="0.05" value="1">
+      <p class="muted">The sound follows the speed without changing its pitch.</p>
+      <h3>Still frame</h3>
+      <div class="row ctl"><button id="btn-fx-freeze" class="btn" title="Hold the picture under the playhead">Freeze frame here</button><label class="mini">for (s) <input id="fx-freeze-len" type="number" min="0.1" max="30" step="0.5" value="2"></label></div>
+      <p class="muted">Splits the clip at the playhead and inserts the frame as a still picture. Silent.</p>
+      <h3>Transition into this clip</h3>
+      <div class="row ctl"><select id="fx-tr"><option value="">None (hard cut)</option></select></div>
+      <label class="field">Length <span id="v-fxtrlen">0.5 s</span><input id="fx-trlen" type="range" min="0.1" max="3" step="0.1" value="0.5"></label>
+      <p id="fx-tr-note" class="muted"></p>
+      <h3>Look</h3>
+      <label class="field">Brightness <span id="v-fxbr">0%</span><input id="fx-br" type="range" min="-100" max="100" step="1" value="0"></label>
+      <label class="field">Contrast <span id="v-fxct">100%</span><input id="fx-ct" type="range" min="0" max="300" step="1" value="100"></label>
+      <label class="field">Saturation <span id="v-fxsa">100%</span><input id="fx-sa" type="range" min="0" max="300" step="1" value="100"></label>
+      <h3>Sound</h3>
+      <label class="field">Volume <span id="v-fxvol">0 dB</span><input id="fx-vol" type="range" min="-60" max="12" step="1" value="0"></label>
+      <label class="check"><input id="fx-mute" type="checkbox"> Mute this clip</label>
+      <label class="field">Fade in <span id="v-fxfi">0 s</span><input id="fx-fi" type="range" min="0" max="5" step="0.1" value="0"></label>
+      <label class="field">Fade out <span id="v-fxfo">0 s</span><input id="fx-fo" type="range" min="0" max="5" step="0.1" value="0"></label>
+      <p class="muted">Fades dip the picture into the background and the sound to silence. The preview approximates brightness, contrast and saturation; the export is exact.</p>
+      <div class="row"><button id="btn-fx-reset" class="btn">Reset look &amp; sound</button><button id="btn-fx-all" class="btn" title="Copy brightness, contrast, saturation, volume and mute to every clip">Use for all clips</button></div>
+    </section>
+
     <section data-pane="picture" class="pane">
       <h3>Canvas</h3>
       <div class="row">
@@ -97,12 +125,20 @@
       </div>
       <button id="btn-tf-all" class="btn wide">Use this position for all clips</button>
       <p class="muted">Tip: drag the picture on the preview to move it, drag a corner or use the mouse wheel to zoom. Split a clip first to place each part differently.</p>
-      <h3>Speed</h3>
+      <h3>Speed of the whole video (export)</h3>
       <select id="in-speed"></select>
     </section>
 
     <section data-pane="text" class="pane">
       <button id="btn-text-add" class="btn primary wide">Add text at the playhead</button>
+      <h3>Automatic subtitles</h3>
+      <div class="row ctl"><select id="cap-scope" title="Which clips to listen to"><option value="all">All clips</option><option value="selected">Selected clip</option></select>
+        <select id="cap-lang" title="Spoken language"><option value="">Detect language</option><option value="de">Deutsch</option><option value="en">English</option><option value="fr">Fran&ccedil;ais</option><option value="es">Espa&ntilde;ol</option><option value="it">Italiano</option><option value="pt">Portugu&ecirc;s</option><option value="nl">Nederlands</option><option value="pl">Polski</option><option value="tr">T&uuml;rk&ccedil;e</option><option value="ru">&#1056;&#1091;&#1089;&#1089;&#1082;&#1080;&#1081;</option></select>
+        <select id="cap-model" title="Bigger = more accurate and slower"><option value="base">Model: base</option><option value="tiny">tiny (fast)</option><option value="small">small</option><option value="medium">medium</option><option value="large-v3">large-v3</option></select></div>
+      <button id="btn-captions" class="btn wide">Make subtitles from speech</button>
+      <div id="cap-state" class="muted"></div>
+      <p class="muted">Needs the optional package <code>faster-whisper</code> and a speech model already on this computer (nothing is downloaded). The subtitles become normal texts: correct them, restyle them, move the "Captions" scene.</p>
+      <h3>Text</h3>
       <p id="tx-none" class="muted">Texts appear on the picture for the time you choose. Click a text on the timeline to edit it.</p>
       <div id="tx-edit" hidden>
         <h3>Text</h3>
@@ -121,6 +157,8 @@
           <button id="tx-p-caption" class="btn" title="Bottom caption">Caption</button>
         </div>
         <p class="muted">Or drag the text on the preview (mouse wheel changes the size).</p>
+        <label class="field">Fade in <span id="v-txfi">0 s</span><input id="tx-fi" type="range" min="0" max="5" step="0.1" value="0"></label>
+        <label class="field">Fade out <span id="v-txfo">0 s</span><input id="tx-fo" type="range" min="0" max="5" step="0.1" value="0"></label>
         <h3>Timing (seconds)</h3>
         <div class="row ctl"><label class="mini">Start <input id="tx-start" type="number" min="0" step="0.1"></label><label class="mini">Length <input id="tx-dur" type="number" min="0.1" step="0.1"></label></div>
         <div class="row" style="margin-top:10px"><button id="btn-text-dup" class="btn">Copy</button><button id="btn-text-del" class="btn danger">Delete</button></div>
@@ -139,6 +177,8 @@
         <label class="field">Width <span id="v-shw">50%</span><input id="sh-w" type="range" min="2" max="300" step="1" value="50"></label>
         <label class="field">Height <span id="v-shh">20%</span><input id="sh-h" type="range" min="2" max="300" step="1" value="20"></label>
         <label id="sh-radius-row" class="field">Corner roundness <span id="v-shr">25%</span><input id="sh-radius" type="range" min="0" max="50" step="1" value="25"></label>
+        <label class="field">Fade in <span id="v-shfi">0 s</span><input id="sh-fi" type="range" min="0" max="5" step="0.1" value="0"></label>
+        <label class="field">Fade out <span id="v-shfo">0 s</span><input id="sh-fo" type="range" min="0" max="5" step="0.1" value="0"></label>
         <div class="row ctl"><label class="mini">Start <input id="sh-start" type="number" min="0" step="0.1"></label><label class="mini">Length <input id="sh-dur" type="number" min="0.1" step="0.1"></label></div>
         <div class="row" style="margin-top:10px"><button id="btn-shape-center" class="btn">Center</button><button id="btn-shape-dup" class="btn">Copy</button><button id="btn-shape-del" class="btn danger">Delete</button></div>
       </div>
@@ -169,6 +209,8 @@
         <div class="row ctl"><button id="ov-c-mid" class="btn small">Center</button><button id="ov-c-full" class="btn small">Full picture</button></div>
         <label class="check"><input id="ov-sound" type="checkbox"> Play its sound</label>
         <label class="field">Sound level <span id="v-ovvol">0 dB</span><input id="ov-vol" type="range" min="-40" max="12" step="1" value="0"></label>
+        <label class="field">Fade in <span id="v-ovfi">0 s</span><input id="ov-fi" type="range" min="0" max="5" step="0.1" value="0"></label>
+        <label class="field">Fade out <span id="v-ovfo">0 s</span><input id="ov-fo" type="range" min="0" max="5" step="0.1" value="0"></label>
         <div class="row ctl"><label class="mini">Start (s) <input id="ov-start" type="number" min="0" step="0.1"></label></div>
         <button id="btn-ov-del" class="btn danger wide">Delete this video</button>
       </div>
@@ -332,6 +374,8 @@
 <script src="/static/shapes.js"></script>
 <script src="/static/scenes.js"></script>
 <script src="/static/backgrounds.js"></script>
+<script src="/static/clipfx.js"></script>
+<script src="/static/captions.js"></script>
 <script src="/static/tools.js"></script>
 <script src="/static/pick.js"></script>
 <script src="/static/help.js"></script>

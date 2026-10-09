@@ -118,6 +118,26 @@ def sanitize_bgsegs(raw: Any, roots: Any = None) -> List[Dict[str, Any]]:
     return out
 
 
+SRT_TIME = re.compile(r"(\d+):(\d+):(\d+)[,.](\d+)\s*-->\s*(\d+):(\d+):(\d+)[,.](\d+)")
+
+
+def parse_srt(text: str) -> List[Dict[str, Any]]:
+    """Cues of an .srt file as [{start, end, text}] in seconds (text on one line, empty cues dropped)."""
+    cues = []
+    for block in re.split(r"\r?\n\s*\r?\n", text.strip()):
+        lines = [ln for ln in block.splitlines() if ln.strip()]
+        for k, ln in enumerate(lines):
+            m = SRT_TIME.search(ln)
+            if m:
+                g = [int(x) for x in m.groups()]
+                t0, t1 = g[0] * 3600 + g[1] * 60 + g[2] + g[3] / 1000.0, g[4] * 3600 + g[5] * 60 + g[6] + g[7] / 1000.0
+                body = CONTROL_RE.sub("", " ".join(" ".join(lines[k + 1:]).split()))
+                if body and t1 > t0:
+                    cues.append({"start": t0, "end": t1, "text": body[:500]})
+                break
+    return cues
+
+
 def clean_tf(tf: Any) -> Dict[str, float]:
     """Per-clip transform: s = scale relative to 'fit inside the canvas', x/y = centre offset as a fraction of the canvas."""
     tf = tf if isinstance(tf, dict) else {}
@@ -686,7 +706,10 @@ def join_with_transitions(clips: List[Dict[str, Any]], trs: List[float], durs: L
             acc_len += durs[i] - trs[i]
         else:
             ins = "[%s]%s[v%d]%s" % (accv, "[%s]" % acca if any_audio else "", i, "[a%d]" % i if any_audio else "")
-            parts.append("%sconcat=n=2:v=1:a=%d[%s]%s" % (ins, int(any_audio), outv, "[%s]" % outa if any_audio else ""))
+            raw = outv if i == last else "jc%d" % i                 # concat hands out a microsecond clock; xfade wants the frame clock
+            parts.append("%sconcat=n=2:v=1:a=%d[%s]%s" % (ins, int(any_audio), raw, "[%s]" % outa if any_audio else ""))
+            if raw != outv:
+                parts.append("[%s]fps=%s[%s]" % (raw, fps, outv))
             acc_len += durs[i]
         accv, acca = outv, outa
     return parts

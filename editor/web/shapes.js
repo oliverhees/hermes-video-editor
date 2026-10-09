@@ -34,9 +34,11 @@
   $("sh-w").addEventListener("input", function () { live({ w: +this.value / 100 }); });
   $("sh-h").addEventListener("input", function () { live({ h: +this.value / 100 }); });
   $("sh-radius").addEventListener("input", function () { live({ radius: +this.value / 100 }); });
+  $("sh-fi").addEventListener("input", function () { live({ fi: +this.value }); });
+  $("sh-fo").addEventListener("input", function () { live({ fo: +this.value }); });
   $("sh-start").addEventListener("input", function () { live({ start: +this.value }); });
   $("sh-dur").addEventListener("input", function () { live({ dur: +this.value }); });
-  ["sh-color", "sh-op", "sh-w", "sh-h", "sh-radius", "sh-start", "sh-dur"].forEach(function (id) { $(id).addEventListener("change", end); });
+  ["sh-color", "sh-op", "sh-w", "sh-h", "sh-radius", "sh-start", "sh-dur", "sh-fi", "sh-fo"].forEach(function (id) { $(id).addEventListener("change", end); });
   $("btn-shape-center").addEventListener("click", function () { if (S.selShape < 0) return; V.gestureBegin(); replace(S.selShape, { x: 0.5 }); end(); });
   $("btn-shape-dup").addEventListener("click", function () {
     var s = cur(); if (!s) return;
@@ -52,6 +54,7 @@
     $("sh-op").value = pct(s.op); $("v-shop").textContent = pct(s.op) + "%";
     $("sh-w").value = pct(s.w); $("v-shw").textContent = pct(s.w) + "%"; $("sh-h").value = pct(s.h); $("v-shh").textContent = pct(s.h) + "%";
     $("sh-radius").value = pct(s.radius); $("v-shr").textContent = pct(s.radius) + "%"; $("sh-radius-row").hidden = s.kind !== "rounded";
+    $("sh-fi").value = s.fi || 0; $("v-shfi").textContent = (s.fi || 0) + " s"; $("sh-fo").value = s.fo || 0; $("v-shfo").textContent = (s.fo || 0) + " s";
     if (document.activeElement !== $("sh-start")) $("sh-start").value = s.start.toFixed(2);
     if (document.activeElement !== $("sh-dur")) $("sh-dur").value = s.dur.toFixed(2);
   }
@@ -69,7 +72,7 @@
   // ---------------------------------------------------------------- preview
   function drawShape(g, k, W, H, s) {
     var w = Math.max(2, Math.round(s.w * W)), h = Math.max(2, Math.round(s.h * H)), x = Math.round(s.x * W - w / 2), y = Math.round(s.y * H - h / 2);
-    g.save(); g.globalAlpha = s.op; g.fillStyle = s.color; g.beginPath();
+    g.save(); g.globalAlpha = s.op * TL.fadeFactor(s, S.t); g.fillStyle = s.color; g.beginPath();
     if (s.kind === "ellipse") g.ellipse((x + w / 2) * k, (y + h / 2) * k, w / 2 * k, h / 2 * k, 0, 0, Math.PI * 2);
     else if (s.kind === "rounded") { var r = Math.max(1, s.radius * Math.min(w, h)) * k, X = x * k, Y = y * k, ww = w * k, hh = h * k; g.moveTo(X + r, Y); g.arcTo(X + ww, Y, X + ww, Y + hh, r); g.arcTo(X + ww, Y + hh, X, Y + hh, r); g.arcTo(X, Y + hh, X, Y, r); g.arcTo(X, Y, X + ww, Y, r); g.closePath(); }
     else g.rect(x * k, y * k, w * k, h * k);

@@ -28,9 +28,11 @@
   $("tx-boxcolor").addEventListener("input", function () { liveText({ boxColor: this.value }); });
   $("tx-outline").addEventListener("change", function () { liveText({ outline: this.checked }); V.gestureEnd(); });
   $("tx-box").addEventListener("change", function () { liveText({ box: this.checked }); V.gestureEnd(); });
+  $("tx-fi").addEventListener("input", function () { liveText({ fi: +this.value }); });
+  $("tx-fo").addEventListener("input", function () { liveText({ fo: +this.value }); });
   $("tx-start").addEventListener("input", function () { liveText({ start: +this.value }); });
   $("tx-dur").addEventListener("input", function () { liveText({ dur: +this.value }); });
-  ["tx-text", "tx-size", "tx-color", "tx-boxcolor", "tx-start", "tx-dur"].forEach(function (id) { $(id).addEventListener("change", function () { V.gestureEnd(); V.renderAll(); }); $(id).addEventListener("blur", V.gestureEnd); });
+  ["tx-text", "tx-size", "tx-color", "tx-boxcolor", "tx-start", "tx-dur", "tx-fi", "tx-fo"].forEach(function (id) { $(id).addEventListener("change", function () { V.gestureEnd(); V.renderAll(); }); $(id).addEventListener("blur", V.gestureEnd); });
   [["tx-p-title", { x: 0.5, y: 0.45, size: 0.12 }], ["tx-p-lower", { x: 0.5, y: 0.82, size: 0.06, box: true }], ["tx-p-caption", { x: 0.5, y: 0.92, size: 0.055 }]].forEach(function (p) {
     $(p[0]).addEventListener("click", function () { if (S.selText < 0) return; V.gestureBegin(); replaceText(S.selText, p[1]); V.gestureEnd(); V.renderAll(); });
   });
@@ -72,6 +74,7 @@
     if (t) {
       if (!light || document.activeElement !== $("tx-text")) $("tx-text").value = t.text;
       $("tx-size").value = Math.round(t.size * 1000) / 10; $("v-txsize").textContent = Math.round(t.size * 1000) / 10 + "%";
+      $("tx-fi").value = t.fi || 0; $("v-txfi").textContent = (t.fi || 0) + " s"; $("tx-fo").value = t.fo || 0; $("v-txfo").textContent = (t.fo || 0) + " s";
       $("tx-color").value = t.color; $("tx-boxcolor").value = t.boxColor; $("tx-outline").checked = t.outline; $("tx-box").checked = t.box;
       if (document.activeElement !== $("tx-start")) $("tx-start").value = t.start.toFixed(2);
       if (document.activeElement !== $("tx-dur")) $("tx-dur").value = t.dur.toFixed(2);
@@ -136,12 +139,14 @@
       var size = Math.max(8, Math.round(t.size * H)) * k, lines = t.text.split("\n"), lh = size * 1.2;
       g.font = "600 " + size + "px system-ui, -apple-system, 'Segoe UI', sans-serif"; g.textBaseline = "top"; g.textAlign = "left";
       var maxw = 0; lines.forEach(function (l) { maxw = Math.max(maxw, g.measureText(l).width); });
-      var h = lines.length * lh, x0 = t.x * W * k - maxw / 2, y0 = t.y * H * k - h / 2, pad = Math.max(6, size / 4);
-      if (t.box) { g.globalAlpha = t.boxOpacity; g.fillStyle = t.boxColor; g.fillRect(x0 - pad, y0 - pad, maxw + pad * 2, h + pad * 2); g.globalAlpha = 1; }
+      var h = lines.length * lh, x0 = t.x * W * k - maxw / 2, y0 = t.y * H * k - h / 2, pad = Math.max(6, size / 4), fade = TL.fadeFactor(t, S.t);
+      if (t.box) { g.globalAlpha = t.boxOpacity * fade; g.fillStyle = t.boxColor; g.fillRect(x0 - pad, y0 - pad, maxw + pad * 2, h + pad * 2); }
+      g.globalAlpha = fade;
       lines.forEach(function (l, n) {
         if (t.outline) { g.lineWidth = Math.max(1, size * 0.12); g.lineJoin = "round"; g.strokeStyle = "#000"; g.strokeText(l, x0, y0 + n * lh); }
         g.fillStyle = t.color; g.fillText(l, x0, y0 + n * lh);
       });
+      g.globalAlpha = 1;
       if (S.texts[S.selText] && S.texts[S.selText].id === t.id) tbounds = { x: x0 - pad, y: y0 - pad, w: maxw + pad * 2, h: h + pad * 2, k: k };
       V.hits.push({ z: 30 + (t.track || 0), rect: [(x0 - pad) * kc0, (y0 - pad) * kc0, (maxw + pad * 2) * kc0, (h + pad * 2) * kc0], gizmo: "tgizmo",
         select: function () { clearSel("text"); S.selText = S.texts.findIndex(function (x) { return x.id === t.id; }); tab("text"); } });

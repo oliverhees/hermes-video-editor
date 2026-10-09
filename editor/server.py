@@ -21,7 +21,7 @@ from . import toolrun
 from .security import MEDIA_EXTS, default_roots, inside, safe_dir, safe_image_file, safe_media_file
 
 WEB = Path(__file__).resolve().parent / "web"
-STATIC = {"app.js": "text/javascript; charset=utf-8", "timeline.js": "text/javascript; charset=utf-8", "layers.js": "text/javascript; charset=utf-8", "overlays.js": "text/javascript; charset=utf-8", "tracks.js": "text/javascript; charset=utf-8", "shapes.js": "text/javascript; charset=utf-8", "scenes.js": "text/javascript; charset=utf-8", "pick.js": "text/javascript; charset=utf-8", "tools.js": "text/javascript; charset=utf-8", "backgrounds.js": "text/javascript; charset=utf-8", "help.js": "text/javascript; charset=utf-8",
+STATIC = {"app.js": "text/javascript; charset=utf-8", "timeline.js": "text/javascript; charset=utf-8", "layers.js": "text/javascript; charset=utf-8", "overlays.js": "text/javascript; charset=utf-8", "tracks.js": "text/javascript; charset=utf-8", "shapes.js": "text/javascript; charset=utf-8", "scenes.js": "text/javascript; charset=utf-8", "pick.js": "text/javascript; charset=utf-8", "tools.js": "text/javascript; charset=utf-8", "backgrounds.js": "text/javascript; charset=utf-8", "clipfx.js": "text/javascript; charset=utf-8", "captions.js": "text/javascript; charset=utf-8", "help.js": "text/javascript; charset=utf-8",
           "app.css": "text/css; charset=utf-8"}
 DOCS = Path(__file__).resolve().parents[1] / "docs"
 HELP_DOCS = {"/help/en.md": DOCS / "en" / "GUIDE.md", "/help/de.md": DOCS / "de" / "GUIDE.md",
@@ -204,6 +204,32 @@ def api_tool(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
         job.result = toolrun.run_tool(str(name), args)
 
     return {"job": srv.jobs.start("tool", work).id}
+
+
+CAPTION_LANGS = ("de", "en", "fr", "es", "it", "pt", "nl", "pl", "tr", "ru")
+
+
+def api_captions(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
+    """Speech to text for one file with the optional local faster-whisper; the answer is a list of timed cues (never leaves this computer)."""
+    from ..tools.export import MODELS
+    src = safe_media_file(body.get("path"), srv.roots)
+    out_dir = jobs_mod.CACHE_ROOT / "captions"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    args: Dict[str, Any] = {"input": str(src), "output_dir": str(out_dir), "model": body.get("model") if body.get("model") in MODELS else "base"}
+    if body.get("language") in CAPTION_LANGS:
+        args["language"] = body["language"]
+
+    def work(job: jobs_mod.Job) -> None:
+        job.step = "Listening to the speech"
+        res = toolrun.run_tool("lk_transcribe_captions", args)
+        srt = Path(res["output"])
+        try:
+            cues = project_mod.parse_srt(srt.read_text(encoding="utf-8", errors="replace"))
+        finally:
+            srt.unlink(missing_ok=True)
+        job.result = {"cues": cues[:project_mod.MAX_TEXTS], "language": (res.get("info") or {}).get("language")}
+
+    return {"job": srv.jobs.start("captions", work).id}
 
 
 def api_export(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
@@ -459,6 +485,8 @@ def make_handler(srv: EditorServer):
                 self._json(api_export(srv, body))
             elif route == "/api/tool":
                 self._json(api_tool(srv, body))
+            elif route == "/api/captions":
+                self._json(api_captions(srv, body))
             elif route == "/api/seen":
                 self._json(api_seen(srv, body))
             elif route == "/api/mkdir":
