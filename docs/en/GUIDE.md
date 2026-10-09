@@ -30,7 +30,11 @@ The editor never changes your original files. Every export creates a new file.
 | Re-order clips | Drag a clip left or right |
 | Trim a clip | Drag its left or right edge |
 | Remove all silences | Set the level and shortest silence, click **Remove silences** (on the selected clip, or on all) |
+| Trim to the playhead | **Q** cuts away everything before the playhead, **W** everything after it (the toolbar buttons *Trim start* / *Trim end*) |
+| Clone | **Ctrl+D**, or the *Clone* button: a copy right behind the original |
 | Undo / redo | **Ctrl+Z** / **Ctrl+Shift+Z** |
+
+**The toolbar above the timeline** has *Undo, Redo, Split, Trim start, Trim end, Clone, Delete* and the **Magnet**. The buttons act on whatever is selected: a clip, or one item of a layer (text, shape, video on top, sound, background strip). Nothing selected means the clip under the playhead. With the **Magnet** on, items you drag snap to the playhead, the start of the timeline and the edges of other items (a thin line shows where).
 
 ## 4. Picture (tab Picture)
 
@@ -39,6 +43,19 @@ The editor never changes your original files. Every export creates a new file.
 - **Position and size of each clip**: select a clip, then drag it in the preview, use the mouse wheel, or the sliders and **Fit / Fill / Center / Reset**.
   Split a clip first to place each part differently (for example when the speaker moves).
   **Fill** makes a 16:9 clip cover a 9:16 canvas.
+
+### Background strips
+
+The **BG strip** lane lets the canvas background change over time: pick a time range, give it its own look (blurred picture, black, a colour, a gradient or a picture). Click **Add a strip at the playhead** in the Picture tab, drag it on its **BG strip** lane, drag its edges for the length, and use the Background controls to change it. With no strip selected the controls change the project background that applies everywhere else. Strips can overlap on separate tracks; the higher track is in front. A strip is only visible where the picture does not fill the canvas.
+
+### Clip tab: speed, still frame, transitions, look and sound
+
+Everything here applies to the selected clip (or the clip under the playhead):
+
+- **Speed** from 0.25× to 4×. The sound follows without changing its pitch. The clip gets shorter or longer on the timeline.
+- **Freeze frame here** splits the clip at the playhead and inserts the frame as a still picture for the time you set. It has no sound.
+- **Transition into this clip** blends the clip before into this one (fade, dip to black or white, dissolve, wipes, slides, circle, pixelate). The two clips overlap by the length of the transition, at most half of the shorter clip. The preview shows a hard cut, the export blends.
+- **Look**: brightness, contrast, saturation. **Sound**: volume, mute, fade in and fade out (the picture dips into the background). *Use for all clips* copies the look and sound to every clip. The preview approximates the look; the export is exact.
 
 ## 5. Video on top (tab Overlay)
 
@@ -55,7 +72,12 @@ A second video track above the main picture: reaction clip, logo animation, b-ro
 1. Move the playhead and click **Add text at the playhead**, then type.
 2. Size, colour, outline and box. Presets: **Title, Lower third, Caption**.
 3. Drag the text in the preview. On the **Text** lane drag it to move, drag its edges to change how long it is visible.
-4. Several texts one after another: add the next one at a later playhead position. Several at the same time land on separate tracks.
+4. **Fade in** and **fade out** soften the start and end of a text; shapes and videos on top have the same two sliders.
+5. Several texts one after another: add the next one at a later playhead position. Several at the same time land on separate tracks.
+
+### Automatic subtitles
+
+In the **Text** tab choose the clips, the spoken language and a model size and click **Make subtitles from speech**. The speech of your clips becomes normal texts (bottom of the picture, with a box) inside a scene called *Captions*. Correct a text by clicking it, restyle it, or move the whole scene. It uses the optional local package `faster-whisper` and a speech model that is already on your computer; nothing is downloaded and nothing leaves your computer. Cuts and speed changes are respected.
 
 ### Shapes
 
@@ -94,7 +116,9 @@ Reference: [Tool reference](TOOLS.md).
 | Key | Action |
 |---|---|
 | Space | Play / pause |
-| S | Split at the playhead |
+| S | Split the selected item (or the clip) at the playhead |
+| Q / W | Trim the start / the end to the playhead |
+| Ctrl+D | Clone the selected item or clip |
 | I / O / X | Set in / set out / remove the range |
 | Delete | Delete the selected clip, text, shape, scene, audio or overlay |
 | Left / Right | One frame back / forward (with Shift: one second) |
@@ -105,9 +129,11 @@ Reference: [Tool reference](TOOLS.md).
 
 ## 11. Good to know
 
+- **What's new** (top bar) shows the changelog of this version; it opens by itself the first time after an update.
 - The preview is a fast low-resolution copy. The export uses your original quality.
 - The preview does not play ducking and cannot make audio louder than the source. The export does both.
 - Text looks slightly different in the preview than in the export (different font).
+- Speed, still frames and transitions change the length of the main track. Texts, shapes, overlays, background strips and audio items sit at fixed times and do not follow; bundle them in a scene and move that.
 - Texts, shapes, overlays and audio items sit at fixed times. If you cut the main clips afterwards, move them by hand (or bundle them in a scene and move that).
 - The preview needs H.264 or VP8 playback in the app's browser engine. Cutting and export work without it.
 

@@ -483,7 +483,7 @@ def test_sanitize_shapes_scenes_tracks_and_bg(media, tmp_path):
         P.sanitize_shapes([{}] * 201)
     sc = P.sanitize_scenes([{"name": "Intro\x00", "items": ["a", 5], "start": -1}, "x"])
     assert len(sc) == 1 and sc[0]["name"] == "Intro" and sc[0]["items"] == ["a", "5"] and sc[0]["start"] == 0
-    assert P.sanitize_tracks({"text": 99, "audio": 0, "bogus": 3}) == {"scene": 1, "shape": 1, "text": 12, "overlay": 1, "audio": 1}
+    assert P.sanitize_tracks({"text": 99, "audio": 0, "bogus": 3}) == {"scene": 1, "shape": 1, "text": 12, "overlay": 1, "bg": 1, "audio": 1}
     assert P.sanitize_bg({"mode": "color", "color": "#ff0000"}) == {"mode": "color", "color": "#ff0000"}          # old modes keep their shape
     assert P.sanitize_bg({"mode": "gradient", "color": "#ff0000", "color2": "x"}) == {"mode": "gradient", "color": "#ff0000", "color2": "#1b1464"}
     img = tmp_path / "bg.png"
@@ -555,7 +555,7 @@ def test_project_file_keeps_shapes_scenes_tracks_and_new_backgrounds(media, tmp_
     back = P.load_project(P.save_project(str(tmp_path / "all"), proj, [str(tmp_path)]), [str(tmp_path)])
     assert back["shapes"][0]["kind"] == "ellipse" and back["shapes"][0]["track"] == 2 and back["shapes"][0]["op"] == 0.4
     assert back["scenes"][0]["items"] == ["s1", "t1"] and back["texts"][0]["track"] == 3
-    assert back["tracks"] == {"scene": 1, "shape": 3, "text": 4, "overlay": 1, "audio": 1}
+    assert back["tracks"] == {"scene": 1, "shape": 3, "text": 4, "overlay": 1, "bg": 1, "audio": 1}
     assert back["bg"] == {"mode": "gradient", "color": "#ff0000", "color2": "#0000ff"}
     old = P.validate_project({"version": 1, "assets": {}, "clips": []})
     assert old["shapes"] == [] and old["scenes"] == [] and old["tracks"] == {k: 1 for k in P.TRACK_KINDS}

@@ -28,9 +28,11 @@
   $("ov-s").addEventListener("input", function () { liveTf({ s: +this.value / 100 }); });
   $("ov-op").addEventListener("input", function () { live({ op: +this.value / 100 }); });
   $("ov-vol").addEventListener("input", function () { live({ vol: +this.value }); });
+  $("ov-fi").addEventListener("input", function () { live({ fi: +this.value }); });
+  $("ov-fo").addEventListener("input", function () { live({ fo: +this.value }); });
   $("ov-start").addEventListener("input", function () { live({ start: +this.value }); });
   $("ov-sound").addEventListener("change", function () { live({ sound: this.checked }); end(); });
-  ["ov-s", "ov-op", "ov-vol", "ov-start"].forEach(function (id) { $(id).addEventListener("change", end); });
+  ["ov-s", "ov-op", "ov-vol", "ov-start", "ov-fi", "ov-fo"].forEach(function (id) { $(id).addEventListener("change", end); });
   [["ov-c-tl", { x: -0.27, y: -0.27 }], ["ov-c-tr", { x: 0.27, y: -0.27 }], ["ov-c-bl", { x: -0.27, y: 0.27 }], ["ov-c-br", { x: 0.27, y: 0.27 }], ["ov-c-mid", { x: 0, y: 0 }]].forEach(function (p) {
     $(p[0]).addEventListener("click", function () { if (S.selOv < 0) return; V.gestureBegin(); setTf(S.selOv, p[1]); end(); });
   });
@@ -50,6 +52,7 @@
     $("ov-s").value = Math.round(o.tf.s * 100); $("v-ovs").textContent = Math.round(o.tf.s * 100) + "%";
     $("ov-op").value = Math.round(o.op * 100); $("v-ovop").textContent = Math.round(o.op * 100) + "%";
     $("ov-sound").checked = o.sound; $("ov-vol").value = o.vol; $("v-ovvol").textContent = Math.round(o.vol) + " dB"; $("ov-vol").disabled = !o.sound;
+    $("ov-fi").value = o.fi || 0; $("v-ovfi").textContent = (o.fi || 0) + " s"; $("ov-fo").value = o.fo || 0; $("v-ovfo").textContent = (o.fo || 0) + " s";
     if (document.activeElement !== $("ov-start")) $("ov-start").value = o.start.toFixed(2);
   }
 
@@ -80,7 +83,7 @@
       var n = node(o, asset), want = o["in"] + (S.t - o.start);
       if (!V.playing() && Math.abs(n.currentTime - want) > 0.04) { try { n.currentTime = want; } catch (e) { /* not ready */ } }
       var r = TL.fgRect(asset.info.video.display_width, asset.info.video.display_height, W, H, o.tf);
-      if (n.readyState >= 2 && n.videoWidth) { g.globalAlpha = o.op; g.drawImage(n, r[0] * k, r[1] * k, r[2] * k, r[3] * k); g.globalAlpha = 1; }
+      if (n.readyState >= 2 && n.videoWidth) { g.globalAlpha = o.op * TL.fadeFactor(o, S.t); g.drawImage(n, r[0] * k, r[1] * k, r[2] * k, r[3] * k); g.globalAlpha = 1; }
       if (S.overlays[S.selOv] && S.overlays[S.selOv].id === o.id) hit = r;
       V.hits.push({ z: 20 + (o.track || 0), rect: [r[0] * kc, r[1] * kc, r[2] * kc, r[3] * kc], gizmo: "ogizmo",
         select: function () { clearOthers(); S.selOv = S.overlays.findIndex(function (x) { return x.id === o.id; }); tab("overlay"); } });

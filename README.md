@@ -1,6 +1,6 @@
 **🇬🇧 English** · [🇩🇪 Deutsch](README.de.md)
 
-**🚧 STATUS: BETA v0.3**
+**🚧 STATUS: BETA v0.4.0**
 
 ![Video Editor](docs/banner.png)
 
@@ -15,7 +15,7 @@
 
 *Cut, crop, caption and master your own videos from chat or with the mouse. Nothing leaves your computer.*
 
-[Quickstart](#-quickstart) · [The editor](#-the-visual-editor) · [User guide](docs/en/GUIDE.md) · [Tool reference](docs/en/TOOLS.md) · [Licence](#-license)
+[Quickstart](#-quickstart) · [The editor](#-the-visual-editor) · [User guide](docs/en/GUIDE.md) · [Tool reference](docs/en/TOOLS.md) · [Licence](#-license) · [Official page](https://lokyy.de/hermes-video-editor/)
 
 > Powered by [Lokyy.de](https://lokyy.de) - German Hermes Engineering
 
@@ -107,8 +107,12 @@ python scripts/editor.py my-video.mp4    # with a file preloaded
 |---|---|
 | Add videos | **Add clip...**, **Recent**, or **drop files** into the window (several at once) |
 | Cut | `S` split, `Delete` remove a clip (gap closes), `I` `O` `X` cut a range, drag edges to trim, drag clips to reorder, `Ctrl+Z` undo |
+| **Edit toolbar** | Above the timeline: undo, redo, split, **trim start / end to the playhead** (`Q` / `W`), **clone** (`Ctrl+D`), delete and the **magnet** (items snap to the playhead and to each other) |
 | Remove silences | *Edit* tab -> **Remove silences** |
 | Canvas, background, position, size | *Picture* tab; drag the picture in the preview, mouse wheel zooms, **Fit / Fill / Center / Reset** |
+| **Background strips** | *Picture* tab + *BG strip* lane: change the canvas background for any time range (blur, colour, gradient, picture) |
+| **Clip tab** | Speed 0.25x-4x, **freeze frame**, **transitions** between clips, brightness / contrast / saturation, volume, mute, fades |
+| **Auto subtitles** | *Text* tab: speech to text with the optional local `faster-whisper`; the result is normal, editable text (scene *Captions*) |
 | **Video on top** | *Overlay* tab: videos above the picture (position, size, opacity, own sound), as many tracks as you like |
 | **Shapes** | *Shape* tab: rectangle, rounded box, ellipse, caption bar, card, colour field (colour, opacity, size, time) |
 | **Scenes** | *Scene* tab: bundle texts, shapes, videos and sounds; drag the scene and everything moves along |
@@ -117,7 +121,7 @@ python scripts/editor.py my-video.mp4    # with a file preloaded
 | **Music / voice-over** | *Sound* tab: volume, fades, start time, **ducking** (music gets quieter while the video speaks) |
 | Any of the 45 tools | *Tools* tab: every tool as a form |
 | Export | *Export* tab: platform preset, loudness, speed, folder |
-| Help | **Help** button (top bar): this guide in English or German |
+| Help | **Help** button (top bar): this guide in English or German. **What's new** shows the changelog (it opens by itself the first time after an update) |
 
 How it works: a tiny web server inside the plugin listens on **127.0.0.1 only** (random port, one-time token). It serves the editor page, streams the video you open and runs the tools. It only reads and writes **media files below your home folder** (add more with `VE_EDITOR_ROOTS`, separated by `:` or `;` on Windows).
 
@@ -162,6 +166,7 @@ The editor itself stays free of any AI service. A **separate, optional plugin** 
 | User guide (also in the editor: *Help* button) | [docs/en/GUIDE.md](docs/en/GUIDE.md) | [docs/de/GUIDE.md](docs/de/GUIDE.md) |
 | Tool reference | [docs/en/TOOLS.md](docs/en/TOOLS.md) | [docs/de/TOOLS.md](docs/de/TOOLS.md) |
 | README | this file | [README.de.md](README.de.md) |
+| Changelog (also in the editor: *What's new*) | [docs/en/CHANGELOG.md](docs/en/CHANGELOG.md) | [docs/de/CHANGELOG.md](docs/de/CHANGELOG.md) |
 | Design notes | [docs/NOTES.md](docs/NOTES.md) | |
 
 ## 🔧 How every tool behaves

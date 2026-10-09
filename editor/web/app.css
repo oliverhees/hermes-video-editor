@@ -219,3 +219,22 @@ input[type=color]{width:100%;min-width:36px;height:32px;padding:2px;background:v
 #add-track{max-width:120px;font-size:12px;padding:4px 6px}
 #in-bgcolor2{flex:0 0 44px;height:34px;padding:2px;background:var(--panel2);border:1px solid var(--line);border-radius:8px}
 #sc-name{width:100%}
+
+#btn-whatsnew{position:relative}
+#new-dot{position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+#new-dot[hidden]{display:none}
+
+/* toolbar above the timeline */
+#timeline{display:flex;flex-direction:column}
+#toolbar{display:flex;align-items:center;gap:6px;padding:5px 10px;border-bottom:1px solid var(--line);background:var(--panel);flex:0 0 auto;flex-wrap:wrap}
+#toolbar .sep{width:1px;height:18px;background:var(--line);margin:0 4px}
+#toolbar .btn.on{background:var(--accent);color:var(--on-accent,#fff);border-color:var(--accent)}
+#toolbar kbd{margin-left:4px}
+#tl-scroll{flex:1 1 auto;height:auto;min-height:0}
+#snap-line{position:absolute;top:0;bottom:0;width:0;border-left:2px dashed var(--accent);pointer-events:none;z-index:3}
+#snap-line[hidden]{display:none}
+.litem.bgitem{color:#fff;text-shadow:0 1px 2px #000a}
+/* Clip tab, transitions on the timeline */
+.clip .trz{position:absolute;left:0;top:0;bottom:0;background:repeating-linear-gradient(135deg,#ffffff55 0 5px,#ffffff11 5px 10px);border-right:2px solid #fff;pointer-events:none}
+#fx-speeds{flex-wrap:wrap;gap:4px}#fx-speeds .btn.on{border-color:var(--accent);color:var(--accent)}
+#fx-speeds .btn{flex:1 1 0;min-width:0;padding:6px 2px}

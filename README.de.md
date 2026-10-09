@@ -1,6 +1,6 @@
 [🇬🇧 English](README.md) · **🇩🇪 Deutsch**
 
-**🚧 STATUS: BETA v0.3**
+**🚧 STATUS: BETA v0.4.0**
 
 ![Video Editor](docs/banner.png)
 
@@ -15,7 +15,7 @@
 
 *Schneide, beschneide, untertitele und mastere deine Videos per Chat oder mit der Maus. Nichts verlässt deinen Rechner.*
 
-[Schnellstart](#-schnellstart) · [Der Editor](#-der-visuelle-editor) · [Anleitung](docs/de/GUIDE.md) · [Werkzeug-Referenz](docs/de/TOOLS.md) · [Lizenz](#-lizenz)
+[Schnellstart](#-schnellstart) · [Der Editor](#-der-visuelle-editor) · [Anleitung](docs/de/GUIDE.md) · [Werkzeug-Referenz](docs/de/TOOLS.md) · [Lizenz](#-lizenz) · [Offizielle Seite](https://lokyy.de/hermes-video-editor/)
 
 > Powered by [Lokyy.de](https://lokyy.de) - German Hermes Engineering
 
@@ -107,8 +107,12 @@ python scripts/editor.py my-video.mp4    # mit vorgeladener Datei
 |---|---|
 | Videos hinzufügen | **Add clip...**, **Recent** oder Dateien ins Fenster **ziehen** (mehrere auf einmal) |
 | Schneiden | `S` teilen, `Entf` Clip löschen (Lücke schließt sich), `I` `O` `X` Bereich entfernen, Ränder ziehen zum Kürzen, Clips ziehen zum Umsortieren, `Strg+Z` rückgängig |
+| **Werkzeugleiste** | Über der Zeitleiste: Rückgängig, Wiederholen, Teilen, **Anfang / Ende auf den Abspielkopf kürzen** (`Q` / `W`), **Klonen** (`Strg+D`), Löschen und der **Magnet** (Elemente rasten am Abspielkopf und aneinander ein) |
 | Stille entfernen | Tab *Edit* -> **Remove silences** |
 | Leinwand, Hintergrund, Position, Größe | Tab *Picture*; Bild in der Vorschau ziehen, Mausrad zoomt, **Fit / Fill / Center / Reset** |
+| **Hintergrund-Streifen** | Tab *Picture* + Spur *BG strip*: Leinwand-Hintergrund für beliebige Zeitbereiche ändern (Unschärfe, Farbe, Verlauf, Bild) |
+| **Tab Clip** | Tempo 0,25x-4x, **Standbild**, **Übergänge** zwischen Clips, Helligkeit / Kontrast / Sättigung, Lautstärke, Stumm, Ein-/Ausblenden |
+| **Auto-Untertitel** | Tab *Text*: Sprache zu Text mit dem optionalen lokalen `faster-whisper`; das Ergebnis ist normaler, bearbeitbarer Text (Szene *Captions*) |
 | **Video obendrauf** | Tab *Overlay*: Videos über dem Bild (Position, Größe, Deckkraft, eigener Ton), beliebig viele Spuren |
 | **Formen** | Tab *Shape*: Rechteck, abgerundete Box, Ellipse, Caption bar, Card, Farbfeld (Farbe, Deckkraft, Größe, Zeit) |
 | **Szenen** | Tab *Scene*: Texte, Formen, Videos und Töne bündeln; Szene ziehen, alles wandert mit |
@@ -117,7 +121,7 @@ python scripts/editor.py my-video.mp4    # mit vorgeladener Datei
 | **Musik / Sprecher** | Tab *Sound*: Lautstärke, Ein-/Ausblenden, Startzeit, **Ducking** (Musik wird leiser, solange das Video spricht) |
 | Eines der 45 Werkzeuge | Tab *Tools*: jedes Werkzeug als Formular |
 | Export | Tab *Export*: Plattform-Voreinstellung, Lautheit, Tempo, Ordner |
-| Hilfe | Knopf **Help** (obere Leiste): diese Anleitung auf Deutsch oder Englisch |
+| Hilfe | Knopf **Help** (obere Leiste): diese Anleitung auf Deutsch oder Englisch. **What's new** zeigt das Änderungsprotokoll (öffnet sich nach einem Update beim ersten Start von selbst) |
 
 So funktioniert es: Ein kleiner Webserver im Plugin hört **nur auf 127.0.0.1** (zufälliger Port, einmaliges Token). Er liefert die Editor-Seite, streamt das geöffnete Video und führt die Werkzeuge aus. Er liest und schreibt nur **Mediendateien unterhalb deines Home-Ordners** (weitere über `VE_EDITOR_ROOTS`, getrennt mit `:` bzw. `;` unter Windows).
 
@@ -162,6 +166,7 @@ Der Editor selbst bleibt frei von jedem KI-Dienst. Geplant ist ein **separates, 
 | Anleitung (auch im Editor: Knopf *Help*) | [docs/en/GUIDE.md](docs/en/GUIDE.md) | [docs/de/GUIDE.md](docs/de/GUIDE.md) |
 | Werkzeug-Referenz | [docs/en/TOOLS.md](docs/en/TOOLS.md) | [docs/de/TOOLS.md](docs/de/TOOLS.md) |
 | README | [README.md](README.md) | diese Datei |
+| Änderungsprotokoll (auch im Editor: *What's new*) | [docs/en/CHANGELOG.md](docs/en/CHANGELOG.md) | [docs/de/CHANGELOG.md](docs/de/CHANGELOG.md) |
 | Entwurfsnotizen | [docs/NOTES.md](docs/NOTES.md) (EN) | |
 
 ## 🔧 Wie sich jedes Werkzeug verhält

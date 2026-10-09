@@ -138,7 +138,7 @@ def test_text_and_audio_items(tmp_path):
     assert.ok(typeof c.id === 'string' && c.id.length > 0)
     delete c.id
     assert.deepStrictEqual(c, {text: 'a'.repeat(500), start: 0, dur: 0.1, x: 1.5, y: 0.82, size: 0.5, color: '#ffffff', box: true,
-      boxColor: '#000000', boxOpacity: 1, outline: true, track: 0})
+      boxColor: '#000000', boxOpacity: 1, outline: true, track: 0, fi: 0, fo: 0})
     assert.strictEqual(T.cleanText({id:'k', text:'x', outline:false}).outline, false)
     // trimming
     let a = T.trimText(t, 'left', 1)                                   // start moves, end stays
@@ -183,7 +183,7 @@ def test_shapes_scenes_and_tracks(tmp_path):
     const s = T.cleanShape({kind: 'star', x: 9, w: 0, color: 'red', op: 7, track: 99, dur: 0})
     assert.strictEqual(s.kind, 'rect'); assert.strictEqual(s.x, 1.5); assert.strictEqual(s.w, 0.02); assert.strictEqual(s.color, '#000000')
     assert.strictEqual(s.op, 1); assert.strictEqual(s.track, 11); assert.strictEqual(s.dur, 0.1)
-    assert.deepStrictEqual(T.cleanTracks({text: 99, audio: 0, bogus: 3}), {scene: 1, shape: 1, text: 12, overlay: 1, audio: 1})
+    assert.deepStrictEqual(T.cleanTracks({text: 99, audio: 0, bogus: 3}), {scene: 1, shape: 1, text: 12, overlay: 1, bg: 1, audio: 1})
     const sh = T.newShape(2, 3, 'x'); assert.strictEqual(sh.start, 2); assert.strictEqual(sh.kind, 'rounded')
     assert.strictEqual(T.activeShapes([sh], 1.9).length, 0); assert.strictEqual(T.activeShapes([sh], 4).length, 1); assert.strictEqual(T.activeShapes([sh], 5).length, 0)
     const sc = T.cleanScene({name: 'In\\u0000tro', items: [1, 'b'], start: -1})
@@ -191,4 +191,52 @@ def test_shapes_scenes_and_tracks(tmp_path):
     assert.deepStrictEqual(T.span({start: 1, dur: 2}), [1, 3]); assert.deepStrictEqual(T.span({start: 1, in: 0, out: 3}), [1, 4])
     assert.strictEqual(T.shiftItem({start: 0.5, dur: 1}, -2).start, 0)                      // never before zero
     assert.strictEqual(T.cleanText({track: 5}).track, 5); assert.strictEqual(T.cleanAudio({asset: 'a', track: -3}).track, 0); assert.strictEqual(T.cleanOverlay({asset: 'a', track: 2}).track, 2)
+    """, tmp_path)
+
+
+def test_speed_still_frames_and_transitions_in_the_layout(tmp_path):
+    run("""
+    const clips = [{id:'a',asset:'x',in:0,out:4,sp:2},{id:'b',asset:'x',in:0,out:3,tr:{type:'fade',dur:5}},{id:'c',asset:'x',in:5,out:5.1,freeze:2,tr:{type:'fade',dur:0.5}}]
+    const L = T.layout(clips)
+    assert.deepStrictEqual(L.items.map(i => [i.start, i.dur, i.tr]), [[0,2,0],[1,3,1],[3.5,2,0.5]])
+    assert.strictEqual(L.total, 5.5)
+    // inside the transition the later clip is shown; speed maps timeline time to source time
+    assert.strictEqual(T.at(clips, 0.5).index, 0); assert.strictEqual(T.at(clips, 0.5).src, 1)
+    assert.strictEqual(T.at(clips, 1.5).index, 1); assert.strictEqual(T.at(clips, 4).src, 5)
+    // splitting a sped-up clip cuts at the right source time and the second piece loses the transition
+    const r = T.split([{id:'a',asset:'x',in:0,out:8,sp:2,tr:{type:'fade',dur:1}},{id:'z',asset:'x',in:0,out:8}], 2, 'n')
+    assert.deepStrictEqual(r.clips.slice(0,2).map(c => [c.in, c.out, c.sp, !!c.tr]), [[0,4,2,true],[4,8,2,false]])
+    assert.strictEqual(T.split([clips[2]], 1, 'q').changed, false)                         // a still frame cannot be split
+    // ripple delete converts timeline seconds to source seconds, a still frame just gets shorter
+    const d = T.deleteRange([{id:'a',asset:'x',in:0,out:8,sp:2},{id:'f',asset:'x',in:1,out:1.1,freeze:3}], 1, 5)
+    assert.deepStrictEqual(d.map(c => [c.in, c.out, c.sp || 1, c.freeze || 0]), [[0,2,2,0],[1,1.1,1,2]])
+    // trimming: delta is in timeline seconds
+    const tr = T.trim([{id:'a',asset:'x',in:0,out:8,sp:2}], 0, 'left', 1)
+    assert.deepStrictEqual([tr[0].in, tr[0].out], [2, 8])
+    assert.strictEqual(T.trim([clips[2]], 0, 'right', 1)[0].freeze, 3)
+    // export keeps only non-default extras
+    const ex = T.forExport([{id:'a',asset:'x',in:0,out:2,adj:{br:0}, sp:1},{id:'b',asset:'x',in:0,out:2,adj:{br:0.5},tr:{type:'nope'}}], {x:{path:'/a.mp4'}})
+    assert.deepStrictEqual(ex[0], {path:'/a.mp4', in:0, out:2}); assert.strictEqual(ex[1].adj.br, 0.5); assert.ok(!ex[1].tr)
+    assert.strictEqual(T.fadeFactor({start:1,dur:2,fi:1,fo:1}, 1.5), 0.5); assert.strictEqual(T.fadeFactor({start:1,dur:2,fi:1,fo:1}, 2), 1)
+    """, tmp_path)
+
+
+def test_layout_matches_the_python_one(tmp_path):
+    import json
+    from hermes_video_editor.editor import project as P
+    cl = [{"in": 0, "out": 4, "sp": 2}, {"in": 0, "out": 3, "tr": {"type": "fade", "dur": 5}}, {"in": 0, "out": 0.1, "freeze": 2, "tr": {"type": "fade", "dur": 0.5}}]
+    starts, durs, trs, total = P.clip_layout(cl)
+    run("""
+    const L = T.layout(%s)
+    assert.deepStrictEqual(L.items.map(i => i.start), %s); assert.deepStrictEqual(L.items.map(i => i.tr), %s); assert.strictEqual(L.total, %s)
+    """ % (json.dumps(cl), json.dumps(starts), json.dumps(trs), json.dumps(total)), tmp_path)
+
+
+def test_caption_times_follow_cuts_and_speed(tmp_path):
+    run("""
+    const clips = [{id:'a',asset:'x',in:0,out:2},{id:'b',asset:'x',in:4,out:8,sp:2},{id:'f',asset:'x',in:1,out:1.1,freeze:2},{id:'o',asset:'y',in:0,out:3}]
+    const cues = [{start:0.5,end:1.5,text:'one'},{start:3,end:3.5,text:'cut away'},{start:5,end:7,text:'fast'},{start:7.9,end:9,text:'edge'},{start:1.5,end:2.5,text:'tail'}]
+    const r = T.captionTimes(clips, 'x', cues)
+    assert.deepStrictEqual(r.map(c => [c.text, c.start, c.dur]), [['one',0.5,1],['tail',1.5,0.5],['fast',2.5,1]])    // 'edge' is shorter than 0.1 s on the timeline
+    assert.deepStrictEqual(T.captionTimes(clips, 'x', cues, 1).map(c => c.text), ['fast'])
     """, tmp_path)

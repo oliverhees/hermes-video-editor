@@ -8,39 +8,82 @@
 
   function uid(prefix) { counter += 1; return (prefix || "c") + Date.now().toString(36) + counter.toString(36); }
   function round(t) { return Math.round(t * 1000) / 1000; }
-  function copy(c, extra) {
-    var o = { id: c.id, asset: c.asset, "in": c["in"], out: c.out };
-    if (c.tf) o.tf = { s: c.tf.s, x: c.tf.x, y: c.tf.y };          // position/scale travel with the pieces of a split
-    for (var k in extra) o[k] = extra[k];
+  var TRANSITIONS = ["fade", "fadeblack", "fadewhite", "dissolve", "wipeleft", "wiperight", "slideleft", "slideright", "circleopen", "circleclose", "pixelize"];
+  function num(v, d, lo, hi) { v = Number(v); return isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; }
+  function cleanAdj(a) {              // per-clip look and sound; same limits as clean_adj() in editor/project.py
+    a = a || {};
+    return { br: num(a.br, 0, -1, 1), ct: num(a.ct, 1, 0, 3), sa: num(a.sa, 1, 0, 3), vol: num(a.vol, 0, -60, 24), mute: !!a.mute, fi: num(a.fi, 0, 0, 30), fo: num(a.fo, 0, 0, 30) };
+  }
+  function isDefaultAdj(a) { var d = cleanAdj(a); return d.br === 0 && d.ct === 1 && d.sa === 1 && d.vol === 0 && !d.mute && d.fi === 0 && d.fo === 0; }
+  // the optional per-clip fields (defaults are left out); same rules as clean_clip_fields() in editor/project.py
+  function cleanClipExtras(c) {
+    var o = {};
+    if (c.tf) o.tf = cleanTf(c.tf);
+    if (c.adj && !isDefaultAdj(c.adj)) o.adj = cleanAdj(c.adj);
+    var sp = num(c.sp, 1, 0.25, 4); if (Math.abs(sp - 1) > 1e-6) o.sp = sp;
+    var fr = num(c.freeze, 0, 0, 30); if (fr >= 0.1) o.freeze = fr;
+    if (c.tr && TRANSITIONS.indexOf(c.tr.type) >= 0) o.tr = { type: c.tr.type, dur: num(c.tr.dur, 0.5, 0.1, 5) };
     return o;
   }
-  function dur(c) { return c.out - c["in"]; }
+  // copy a clip; `extra` overrides fields (a value of null removes the field). Transform, adjustments, speed, still frame and
+  // the transition into the clip travel with it (pieces of a split inherit them, except the transition, see split()).
+  function copy(c, extra) {
+    var o = { id: c.id, asset: c.asset, "in": c["in"], out: c.out }, k;
+    if (c.tf) o.tf = { s: c.tf.s, x: c.tf.x, y: c.tf.y };
+    if (c.adj) o.adj = cleanAdj(c.adj);
+    if (c.sp && c.sp !== 1) o.sp = c.sp;
+    if (c.freeze) o.freeze = c.freeze;
+    if (c.tr) o.tr = { type: c.tr.type, dur: c.tr.dur };
+    for (k in extra) { if (extra[k] === null) delete o[k]; else o[k] = extra[k]; }
+    return o;
+  }
+  function srcDur(c) { return c.out - c["in"]; }
+  function dur(c) { return c.freeze ? c.freeze : (c.out - c["in"]) / (c.sp || 1); }          // how long the clip plays on the timeline
 
+  // Start/end of every clip. A transition makes a clip start earlier (overlapping the previous one), capped at half of
+  // each neighbour; mirrors clip_layout() in editor/project.py.
   function layout(clips) {
-    var t = 0, items = clips.map(function (c) { var it = { clip: c, start: t, end: t + dur(c), dur: dur(c) }; t += dur(c); return it; });
-    return { items: items, total: t };
+    var items = [], end = 0;
+    clips.forEach(function (c, i) {
+      var d = dur(c), td = 0;
+      if (i > 0 && c.tr) { td = round(Math.min(c.tr.dur, items[i - 1].dur / 2, d / 2)); if (td < 0.05) td = 0; }
+      var start = end - td;
+      items.push({ clip: c, start: start, end: start + d, dur: d, tr: td });
+      end = start + d;
+    });
+    return { items: items, total: end };
   }
   function total(clips) { return layout(clips).total; }
 
-  // which clip plays at sequence time t; src = time inside the source file
+  // which clip plays at sequence time t (the later clip inside a transition); src = time inside the source file
   function at(clips, t) {
     var L = layout(clips);
     if (!L.items.length) return null;
     var x = Math.max(0, Math.min(t, L.total));
     for (var i = 0; i < L.items.length; i++) {
-      var it = L.items[i];
-      if (x < it.end || i === L.items.length - 1) return { index: i, clip: it.clip, start: it.start, end: it.end, src: it.clip["in"] + Math.min(x - it.start, it.dur) };
+      var it = L.items[i], next = L.items[i + 1];
+      if (!next || x < next.start) {
+        var c = it.clip, into = Math.min(Math.max(0, x - it.start), it.dur);
+        return { index: i, clip: c, start: it.start, end: it.end, src: c.freeze ? c["in"] : c["in"] + into * (c.sp || 1), tr: it.tr };
+      }
     }
     return null;
   }
 
+  // the part [a, b] (clip-local timeline seconds) of a clip as a new clip
+  function piece(c, a, b, extra) {
+    if (c.freeze) return copy(c, extra ? Object.assign({ freeze: round(b - a) }, extra) : { freeze: round(b - a) });
+    var sp = c.sp || 1;
+    return copy(c, Object.assign({ "in": round(c["in"] + a * sp), out: round(c["in"] + b * sp) }, extra || {}));
+  }
+
   function split(clips, t, newId) {
     var hit = at(clips, t);
-    if (!hit) return { clips: clips, index: -1, changed: false };
+    if (!hit || hit.clip.freeze) return { clips: clips, index: hit ? hit.index : -1, changed: false };
     var local = t - hit.start;
     if (local < MIN_PIECE || hit.end - t < MIN_PIECE) return { clips: clips, index: hit.index, changed: false };
-    var c = hit.clip, cut = round(c["in"] + local), out = clips.slice();
-    out.splice(hit.index, 1, copy(c, { out: cut }), copy(c, { id: newId || uid(), "in": cut }));
+    var c = hit.clip, cut = round(c["in"] + local * (c.sp || 1)), out = clips.slice();
+    out.splice(hit.index, 1, copy(c, { out: cut }), copy(c, { id: newId || uid(), "in": cut, tr: null }));
     return { clips: out, index: hit.index + 1, changed: true };
   }
 
@@ -52,9 +95,9 @@
     var out = [];
     layout(clips).items.forEach(function (it) {
       if (it.end <= a || it.start >= b) { out.push(it.clip); return; }
-      var c = it.clip;
-      if (a - it.start >= MIN_PIECE) out.push(copy(c, { out: round(c["in"] + (a - it.start)) }));
-      if (it.end - b >= MIN_PIECE) out.push(copy(c, { id: (a - it.start >= MIN_PIECE) ? (idGen || uid)() : c.id, "in": round(c["in"] + (b - it.start)) }));
+      var c = it.clip, left = a - it.start >= MIN_PIECE, right = it.end - b >= MIN_PIECE;
+      if (left) out.push(piece(c, 0, a - it.start));
+      if (right) out.push(piece(c, b - it.start, it.dur, { id: left ? (idGen || uid)() : c.id, tr: left ? null : (c.tr || null) }));
     });
     return out;
   }
@@ -83,13 +126,19 @@
     return out;
   }
 
-  // drag an edge of clip i by delta seconds (ripple: later clips shift automatically). assetDur limits the right edge.
+  // drag an edge of clip i by delta timeline seconds (ripple: later clips shift automatically). assetDur limits the right edge.
   function trim(clips, i, edge, delta, assetDur) {
     var c = clips[i]; if (!c) return clips;
-    var lo = c["in"], hi = c.out;
-    if (edge === "left") lo = Math.max(0, Math.min(c["in"] + delta, c.out - MIN_CLIP));
-    else hi = Math.min(assetDur == null ? Infinity : assetDur, Math.max(c.out + delta, c["in"] + MIN_CLIP));
-    var out = clips.slice(); out[i] = copy(c, { "in": round(lo), out: round(hi) });
+    var out = clips.slice();
+    if (c.freeze) {                                          // a still frame just gets shorter or longer
+      var nd = edge === "left" ? c.freeze - delta : c.freeze + delta;
+      out[i] = copy(c, { freeze: round(Math.max(MIN_CLIP, Math.min(30, nd))) });
+      return out;
+    }
+    var sp = c.sp || 1, lo = c["in"], hi = c.out;
+    if (edge === "left") lo = Math.max(0, Math.min(c["in"] + delta * sp, c.out - MIN_CLIP * sp));
+    else hi = Math.min(assetDur == null ? Infinity : assetDur, Math.max(c.out + delta * sp, c["in"] + MIN_CLIP * sp));
+    out[i] = copy(c, { "in": round(lo), out: round(hi) });
     return out;
   }
 
@@ -112,7 +161,7 @@
 
   // payload for the server: clips with real file paths
   function forExport(clips, assets) {
-    return clips.map(function (c) { var o = { path: assets[c.asset].path, "in": c["in"], out: c.out }; if (c.tf) o.tf = cleanTf(c.tf); return o; });
+    return clips.map(function (c) { var o = { path: assets[c.asset].path, "in": c["in"], out: c.out }, x = cleanClipExtras(c); for (var k in x) o[k] = x[k]; return o; });
   }
 
   // ---- canvas + per-clip transform (mirrored exactly in editor/project.py)
@@ -139,7 +188,7 @@
   // ---- text layer and audio track: items on their own lanes, positioned in absolute timeline seconds
   var HEXC = /^#[0-9a-fA-F]{6}$/;
   function clampN(v, d, lo, hi) { v = Number(v); return isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; }
-  var MAX_TRACKS = 12, TRACK_KINDS = ["scene", "shape", "text", "overlay", "audio"], SHAPE_KINDS = ["rect", "rounded", "ellipse"];
+  var MAX_TRACKS = 12, TRACK_KINDS = ["scene", "bg", "shape", "text", "overlay", "audio"], SHAPE_KINDS = ["rect", "rounded", "ellipse"], BG_MODES = ["blur", "black", "color", "gradient", "image"];
   function trackOf(v) { return Math.floor(clampN(v, 0, 0, MAX_TRACKS - 1)); }
   function cleanTracks(raw) { var r = raw || {}, o = {}; TRACK_KINDS.forEach(function (k) { o[k] = Math.floor(clampN(r[k], 1, 1, MAX_TRACKS)); }); return o; }
   function newText(start, dur, id) {
@@ -152,7 +201,7 @@
       start: round(clampN(t.start, 0, 0, 86400)), dur: round(clampN(t.dur, 3, 0.1, 3600)),
       x: clampN(t.x, 0.5, -0.5, 1.5), y: clampN(t.y, 0.82, -0.5, 1.5), size: clampN(t.size, 0.07, 0.01, 0.5),
       color: HEXC.test(t.color || "") ? t.color : "#ffffff", box: !!t.box, boxColor: HEXC.test(t.boxColor || "") ? t.boxColor : "#000000",
-      boxOpacity: clampN(t.boxOpacity, 0.55, 0, 1), outline: t.outline !== false, track: trackOf(t.track) };
+      boxOpacity: clampN(t.boxOpacity, 0.55, 0, 1), outline: t.outline !== false, track: trackOf(t.track), fi: clampN(t.fi, 0, 0, 10), fo: clampN(t.fo, 0, 0, 10) };
   }
   function patch(item, changes) { var o = {}, k; for (k in item) o[k] = item[k]; for (k in changes) o[k] = changes[k]; return o; }
   function trimText(t, edge, delta) {
@@ -187,7 +236,7 @@
   function cleanOverlay(o) {          // same limits as clean_overlay_fields() in editor/project.py
     o = o || {};
     return { id: String(o.id || uid("o")).slice(0, 40), asset: String(o.asset), "in": round(Math.max(0, Number(o["in"]) || 0)), out: round(Math.max(0, Number(o.out) || 0)),
-      start: round(clampN(o.start, 0, 0, 86400)), tf: cleanTf(o.tf || { s: 0.4, x: 0.27, y: -0.27 }), op: clampN(o.op, 1, 0, 1), sound: !!o.sound, vol: clampN(o.vol, 0, -60, 24), track: trackOf(o.track) };
+      start: round(clampN(o.start, 0, 0, 86400)), tf: cleanTf(o.tf || { s: 0.4, x: 0.27, y: -0.27 }), op: clampN(o.op, 1, 0, 1), sound: !!o.sound, vol: clampN(o.vol, 0, -60, 24), track: trackOf(o.track), fi: clampN(o.fi, 0, 0, 10), fo: clampN(o.fo, 0, 0, 10) };
   }
   function activeOverlays(list, t) { return list.filter(function (o) { return t >= o.start && t < audioEnd(o); }); }
   // ---- shapes (coloured backing for text, bars, frames) and scenes (items that move together)
@@ -200,7 +249,49 @@
     return { id: String(s.id || uid("s")).slice(0, 40), kind: SHAPE_KINDS.indexOf(s.kind) >= 0 ? s.kind : "rect",
       start: round(clampN(s.start, 0, 0, 86400)), dur: round(clampN(s.dur, 3, 0.1, 3600)),
       x: clampN(s.x, 0.5, -0.5, 1.5), y: clampN(s.y, 0.5, -0.5, 1.5), w: clampN(s.w, 0.5, 0.02, 3), h: clampN(s.h, 0.2, 0.02, 3),
-      color: HEXC.test(s.color || "") ? s.color : "#000000", op: clampN(s.op, 0.6, 0, 1), radius: clampN(s.radius, 0.25, 0, 0.5), track: trackOf(s.track) };
+      color: HEXC.test(s.color || "") ? s.color : "#000000", op: clampN(s.op, 0.6, 0, 1), radius: clampN(s.radius, 0.25, 0, 0.5), track: trackOf(s.track), fi: clampN(s.fi, 0, 0, 10), fo: clampN(s.fo, 0, 0, 10) };
+  }
+  // ---- background strips: from time a to time b the canvas behind the pictures looks different
+  function cleanBg(b) {                 // one background look; same limits as sanitize_bg() in editor/project.py
+    b = b || {};
+    var o = { mode: BG_MODES.indexOf(b.mode) >= 0 ? b.mode : "blur", color: HEXC.test(b.color || "") ? b.color : "#000000" };
+    if (o.mode === "gradient") o.color2 = HEXC.test(b.color2 || "") ? b.color2 : "#1b1464";
+    if (o.mode === "image") { if (typeof b.image === "string" && b.image) o.image = b.image; else o.mode = "black"; }
+    return o;
+  }
+  function newBgSeg(start, dur, look, id) { var b = cleanBg(look); b.id = id || uid("b"); b.start = round(Math.max(0, start || 0)); b.dur = dur || 3; b.track = 0; return b; }
+  function cleanBgSeg(s) {
+    s = s || {}; var o = cleanBg(s);
+    o.id = String(s.id || uid("b")).slice(0, 40); o.start = round(clampN(s.start, 0, 0, 86400)); o.dur = round(clampN(s.dur, 3, 0.1, 3600)); o.track = trackOf(s.track);
+    return o;
+  }
+  // the strip that is in front at time t (higher track wins, later strip wins), or null: the project background applies
+  function activeBg(list, t) {
+    var best = null;
+    list.forEach(function (s) { if (t >= s.start && t < s.start + s.dur && (!best || (s.track || 0) >= (best.track || 0))) best = s; });
+    return best;
+  }
+  // opacity factor 0..1 of a text/shape/overlay at time t from its fade in/out (for the preview)
+  function fadeFactor(item, t) {
+    var d = item.dur != null ? item.dur : item.out - item["in"], into = t - item.start, left = item.start + d - t, f = 1;
+    if (item.fi > 0) f = Math.min(f, into / item.fi);
+    if (item.fo > 0) f = Math.min(f, left / item.fo);
+    return Math.max(0, Math.min(1, f));
+  }
+  // timed speech cues of one source file -> texts on the timeline: [{start, dur, text}]. Cues are cut to what the clips show,
+  // sped up or slowed down with their clip. onlyIndex limits it to one clip.
+  function captionTimes(clips, assetId, cues, onlyIndex) {
+    var out = [];
+    layout(clips).items.forEach(function (it, i) {
+      var c = it.clip; if (c.asset !== assetId || c.freeze || (onlyIndex != null && onlyIndex !== i)) return;
+      var sp = c.sp || 1;
+      cues.forEach(function (q) {
+        var a = Math.max(q.start, c["in"]), b = Math.min(q.end, c.out);
+        if ((b - a) / sp < 0.1) return;
+        out.push({ start: round(it.start + (a - c["in"]) / sp), dur: round((b - a) / sp), text: q.text });
+      });
+    });
+    return out.sort(function (x, y) { return x.start - y.start; });
   }
   function activeShapes(list, t) { return list.filter(function (x) { return t >= x.start && t < x.start + x.dur; }); }
   function newScene(start, dur, name, items, id) {
@@ -230,10 +321,11 @@
 
   var api = { MIN_CLIP: MIN_CLIP, MIN_PIECE: MIN_PIECE, uid: uid, layout: layout, total: total, at: at, split: split, removeIndex: removeIndex,
     deleteRange: deleteRange, subtractRanges: subtractRanges, applySilence: applySilence, trim: trim, move: move, dropIndex: dropIndex,
-    insertAt: insertAt, forExport: forExport, createHistory: createHistory, round: round,
+    insertAt: insertAt, copy: copy, forExport: forExport, createHistory: createHistory, round: round,
     newText: newText, cleanText: cleanText, trimText: trimText, newAudio: newAudio, cleanAudio: cleanAudio, trimAudio: trimAudio,
     audioDur: audioDur, audioEnd: audioEnd, audioGain: audioGain, activeText: activeText, trackOf: trackOf, cleanTracks: cleanTracks, MAX_TRACKS: MAX_TRACKS, TRACK_KINDS: TRACK_KINDS, SHAPE_KINDS: SHAPE_KINDS,
-    newShape: newShape, cleanShape: cleanShape, activeShapes: activeShapes, newScene: newScene, cleanScene: cleanScene, span: span, shiftItem: shiftItem, newOverlay: newOverlay, cleanOverlay: cleanOverlay, activeOverlays: activeOverlays, activeAudio: activeAudio, patch: patch,
+    cleanBg: cleanBg, newBgSeg: newBgSeg, cleanBgSeg: cleanBgSeg, activeBg: activeBg, BG_MODES: BG_MODES, newShape: newShape, cleanShape: cleanShape, activeShapes: activeShapes, newScene: newScene, cleanScene: cleanScene, span: span, shiftItem: shiftItem, newOverlay: newOverlay, cleanOverlay: cleanOverlay, activeOverlays: activeOverlays, activeAudio: activeAudio, patch: patch,
+    cleanAdj: cleanAdj, isDefaultAdj: isDefaultAdj, cleanClipExtras: cleanClipExtras, srcDur: srcDur, dur: dur, piece: piece, fadeFactor: fadeFactor, captionTimes: captionTimes, TRANSITIONS: TRANSITIONS,
     ASPECTS: ASPECTS, SHORTS: SHORTS, canvasSize: canvasSize, cleanTf: cleanTf, fgRect: fgRect, fillScale: fillScale, isDefaultTf: isDefaultTf };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.VETimeline = api;
 })(typeof window !== "undefined" ? window : this);
