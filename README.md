@@ -1,6 +1,6 @@
 **🇬🇧 English** · [🇩🇪 Deutsch](README.de.md)
 
-**🚧 STATUS: BETA v0.3**
+**🚧 STATUS: BETA v0.3.1**
 
 ![Video Editor](docs/banner.png)
 
@@ -15,7 +15,7 @@
 
 *Cut, crop, caption and master your own videos from chat or with the mouse. Nothing leaves your computer.*
 
-[Quickstart](#-quickstart) · [The editor](#-the-visual-editor) · [User guide](docs/en/GUIDE.md) · [Tool reference](docs/en/TOOLS.md) · [Licence](#-license)
+[Quickstart](#-quickstart) · [The editor](#-the-visual-editor) · [User guide](docs/en/GUIDE.md) · [Tool reference](docs/en/TOOLS.md) · [Licence](#-license) · [Official page](https://lokyy.de/hermes-video-editor/)
 
 > Powered by [Lokyy.de](https://lokyy.de) - German Hermes Engineering
 
@@ -117,7 +117,7 @@ python scripts/editor.py my-video.mp4    # with a file preloaded
 | **Music / voice-over** | *Sound* tab: volume, fades, start time, **ducking** (music gets quieter while the video speaks) |
 | Any of the 45 tools | *Tools* tab: every tool as a form |
 | Export | *Export* tab: platform preset, loudness, speed, folder |
-| Help | **Help** button (top bar): this guide in English or German |
+| Help | **Help** button (top bar): this guide in English or German. **What's new** shows the changelog (it opens by itself the first time after an update) |
 
 How it works: a tiny web server inside the plugin listens on **127.0.0.1 only** (random port, one-time token). It serves the editor page, streams the video you open and runs the tools. It only reads and writes **media files below your home folder** (add more with `VE_EDITOR_ROOTS`, separated by `:` or `;` on Windows).
 
@@ -162,6 +162,7 @@ The editor itself stays free of any AI service. A **separate, optional plugin** 
 | User guide (also in the editor: *Help* button) | [docs/en/GUIDE.md](docs/en/GUIDE.md) | [docs/de/GUIDE.md](docs/de/GUIDE.md) |
 | Tool reference | [docs/en/TOOLS.md](docs/en/TOOLS.md) | [docs/de/TOOLS.md](docs/de/TOOLS.md) |
 | README | this file | [README.de.md](README.de.md) |
+| Changelog (also in the editor: *What's new*) | [docs/en/CHANGELOG.md](docs/en/CHANGELOG.md) | [docs/de/CHANGELOG.md](docs/de/CHANGELOG.md) |
 | Design notes | [docs/NOTES.md](docs/NOTES.md) | |
 
 ## 🔧 How every tool behaves

@@ -1,6 +1,6 @@
 [🇬🇧 English](README.md) · **🇩🇪 Deutsch**
 
-**🚧 STATUS: BETA v0.3**
+**🚧 STATUS: BETA v0.3.1**
 
 ![Video Editor](docs/banner.png)
 
@@ -15,7 +15,7 @@
 
 *Schneide, beschneide, untertitele und mastere deine Videos per Chat oder mit der Maus. Nichts verlässt deinen Rechner.*
 
-[Schnellstart](#-schnellstart) · [Der Editor](#-der-visuelle-editor) · [Anleitung](docs/de/GUIDE.md) · [Werkzeug-Referenz](docs/de/TOOLS.md) · [Lizenz](#-lizenz)
+[Schnellstart](#-schnellstart) · [Der Editor](#-der-visuelle-editor) · [Anleitung](docs/de/GUIDE.md) · [Werkzeug-Referenz](docs/de/TOOLS.md) · [Lizenz](#-lizenz) · [Offizielle Seite](https://lokyy.de/hermes-video-editor/)
 
 > Powered by [Lokyy.de](https://lokyy.de) - German Hermes Engineering
 
@@ -117,7 +117,7 @@ python scripts/editor.py my-video.mp4    # mit vorgeladener Datei
 | **Musik / Sprecher** | Tab *Sound*: Lautstärke, Ein-/Ausblenden, Startzeit, **Ducking** (Musik wird leiser, solange das Video spricht) |
 | Eines der 45 Werkzeuge | Tab *Tools*: jedes Werkzeug als Formular |
 | Export | Tab *Export*: Plattform-Voreinstellung, Lautheit, Tempo, Ordner |
-| Hilfe | Knopf **Help** (obere Leiste): diese Anleitung auf Deutsch oder Englisch |
+| Hilfe | Knopf **Help** (obere Leiste): diese Anleitung auf Deutsch oder Englisch. **What's new** zeigt das Änderungsprotokoll (öffnet sich nach einem Update beim ersten Start von selbst) |
 
 So funktioniert es: Ein kleiner Webserver im Plugin hört **nur auf 127.0.0.1** (zufälliger Port, einmaliges Token). Er liefert die Editor-Seite, streamt das geöffnete Video und führt die Werkzeuge aus. Er liest und schreibt nur **Mediendateien unterhalb deines Home-Ordners** (weitere über `VE_EDITOR_ROOTS`, getrennt mit `:` bzw. `;` unter Windows).
 
@@ -162,6 +162,7 @@ Der Editor selbst bleibt frei von jedem KI-Dienst. Geplant ist ein **separates, 
 | Anleitung (auch im Editor: Knopf *Help*) | [docs/en/GUIDE.md](docs/en/GUIDE.md) | [docs/de/GUIDE.md](docs/de/GUIDE.md) |
 | Werkzeug-Referenz | [docs/en/TOOLS.md](docs/en/TOOLS.md) | [docs/de/TOOLS.md](docs/de/TOOLS.md) |
 | README | [README.md](README.md) | diese Datei |
+| Änderungsprotokoll (auch im Editor: *What's new*) | [docs/en/CHANGELOG.md](docs/en/CHANGELOG.md) | [docs/de/CHANGELOG.md](docs/de/CHANGELOG.md) |
 | Entwurfsnotizen | [docs/NOTES.md](docs/NOTES.md) (EN) | |
 
 ## 🔧 Wie sich jedes Werkzeug verhält

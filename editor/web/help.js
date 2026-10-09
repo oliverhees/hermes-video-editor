@@ -39,24 +39,34 @@
     return out.join("\n");
   }
 
-  function show(which) {
-    lang = which;
+  var view = "guide", version = "";
+  function docUrl() { return view === "guide" ? "/help/" + lang + ".md" : "/help/changelog." + lang + ".md"; }
+  function show() {
     $("help-en").classList.toggle("on", lang === "en"); $("help-de").classList.toggle("on", lang === "de");
+    $("help-guide").classList.toggle("on", view === "guide"); $("help-new").classList.toggle("on", view === "changelog");
+    $("help-title").textContent = (view === "guide" ? "Help" : "What's new") + (version ? " \u00B7 v" + version : "");
     $("help-body").scrollTop = 0;
-    if (cache[lang]) { $("help-body").innerHTML = cache[lang]; return; }
+    var key = view + ":" + lang;
+    if (cache[key]) { $("help-body").innerHTML = cache[key]; return; }
     $("help-body").textContent = "…";
-    fetch(V.url("/help/" + lang + ".md")).then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
-      .then(function (t) { cache[lang] = render(t); if (lang === which) $("help-body").innerHTML = cache[which]; })
-      .catch(function (e) { $("help-body").textContent = "Could not load the guide: " + e.message; });
+    fetch(V.url(docUrl())).then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+      .then(function (t) { cache[key] = render(t); if (key === view + ":" + lang) $("help-body").innerHTML = cache[key]; })
+      .catch(function (e) { $("help-body").textContent = "Could not load the text: " + e.message; });
   }
-  function open() { $("help").hidden = false; show(lang); }
+  function seen() { $("new-dot").hidden = true; V.api("/api/seen", null, {}).catch(function () { /* not important */ }); }
+  function open(which) { $("help").hidden = false; view = which === "changelog" ? "changelog" : "guide"; show(); if (view === "changelog") seen(); }
   function close() { $("help").hidden = true; }
-  $("btn-help").addEventListener("click", open);
+  $("btn-help").addEventListener("click", function () { open("guide"); });
+  $("btn-whatsnew").addEventListener("click", function () { open("changelog"); });
+  $("help-guide").addEventListener("click", function () { view = "guide"; show(); });
+  $("help-new").addEventListener("click", function () { view = "changelog"; show(); seen(); });
   $("help-close").addEventListener("click", close);
-  $("help-en").addEventListener("click", function () { show("en"); });
-  $("help-de").addEventListener("click", function () { show("de"); });
+  $("help-en").addEventListener("click", function () { lang = "en"; show(); });
+  $("help-de").addEventListener("click", function () { lang = "de"; show(); });
   $("help").addEventListener("mousedown", function (e) { if (e.target === $("help")) close(); });
   $("help-body").addEventListener("click", function (e) { var a = e.target.closest && e.target.closest("a[data-ext]"); if (!a) return; e.preventDefault(); $("powered").click(); });
   window.addEventListener("keydown", function (e) { if (e.key === "Escape" && !$("help").hidden) { close(); e.stopPropagation(); } }, true);
   V.openHelp = open;
+  // the first start of a new version shows what is new (once); the dot stays until it was read
+  V.api("/api/config").then(function (c) { version = c.version || ""; if (c.whats_new) { $("new-dot").hidden = false; open("changelog"); } }).catch(function () { /* the editor works without it */ });
 })();
