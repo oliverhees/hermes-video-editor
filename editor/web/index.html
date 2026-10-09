@@ -75,12 +75,14 @@
       </div>
       <div id="canvas-size" class="muted"></div>
       <h3>Background</h3>
+      <div id="bg-target" class="muted"></div>
       <div class="row">
         <select id="in-bg"><option value="blur">Blurred picture</option><option value="black">Black</option><option value="color">One colour</option><option value="gradient">Gradient (top to bottom)</option><option value="image">Picture&hellip;</option></select>
         <input id="in-bgcolor" type="color" value="#000000" hidden title="Background colour (gradient: top)">
         <input id="in-bgcolor2" type="color" value="#1b1464" hidden title="Gradient: bottom colour">
       </div>
       <div id="bg-image-row" class="row" hidden><button id="btn-bg-image" class="btn">Choose a picture&hellip;</button><span id="bg-image-name" class="muted grow"></span></div>
+      <div class="row" style="margin-top:6px"><button id="btn-bg-strip-add" class="btn">Add a strip at the playhead</button><button id="btn-bg-strip-all" class="btn" hidden title="Use this look as the project background">Use for all</button><button id="btn-bg-strip-del" class="btn danger" hidden>Delete strip</button></div>
       <p class="muted">Visible wherever the picture does not fill the canvas, for example when you make the video smaller or use 9:16.</p>
       <h3>Selected clip</h3>
       <div id="tf-hint" class="muted"></div>
@@ -260,8 +262,8 @@
       <span class="spacer"></span>
       <select id="add-track" title="Add or remove tracks: put several texts, shapes, videos or sounds on top of each other">
         <option value="">Tracks&hellip;</option>
-        <optgroup label="Add a track"><option value="add:text">+ Text track</option><option value="add:shape">+ Shape track</option><option value="add:overlay">+ Video track (overlay)</option><option value="add:audio">+ Audio track</option><option value="add:scene">+ Scene track</option></optgroup>
-        <optgroup label="Remove the top track (if empty)"><option value="remove:text">&minus; Text track</option><option value="remove:shape">&minus; Shape track</option><option value="remove:overlay">&minus; Video track</option><option value="remove:audio">&minus; Audio track</option><option value="remove:scene">&minus; Scene track</option></optgroup>
+        <optgroup label="Add a track"><option value="add:text">+ Text track</option><option value="add:shape">+ Shape track</option><option value="add:overlay">+ Video track (overlay)</option><option value="add:audio">+ Audio track</option><option value="add:bg">+ Background track</option><option value="add:scene">+ Scene track</option></optgroup>
+        <optgroup label="Remove the top track (if empty)"><option value="remove:text">&minus; Text track</option><option value="remove:shape">&minus; Shape track</option><option value="remove:overlay">&minus; Video track</option><option value="remove:audio">&minus; Audio track</option><option value="remove:bg">&minus; Background track</option><option value="remove:scene">&minus; Scene track</option></optgroup>
       </select>
       <button id="btn-zoom-out" class="btn small" title="Zoom out (-)">&minus;</button>
       <button id="btn-zoom-fit" class="btn small">Fit</button>
@@ -270,9 +272,22 @@
   </main>
 
   <section id="timeline">
+    <div id="toolbar" role="toolbar" aria-label="Edit tools">
+      <button id="tb-undo" class="btn small" title="Undo (Ctrl+Z)">&#8630; Undo</button>
+      <button id="tb-redo" class="btn small" title="Redo (Ctrl+Shift+Z)">&#8631; Redo</button>
+      <span class="sep"></span>
+      <button id="tb-split" class="btn small" title="Split the selected item (or the clip) at the playhead (S)">&#9988; Split <kbd>S</kbd></button>
+      <button id="tb-trim-start" class="btn small" title="Cut away everything before the playhead (Q)">&#8676; Trim start <kbd>Q</kbd></button>
+      <button id="tb-trim-end" class="btn small" title="Cut away everything after the playhead (W)">Trim end &#8677; <kbd>W</kbd></button>
+      <button id="tb-clone" class="btn small" title="Clone the selected item or clip (Ctrl+D)">&#10064; Clone <kbd>Ctrl+D</kbd></button>
+      <button id="tb-delete" class="btn small danger" title="Delete the selected item or clip (Delete)">&#128465; Delete</button>
+      <span class="sep"></span>
+      <button id="tb-magnet" class="btn small on" title="Magnet: items snap to the playhead and to the edges of other items">&#129522; Magnet</button>
+    </div>
     <div id="tl-scroll">
       <div id="track">
         <canvas id="ruler"></canvas>
+        <div id="snap-line" hidden></div>
         <div id="clips" class="lane"></div>
         <canvas id="wave" class="lane"></canvas>
         <canvas id="awave" class="lane"></canvas>
@@ -316,6 +331,8 @@
 <script src="/static/overlays.js"></script>
 <script src="/static/shapes.js"></script>
 <script src="/static/scenes.js"></script>
+<script src="/static/backgrounds.js"></script>
+<script src="/static/tools.js"></script>
 <script src="/static/pick.js"></script>
 <script src="/static/help.js"></script>
 </body>

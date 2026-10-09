@@ -11,8 +11,8 @@
     assets: {}, clips: [], sel: -1, t: 0, zoom: 80, mark: { a: null, b: null }, hist: TL.createHistory(100),
     projectPath: null, projectName: "", dirty: false, config: null, dlgPath: "", fitted: false,
     canvas: { aspect: "auto", short: 1080 }, bg: { mode: "blur", color: "#000000", color2: "#1b1464", image: "" },
-    texts: [], audios: [], overlays: [], shapes: [], scenes: [], tracks: { scene: 1, shape: 1, text: 1, overlay: 1, audio: 1 },
-    selText: -1, selAudio: -1, selOv: -1, selShape: -1, selScene: -1,           // layers: text on the picture, audio items (music, voice-over)
+    texts: [], audios: [], overlays: [], shapes: [], scenes: [], bgs: [], tracks: { scene: 1, bg: 1, shape: 1, text: 1, overlay: 1, audio: 1 },
+    selText: -1, selAudio: -1, selOv: -1, selShape: -1, selScene: -1, selBg: -1, magnet: true,           // layers: text on the picture, audio items (music, voice-over)
   };
 
   // ---------------------------------------------------------------- api
@@ -201,17 +201,17 @@
   // ---------------------------------------------------------------- editing (every change goes through edit() so undo/redo work)
   function clearSel(except) {                      // one selection at a time: a clip, or one item of a layer
     if (except !== "clip") S.sel = -1; if (except !== "text") S.selText = -1; if (except !== "audio") S.selAudio = -1;
-    if (except !== "overlay") S.selOv = -1; if (except !== "shape") S.selShape = -1; if (except !== "scene") S.selScene = -1;
+    if (except !== "overlay") S.selOv = -1; if (except !== "shape") S.selShape = -1; if (except !== "scene") S.selScene = -1; if (except !== "bg") S.selBg = -1;
   }
   function tab(name) { var b = document.querySelector('#tabs button[data-tab="' + name + '"]'); if (b) b.click(); }
   var HITS = [];                                   // what is under the mouse on the preview (filled while drawing, see pick.js)
-  function snap() { return { clips: S.clips, sel: S.sel, canvas: S.canvas, bg: S.bg, texts: S.texts, audios: S.audios, overlays: S.overlays, shapes: S.shapes, scenes: S.scenes, tracks: S.tracks,
-    selText: S.selText, selAudio: S.selAudio, selOv: S.selOv, selShape: S.selShape, selScene: S.selScene }; }
+  function snap() { return { clips: S.clips, sel: S.sel, canvas: S.canvas, bg: S.bg, texts: S.texts, audios: S.audios, overlays: S.overlays, shapes: S.shapes, scenes: S.scenes, bgs: S.bgs, tracks: S.tracks,
+    selText: S.selText, selAudio: S.selAudio, selOv: S.selOv, selShape: S.selShape, selScene: S.selScene, selBg: S.selBg }; }
   function restore(p) {
     S.clips = p.clips; S.sel = p.sel; S.canvas = p.canvas || S.canvas; S.bg = p.bg || S.bg; S.dirty = true;
     S.texts = p.texts || []; S.audios = p.audios || []; S.selText = p.selText == null ? -1 : p.selText; S.selAudio = p.selAudio == null ? -1 : p.selAudio;
     S.overlays = p.overlays || []; S.selOv = p.selOv == null ? -1 : p.selOv;
-    S.shapes = p.shapes || []; S.scenes = p.scenes || []; S.tracks = p.tracks || S.tracks;
+    S.shapes = p.shapes || []; S.scenes = p.scenes || []; S.bgs = p.bgs || []; S.tracks = p.tracks || S.tracks; S.selBg = p.selBg == null ? -1 : p.selBg;
     S.selShape = p.selShape == null ? -1 : p.selShape; S.selScene = p.selScene == null ? -1 : p.selScene;
     syncCanvasControls(); afterEdit();
   }
@@ -413,7 +413,7 @@
     HITS.push({ z: 0, rect: [r[0] * cssW / W, r[1] * cssW / W, r[2] * cssW / W, r[3] * cssW / W], gizmo: "gizmo", select: function () { clearSel("clip"); S.sel = hit.index; } });
     if (v.getAttribute("data-asset") !== a.id || !v.videoWidth || v.readyState < 2) { layers(); return; }
     var covers = r[0] <= 0 && r[1] <= 0 && r[0] + r[2] >= W && r[1] + r[3] >= H;
-    if (S.bg.mode === "blur" && !covers) {
+    if (effBg().mode === "blur" && !covers) {
       var bw = Math.max(8, Math.round(W / 8)), bh = Math.max(8, Math.round(H / 8)); blurBuf.width = bw; blurBuf.height = bh;
       var b = blurBuf.getContext("2d"), sc = Math.max(bw / v.videoWidth, bh / v.videoHeight), dw = v.videoWidth * sc, dh = v.videoHeight * sc;
       b.drawImage(v, (bw - dw) / 2, (bh - dh) / 2, dw, dh); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high";
@@ -454,33 +454,39 @@
   }
   // the canvas colour behind the pictures: black, one colour, a two-colour gradient or a picture (blur is drawn from the video)
   var bgImg = null, bgImgPath = "";
+  function effBg() { return TL.activeBg(S.bgs, S.t) || S.bg; }              // the strip under the playhead, else the project background
+  function bgTarget() { return S.selBg >= 0 && S.bgs[S.selBg] ? S.bgs[S.selBg] : S.bg; }   // what the Background controls edit
   function paintBackground(g, w, h) {
-    var m = S.bg.mode;
-    if (m === "gradient") { var gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, S.bg.color); gr.addColorStop(1, S.bg.color2 || "#1b1464"); g.fillStyle = gr; g.fillRect(0, 0, w, h); return; }
-    if (m === "image" && S.bg.image) {
-      if (bgImgPath !== S.bg.image) { bgImgPath = S.bg.image; bgImg = new Image(); bgImg.onload = function () { drawStage(); }; bgImg.src = url("/api/image", { path: S.bg.image }); }
+    var bg = effBg(), m = bg.mode;
+    if (m === "gradient") { var gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, bg.color); gr.addColorStop(1, bg.color2 || "#1b1464"); g.fillStyle = gr; g.fillRect(0, 0, w, h); return; }
+    if (m === "image" && bg.image) {
+      if (bgImgPath !== bg.image) { bgImgPath = bg.image; bgImg = new Image(); bgImg.onload = function () { drawStage(); }; bgImg.src = url("/api/image", { path: bg.image }); }
       g.fillStyle = "#000"; g.fillRect(0, 0, w, h);
       if (bgImg && bgImg.complete && bgImg.naturalWidth) { var sc = Math.max(w / bgImg.naturalWidth, h / bgImg.naturalHeight), dw = bgImg.naturalWidth * sc, dh = bgImg.naturalHeight * sc; g.drawImage(bgImg, (w - dw) / 2, (h - dh) / 2, dw, dh); }
       return;
     }
-    g.fillStyle = m === "color" ? S.bg.color : "#000"; g.fillRect(0, 0, w, h);
+    g.fillStyle = m === "color" ? bg.color : "#000"; g.fillRect(0, 0, w, h);
   }
+  function bgSegForExport(s) { var o = bgLook(s); o.start = s.start; o.dur = s.dur; o.track = s.track || 0; return o; }
+  function bgLook(b) { return b.mode === "gradient" ? { mode: "gradient", color: b.color, color2: b.color2 } : b.mode === "image" ? (b.image ? { mode: "image", color: b.color, image: b.image } : { mode: "black", color: b.color }) : { mode: b.mode, color: b.color }; }
   function bgForExport() { var b = S.bg; return b.mode === "gradient" ? { mode: "gradient", color: b.color, color2: b.color2 } : b.mode === "image" ? (b.image ? { mode: "image", color: b.color, image: b.image } : { mode: "black", color: b.color }) : { mode: b.mode, color: b.color }; }
   function syncCanvasControls() {
-    $("in-aspect").value = S.canvas.aspect; $("in-short").value = String(S.canvas.short); $("in-bg").value = S.bg.mode; $("in-bgcolor").value = S.bg.color;
-    $("in-bgcolor").hidden = !(S.bg.mode === "color" || S.bg.mode === "gradient"); $("in-bgcolor2").hidden = S.bg.mode !== "gradient"; $("in-bgcolor2").value = S.bg.color2 || "#1b1464";
-    $("bg-image-row").hidden = S.bg.mode !== "image"; $("bg-image-name").textContent = S.bg.image ? baseName(S.bg.image) : "No picture chosen";
+    $("in-aspect").value = S.canvas.aspect; $("in-short").value = String(S.canvas.short); var bt = bgTarget(); $("in-bg").value = bt.mode; $("in-bgcolor").value = bt.color;
+    $("in-bgcolor").hidden = !(bt.mode === "color" || bt.mode === "gradient"); $("in-bgcolor2").hidden = bt.mode !== "gradient"; $("in-bgcolor2").value = bt.color2 || "#1b1464";
+    $("bg-image-row").hidden = bt.mode !== "image"; $("bg-image-name").textContent = bt.image ? baseName(bt.image) : "No picture chosen";
+    $("bg-target").textContent = S.selBg >= 0 && S.bgs[S.selBg] ? "Editing the selected background strip (" + fmt(S.bgs[S.selBg].start) + " \u2192 " + fmt(S.bgs[S.selBg].start + S.bgs[S.selBg].dur) + ")" : "Editing the project background (valid wherever no strip lies on top)";
+    $("btn-bg-strip-del").hidden = !(S.selBg >= 0 && S.bgs[S.selBg]); $("btn-bg-strip-all").hidden = !(S.selBg >= 0 && S.bgs[S.selBg]);
     $("in-short").disabled = S.canvas.aspect === "auto";
   }
   function changeCanvas(patchCanvas, patchBg) {
     S.hist.push(snap());
     if (patchCanvas) S.canvas = Object.assign({}, S.canvas, patchCanvas);
-    if (patchBg) S.bg = Object.assign({}, S.bg, patchBg);
+    if (patchBg) { if (S.selBg >= 0 && S.bgs[S.selBg]) S.bgs = S.bgs.map(function (x, k) { return k === S.selBg ? TL.cleanBgSeg(Object.assign({}, x, patchBg)) : x; }); else S.bg = Object.assign({}, S.bg, patchBg); }
     S.dirty = true; syncCanvasControls(); layoutStage(); renderAll();
   }
   $("in-aspect").addEventListener("change", function () { changeCanvas({ aspect: this.value }); });
   $("in-short").addEventListener("change", function () { changeCanvas({ short: +this.value }); });
-  $("in-bg").addEventListener("change", function () { changeCanvas(null, { mode: this.value }); if (this.value === "image" && !S.bg.image) $("btn-bg-image").click(); });
+  $("in-bg").addEventListener("change", function () { changeCanvas(null, { mode: this.value }); if (this.value === "image" && !bgTarget().image) $("btn-bg-image").click(); });
   $("in-bgcolor").addEventListener("change", function () { changeCanvas(null, { color: this.value }); });
   $("in-bgcolor2").addEventListener("change", function () { changeCanvas(null, { color2: this.value }); });
   $("btn-bg-image").addEventListener("click", function () {
@@ -700,7 +706,7 @@
     var assets = {}; Object.keys(used).forEach(function (id) { var a = S.assets[id]; if (a) assets[id] = { path: a.path, name: a.name }; });
     return { version: 1, name: S.projectName || "", assets: assets, canvas: S.canvas, bg: S.bg, texts: S.texts.map(TL.cleanText),
       audios: S.audios.map(TL.cleanAudio), overlays: S.overlays.map(TL.cleanOverlay),
-      shapes: S.shapes.map(TL.cleanShape), scenes: S.scenes.map(TL.cleanScene), tracks: window.VE && VE.tracks ? VE.tracks.normalized() : S.tracks,
+      shapes: S.shapes.map(TL.cleanShape), scenes: S.scenes.map(TL.cleanScene), bgs: S.bgs.map(TL.cleanBgSeg), tracks: window.VE && VE.tracks ? VE.tracks.normalized() : S.tracks,
       clips: S.clips.map(function (c) { var o = { id: c.id, asset: c.asset, "in": c["in"], out: c.out }; if (c.tf) o.tf = TL.cleanTf(c.tf); return o; }) };
   }
   function saveProject(forceDialog) {
@@ -717,12 +723,12 @@
   function loadProjectFile(path) {
     busy("Opening project…");
     api("/api/project/load", { path: path }).then(function (p) {
-      S.assets = {}; S.clips = []; S.sel = -1; S.texts = []; S.audios = []; S.overlays = []; S.shapes = []; S.scenes = []; S.tracks = TL.cleanTracks(null); clearSel("none"); S.t = 0; S.mark = { a: null, b: null }; S.hist = TL.createHistory(100);
+      S.assets = {}; S.clips = []; S.sel = -1; S.texts = []; S.audios = []; S.overlays = []; S.shapes = []; S.scenes = []; S.bgs = []; S.tracks = TL.cleanTracks(null); clearSel("none"); S.t = 0; S.mark = { a: null, b: null }; S.hist = TL.createHistory(100);
       var ids = Object.keys(p.assets);
       return Promise.all(ids.map(function (id) { return registerAsset(id, p.assets[id].path, p.assets[id].name).catch(function () { return null; }); })).then(function () {
         S.clips = p.clips.map(function (c) { var o = { id: c.id, asset: c.asset, "in": c["in"], out: c.out }; if (c.tf) o.tf = c.tf; return o; });
         S.canvas = p.canvas || { aspect: "auto", short: 1080 }; S.bg = Object.assign({ mode: "blur", color: "#000000", color2: "#1b1464", image: "" }, p.bg || {}); syncCanvasControls();
-        S.texts = (p.texts || []).map(TL.cleanText); S.audios = (p.audios || []).map(TL.cleanAudio); S.overlays = (p.overlays || []).map(TL.cleanOverlay); S.shapes = (p.shapes || []).map(TL.cleanShape); S.scenes = (p.scenes || []).map(TL.cleanScene);
+        S.texts = (p.texts || []).map(TL.cleanText); S.audios = (p.audios || []).map(TL.cleanAudio); S.overlays = (p.overlays || []).map(TL.cleanOverlay); S.shapes = (p.shapes || []).map(TL.cleanShape); S.scenes = (p.scenes || []).map(TL.cleanScene); S.bgs = (p.bgs || []).map(TL.cleanBgSeg);
         S.tracks = TL.cleanTracks(p.tracks); S.selText = -1; S.selAudio = -1;
         S.projectPath = p.path; S.projectName = p.name || ""; S.dirty = false; S.fitted = true; S.sel = S.clips.length ? 0 : -1;
         busy(null); invalidatePreload(); syncPlayback(); renderAll(); fit();
@@ -741,7 +747,7 @@
   $("btn-export").addEventListener("click", function () {
     if (!S.clips.length) { openDialog(); return; }
     var body = {
-      clips: TL.forExport(S.clips, S.assets), canvas: S.canvas, bg: bgForExport(), texts: S.texts.map(TL.cleanText), shapes: S.shapes.map(TL.cleanShape),
+      clips: TL.forExport(S.clips, S.assets), canvas: S.canvas, bg: bgForExport(), bgs: S.bgs.map(bgSegForExport), texts: S.texts.map(TL.cleanText), shapes: S.shapes.map(TL.cleanShape),
       audios: S.audios.filter(function (a) { return S.assets[a.asset] && !S.assets[a.asset].error; }).map(function (a) { return { path: S.assets[a.asset].path, "in": a["in"], out: a.out, start: a.start, vol: a.vol, fi: a.fi, fo: a.fo, duck: a.duck, track: a.track || 0 }; }),
       overlays: S.overlays.filter(function (o) { return S.assets[o.asset] && !S.assets[o.asset].error; }).map(function (o) { return { path: S.assets[o.asset].path, "in": o["in"], out: o.out, start: o.start, tf: o.tf, op: o.op, sound: o.sound, vol: o.vol, track: o.track || 0 }; }), speed: +$("in-speed").value, reframe: "none",
       loudness: $("in-loud").checked ? +$("in-lufs").value : null, preset: $("in-preset").value || null,
@@ -950,7 +956,8 @@
   window.__ve = { seek: seek, state: S, TL: TL };          // handy for debugging and the browser tests
   window.VE = { S: S, TL: TL, $: $, el: el, fmt: fmt, clamp: clamp, api: api, url: url, assetFor: assetFor, ensureAsset: ensureAsset, snap: snap, commit: commit,
     renderAll: renderAll, drawStage: drawStage, drawCanvases: drawCanvases, seek: seek, flash: flash, openDialog: openDialog, cssColor: cssColor, baseName: baseName,
-    canvasDims: canvasDims, playing: function () { return PB.playing; }, gestureBegin: beginGesture, gestureEnd: endGesture, layers: null, tab: tab, clearSel: clearSel, hits: HITS };
+    canvasDims: canvasDims, playing: function () { return PB.playing; }, gestureBegin: beginGesture, gestureEnd: endGesture, layers: null, tab: tab, clearSel: clearSel, hits: HITS,
+    bgTarget: bgTarget, syncCanvasControls: syncCanvasControls, ops: { split: doSplit, clone: doDuplicate, remove: doDelete, undo: undo, redo: redo, edit: edit } };
   function init() {
     api("/api/config").then(function (c) {
       S.config = c;

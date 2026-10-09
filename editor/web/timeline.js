@@ -139,7 +139,7 @@
   // ---- text layer and audio track: items on their own lanes, positioned in absolute timeline seconds
   var HEXC = /^#[0-9a-fA-F]{6}$/;
   function clampN(v, d, lo, hi) { v = Number(v); return isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; }
-  var MAX_TRACKS = 12, TRACK_KINDS = ["scene", "shape", "text", "overlay", "audio"], SHAPE_KINDS = ["rect", "rounded", "ellipse"];
+  var MAX_TRACKS = 12, TRACK_KINDS = ["scene", "bg", "shape", "text", "overlay", "audio"], SHAPE_KINDS = ["rect", "rounded", "ellipse"], BG_MODES = ["blur", "black", "color", "gradient", "image"];
   function trackOf(v) { return Math.floor(clampN(v, 0, 0, MAX_TRACKS - 1)); }
   function cleanTracks(raw) { var r = raw || {}, o = {}; TRACK_KINDS.forEach(function (k) { o[k] = Math.floor(clampN(r[k], 1, 1, MAX_TRACKS)); }); return o; }
   function newText(start, dur, id) {
@@ -202,6 +202,26 @@
       x: clampN(s.x, 0.5, -0.5, 1.5), y: clampN(s.y, 0.5, -0.5, 1.5), w: clampN(s.w, 0.5, 0.02, 3), h: clampN(s.h, 0.2, 0.02, 3),
       color: HEXC.test(s.color || "") ? s.color : "#000000", op: clampN(s.op, 0.6, 0, 1), radius: clampN(s.radius, 0.25, 0, 0.5), track: trackOf(s.track) };
   }
+  // ---- background strips: from time a to time b the canvas behind the pictures looks different
+  function cleanBg(b) {                 // one background look; same limits as sanitize_bg() in editor/project.py
+    b = b || {};
+    var o = { mode: BG_MODES.indexOf(b.mode) >= 0 ? b.mode : "blur", color: HEXC.test(b.color || "") ? b.color : "#000000" };
+    if (o.mode === "gradient") o.color2 = HEXC.test(b.color2 || "") ? b.color2 : "#1b1464";
+    if (o.mode === "image") { if (typeof b.image === "string" && b.image) o.image = b.image; else o.mode = "black"; }
+    return o;
+  }
+  function newBgSeg(start, dur, look, id) { var b = cleanBg(look); b.id = id || uid("b"); b.start = round(Math.max(0, start || 0)); b.dur = dur || 3; b.track = 0; return b; }
+  function cleanBgSeg(s) {
+    s = s || {}; var o = cleanBg(s);
+    o.id = String(s.id || uid("b")).slice(0, 40); o.start = round(clampN(s.start, 0, 0, 86400)); o.dur = round(clampN(s.dur, 3, 0.1, 3600)); o.track = trackOf(s.track);
+    return o;
+  }
+  // the strip that is in front at time t (higher track wins, later strip wins), or null: the project background applies
+  function activeBg(list, t) {
+    var best = null;
+    list.forEach(function (s) { if (t >= s.start && t < s.start + s.dur && (!best || (s.track || 0) >= (best.track || 0))) best = s; });
+    return best;
+  }
   function activeShapes(list, t) { return list.filter(function (x) { return t >= x.start && t < x.start + x.dur; }); }
   function newScene(start, dur, name, items, id) {
     return { id: id || uid("sc"), name: name || "Scene", start: round(Math.max(0, start || 0)), dur: round(dur || 3), color: "#8b6cf0", items: items || [], track: 0 };
@@ -233,7 +253,7 @@
     insertAt: insertAt, forExport: forExport, createHistory: createHistory, round: round,
     newText: newText, cleanText: cleanText, trimText: trimText, newAudio: newAudio, cleanAudio: cleanAudio, trimAudio: trimAudio,
     audioDur: audioDur, audioEnd: audioEnd, audioGain: audioGain, activeText: activeText, trackOf: trackOf, cleanTracks: cleanTracks, MAX_TRACKS: MAX_TRACKS, TRACK_KINDS: TRACK_KINDS, SHAPE_KINDS: SHAPE_KINDS,
-    newShape: newShape, cleanShape: cleanShape, activeShapes: activeShapes, newScene: newScene, cleanScene: cleanScene, span: span, shiftItem: shiftItem, newOverlay: newOverlay, cleanOverlay: cleanOverlay, activeOverlays: activeOverlays, activeAudio: activeAudio, patch: patch,
+    cleanBg: cleanBg, newBgSeg: newBgSeg, cleanBgSeg: cleanBgSeg, activeBg: activeBg, BG_MODES: BG_MODES, newShape: newShape, cleanShape: cleanShape, activeShapes: activeShapes, newScene: newScene, cleanScene: cleanScene, span: span, shiftItem: shiftItem, newOverlay: newOverlay, cleanOverlay: cleanOverlay, activeOverlays: activeOverlays, activeAudio: activeAudio, patch: patch,
     ASPECTS: ASPECTS, SHORTS: SHORTS, canvasSize: canvasSize, cleanTf: cleanTf, fgRect: fgRect, fillScale: fillScale, isDefaultTf: isDefaultTf };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.VETimeline = api;
 })(typeof window !== "undefined" ? window : this);

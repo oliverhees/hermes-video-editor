@@ -10,12 +10,13 @@
   var TOP = 176, GAP = 4;
   var KINDS = {
     scene: { h: 26, label: "Scene", items: function () { return S.scenes; } },
+    bg: { h: 26, label: "Background", items: function () { return S.bgs; } },
     text: { h: 30, label: "Text", items: function () { return S.texts; } },
     overlay: { h: 34, label: "Overlay", items: function () { return S.overlays; } },
     shape: { h: 30, label: "Shape", items: function () { return S.shapes; } },
     audio: { h: 62, label: "Audio", items: function () { return S.audios; } }
   };
-  var ORDER = ["scene", "text", "overlay", "shape", "audio"];      // top to bottom: what is in front is on top
+  var ORDER = ["scene", "text", "overlay", "shape", "bg", "audio"];      // top to bottom: what is in front is on top
   var rows = {}, tops = {}, bottom = TOP;
 
   function count(kind) {
@@ -45,7 +46,7 @@
     Object.keys(rows).forEach(function (k) { if (!wanted[k]) { rows[k].parentNode.removeChild(rows[k]); delete rows[k]; delete tops[k]; } });
     bottom = y + 6;
     $("track").style.height = bottom + "px"; $("mark-range").style.height = (bottom - 26) + "px";
-    var want = Math.max(352, Math.min(bottom + 10, Math.round(window.innerHeight * 0.55)));
+    var want = Math.max(394, Math.min(bottom + 48, Math.round(window.innerHeight * 0.58)));
     if ($("app").getAttribute("data-tlh") !== String(want)) { $("app").setAttribute("data-tlh", want); $("app").style.gridTemplateRows = "48px 1fr " + want + "px"; }
     var a = audioArea(), c = $("awave");
     c.style.top = a.top + "px"; c.style.height = a.height + "px";
@@ -113,6 +114,25 @@
     });
   }
 
+  // magnet: where an item being moved may snap to (seconds): the start, the playhead, clip borders and the edges of every other item
+  function snapPoints(skipKind, skipIndex) {
+    var pts = [0, S.t];
+    TL.layout(S.clips).items.forEach(function (it) { pts.push(it.start, it.end); });
+    Object.keys(KINDS).forEach(function (k) {
+      KINDS[k].items().forEach(function (it, i) { if (k === skipKind && i === skipIndex) return; var w = TL.span(it); pts.push(w[0], w[1]); });
+    });
+    return pts;
+  }
+  function snapMove(kind, index, start, len) {            // returns {start, at}; `at` is the snapped time or null
+    if (!S.magnet) return { start: start, at: null };
+    var thr = 9 / S.zoom, best = null;
+    snapPoints(kind, index).forEach(function (p) {
+      [[p - start, p], [p - (start + len), p]].forEach(function (c) { var d = Math.abs(c[0]); if (d <= thr && (!best || d < best.d)) best = { d: d, shift: c[0], at: p }; });
+    });
+    return best ? { start: Math.max(0, start + best.shift), at: best.at } : { start: start, at: null };
+  }
+  function showSnap(at) { var l = $("snap-line"); if (at == null) { l.hidden = true; return; } l.hidden = false; l.style.left = (at * S.zoom) + "px"; }
+
   // cfg: { select(i), items(), replace(i, item), trim(item, edge, dxSeconds, i), after(), tab, onStart(i), onEnd() }
   function drag(kind, cfg) {
     var d = null;
@@ -130,11 +150,15 @@
       if (Math.abs(e.clientX - d.x0) < 3 && !d.moved && trackAtY(kind, e.clientY, d.track) === d.track) return;
       d.moved = true;
       var it = d.item, next = d.edge ? cfg.trim(it, d.edge, dx, d.i) : TL.patch(it, { start: Math.max(0, it.start + dx) });
-      if (!d.edge) next = TL.patch(next, { track: trackAtY(kind, e.clientY, d.track) });
+      if (!d.edge) {
+        var w = TL.span(it), sn = snapMove(kind, d.i, next.start, w[1] - w[0]);
+        next = TL.patch(next, { start: TL.round(sn.start), track: trackAtY(kind, e.clientY, d.track) }); showSnap(sn.at);
+      }
       cfg.replace(d.i, next, d);
       S.dirty = true; layout(); cfg.after();
     });
     window.addEventListener("mouseup", function () {
+      showSnap(null);
       if (!d) return; var done = d; d = null;
       if (done.moved) { S.hist.push(done.base); if (cfg.onEnd) cfg.onEnd(done); V.renderAll(); }
     });
