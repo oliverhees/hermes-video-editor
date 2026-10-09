@@ -345,7 +345,7 @@ def _color_source(bg: Dict[str, str], W: int, H: int, fps: Any, d: float, label:
     """The background as a source of duration d (solid colour, gradient or picture)."""
     if bg["mode"] == "gradient":
         require_filter("gradients", "a gradient background")
-        return ("gradients=s=%dx%d:r=%s:d=%.3f:c0=0x%s:c1=0x%s:x0=0:y0=0:x1=0:y1=%d:nb_colors=2,format=yuv420p,setsar=1[%s]"
+        return ("gradients=s=%dx%d:r=%s:d=%.3f:c0=0x%s:c1=0x%s:x0=0:y0=0:x1=0:y1=%d:nb_colors=2:speed=0.00001,format=yuv420p,setsar=1[%s]"
                 % (W, H, fps, d, bg["color"][1:], bg["color2"][1:], H, label))
     if bg["mode"] == "image" and bg.get("image"):
         return ("movie=filename=%s,scale=%d:%d:force_original_aspect_ratio=increase,crop=%d:%d,format=yuv420p,setsar=1,"

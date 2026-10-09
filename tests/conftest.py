@@ -1,5 +1,6 @@
 """Loads the plugin as package 'hermes_video_editor' and builds synthetic media fixtures."""
 import hashlib
+import os
 import importlib.util
 import json
 import shutil
@@ -10,6 +11,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
+os.environ.setdefault("VE_NO_WHATS_NEW", "1")        # tests do not want the "what is new" window on top of the editor
 _spec = importlib.util.spec_from_file_location(
     "hermes_video_editor", ROOT / "__init__.py", submodule_search_locations=[str(ROOT)])
 _pkg = importlib.util.module_from_spec(_spec)

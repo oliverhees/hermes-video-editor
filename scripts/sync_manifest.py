@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 
 
 def load_tools():
@@ -32,7 +32,7 @@ def render(names):
         "Reels/TikTok/YouTube and check platform rules. No cloud, no API key.",
         "author: oliverhees",
         "license: PolyForm-Noncommercial-1.0.0",
-        "homepage: https://github.com/oliverhees/hermes-video-editor",
+        "homepage: https://lokyy.de/hermes-video-editor/",
         "provides_tools:",
     ]
     lines += ["  - %s" % n for n in names]

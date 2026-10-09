@@ -24,7 +24,33 @@ WEB = Path(__file__).resolve().parent / "web"
 STATIC = {"app.js": "text/javascript; charset=utf-8", "timeline.js": "text/javascript; charset=utf-8", "layers.js": "text/javascript; charset=utf-8", "overlays.js": "text/javascript; charset=utf-8", "tracks.js": "text/javascript; charset=utf-8", "shapes.js": "text/javascript; charset=utf-8", "scenes.js": "text/javascript; charset=utf-8", "pick.js": "text/javascript; charset=utf-8", "help.js": "text/javascript; charset=utf-8",
           "app.css": "text/css; charset=utf-8"}
 DOCS = Path(__file__).resolve().parents[1] / "docs"
-HELP_DOCS = {"/help/en.md": DOCS / "en" / "GUIDE.md", "/help/de.md": DOCS / "de" / "GUIDE.md"}
+HELP_DOCS = {"/help/en.md": DOCS / "en" / "GUIDE.md", "/help/de.md": DOCS / "de" / "GUIDE.md",
+             "/help/changelog.en.md": DOCS / "en" / "CHANGELOG.md", "/help/changelog.de.md": DOCS / "de" / "CHANGELOG.md"}
+
+
+def plugin_version() -> str:
+    """The version in plugin.yaml (the one single place it is written down)."""
+    try:
+        for line in (Path(__file__).resolve().parents[1] / "plugin.yaml").read_text(encoding="utf-8").splitlines():
+            if line.startswith("version:"):
+                return line.split(":", 1)[1].strip().strip('"\'')
+    except OSError:
+        pass
+    return "0.0.0"
+
+
+def _seen_file() -> Path:
+    return jobs_mod.CACHE_ROOT / "seen_version.txt"
+
+
+def whats_new_unseen() -> bool:
+    """True the first time this version is started (and never when VE_NO_WHATS_NEW is set)."""
+    if os.environ.get("VE_NO_WHATS_NEW"):
+        return False
+    try:
+        return _seen_file().read_text(encoding="utf-8").strip() != plugin_version()
+    except OSError:
+        return True
 MAX_BODY = 1 << 20
 MIME_FIX = {".mkv": "video/x-matroska", ".mov": "video/quicktime", ".m4v": "video/mp4", ".mp3": "audio/mpeg",
             ".m4a": "audio/mp4", ".flac": "audio/flac", ".opus": "audio/ogg", ".ts": "video/mp2t"}
@@ -75,7 +101,8 @@ def api_config(srv: EditorServer) -> Dict[str, Any]:
     from ..tools.export import EXPORT_PRESETS
     videos = Path.home() / "Videos"
     return {"home": str(Path.home()), "videos_dir": str(videos if videos.is_dir() else Path.home()), "roots": srv.roots, "presets": list(EXPORT_PRESETS),
-            "reframes": list(jobs_mod.ASPECT_REFRAME), "speeds": list(jobs_mod.SPEEDS)}
+            "reframes": list(jobs_mod.ASPECT_REFRAME), "speeds": list(jobs_mod.SPEEDS),
+            "version": plugin_version(), "whats_new": whats_new_unseen()}
 
 
 def api_ls(srv: EditorServer, raw: Optional[str], kind: Optional[str] = None) -> Dict[str, Any]:
@@ -139,6 +166,16 @@ def api_silence(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
     if not res.get("ok"):
         raise ToolError(res.get("error", "Silence detection failed"), res.get("hint"))
     return res["info"]
+
+
+def api_seen(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
+    """The user has read the changelog of this version."""
+    try:
+        _seen_file().parent.mkdir(parents=True, exist_ok=True)
+        _seen_file().write_text(plugin_version(), encoding="utf-8")
+    except OSError:
+        pass
+    return {"ok": True, "version": plugin_version()}
 
 
 def api_mkdir(srv: EditorServer, body: Dict[str, Any]) -> Dict[str, Any]:
@@ -421,6 +458,8 @@ def make_handler(srv: EditorServer):
                 self._json(api_export(srv, body))
             elif route == "/api/tool":
                 self._json(api_tool(srv, body))
+            elif route == "/api/seen":
+                self._json(api_seen(srv, body))
             elif route == "/api/mkdir":
                 self._json(api_mkdir(srv, body))
             elif route == "/api/project/save":

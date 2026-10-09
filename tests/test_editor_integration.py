@@ -1022,3 +1022,56 @@ def test_browser_export_folder_picker_opens_the_directory_tree_and_can_make_fold
         b.close()
         p.stop()
         srv.stop()
+
+
+def test_changelog_is_bilingual_and_matches_the_version():
+    import re
+    en, de = [(ROOT / "docs" / l / "CHANGELOG.md").read_text(encoding="utf-8") for l in ("en", "de")]
+    version = re.search(r'^version:\s*"?([\d.]+)"?', (ROOT / "plugin.yaml").read_text(encoding="utf-8"), re.M).group(1)
+    first = lambda t: re.search(r"^## ([\d.]+) \((\d{4}-\d{2}-\d{2})\)", t, re.M)
+    assert first(en).group(1) == version and first(de).group(1) == version and first(en).group(2) == first(de).group(2)   # newest entry = current version
+    assert re.findall(r"^## ([\d.]+)", en, re.M) == re.findall(r"^## ([\d.]+)", de, re.M)                                # same releases in both languages
+    assert re.findall(r"^### ", en, re.M) and len(re.findall(r"^### ", en, re.M)) == len(re.findall(r"^### ", de, re.M))
+    for text in (en, de):
+        assert "ve_" not in re.sub(r"\w*ve_\w*", "", text) and "Claude" not in text
+
+
+def test_whats_new_shows_once_per_version(media, tmp_path, monkeypatch):
+    pw = pytest.importorskip("playwright.sync_api")
+    from hermes_video_editor.editor import jobs as jobs_mod
+    from hermes_video_editor.editor.server import EditorServer, plugin_version
+    monkeypatch.delenv("VE_NO_WHATS_NEW", raising=False)
+    monkeypatch.setattr(jobs_mod, "CACHE_ROOT", tmp_path / "cache")                 # a fresh "never seen" state
+    srv = EditorServer(roots=[str(media["dir"]), str(tmp_path)])
+    p, b, page, errors = browser(pw)
+    try:
+        page.goto(srv.url())
+        page.wait_for_selector("#help:not([hidden]) #help-body h2", timeout=15000)      # opens by itself the first time
+        assert page.inner_text("#help-title").startswith("What's new") and plugin_version() in page.inner_text("#help-title")
+        assert plugin_version() in page.inner_text("#help-body h2")
+        page.click("#help-de")
+        for _ in range(100):
+            if "neu" in page.inner_text("#help-body h1").lower():
+                break
+            page.wait_for_timeout(100)
+        assert "Was ist neu" in page.inner_text("#help-body h1")
+        page.click("#help-guide")
+        for _ in range(100):
+            if "Anleitung" in page.inner_text("#help-body h1"):
+                break
+            page.wait_for_timeout(100)
+        assert "Anleitung" in page.inner_text("#help-body h1")
+        page.click("#help-close")
+        assert (tmp_path / "cache" / "seen_version.txt").read_text() == plugin_version() and page.is_hidden("#new-dot")
+        page2 = b.new_page(viewport={"width": 1500, "height": 900})                     # the next start: no window, no dot
+        page2.goto(srv.url())
+        page2.wait_for_selector("#btn-whatsnew")
+        page2.wait_for_timeout(800)
+        assert page2.is_hidden("#help") and page2.is_hidden("#new-dot")
+        page2.click("#btn-whatsnew")                                                    # but the button still opens it
+        page2.wait_for_selector("#help:not([hidden]) #help-body h2", timeout=10000)
+        assert not errors, errors
+    finally:
+        b.close()
+        p.stop()
+        srv.stop()

@@ -219,3 +219,7 @@ input[type=color]{width:100%;min-width:36px;height:32px;padding:2px;background:v
 #add-track{max-width:120px;font-size:12px;padding:4px 6px}
 #in-bgcolor2{flex:0 0 44px;height:34px;padding:2px;background:var(--panel2);border:1px solid var(--line);border-radius:8px}
 #sc-name{width:100%}
+
+#btn-whatsnew{position:relative}
+#new-dot{position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+#new-dot[hidden]{display:none}

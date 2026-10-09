@@ -105,6 +105,7 @@ Reference: [Tool reference](TOOLS.md).
 
 ## 11. Good to know
 
+- **What's new** (top bar) shows the changelog of this version; it opens by itself the first time after an update.
 - The preview is a fast low-resolution copy. The export uses your original quality.
 - The preview does not play ducking and cannot make audio louder than the source. The export does both.
 - Text looks slightly different in the preview than in the export (different font).

@@ -105,6 +105,7 @@ Nachschlagewerk: [Werkzeug-Referenz](TOOLS.md).
 
 ## 11. Gut zu wissen
 
+- **What's new** (obere Leiste) zeigt das Änderungsprotokoll dieser Version; es öffnet sich nach einem Update beim ersten Start von selbst.
 - Die Vorschau ist eine schnelle Kopie in niedriger Auflösung. Der Export nutzt deine Original-Qualität.
 - Die Vorschau spielt kein Ducking ab und kann Ton nicht lauter machen als die Quelle. Der Export kann beides.
 - Text sieht in der Vorschau etwas anders aus als im Export (andere Schrift).
