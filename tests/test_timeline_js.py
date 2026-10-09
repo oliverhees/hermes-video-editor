@@ -183,7 +183,7 @@ def test_shapes_scenes_and_tracks(tmp_path):
     const s = T.cleanShape({kind: 'star', x: 9, w: 0, color: 'red', op: 7, track: 99, dur: 0})
     assert.strictEqual(s.kind, 'rect'); assert.strictEqual(s.x, 1.5); assert.strictEqual(s.w, 0.02); assert.strictEqual(s.color, '#000000')
     assert.strictEqual(s.op, 1); assert.strictEqual(s.track, 11); assert.strictEqual(s.dur, 0.1)
-    assert.deepStrictEqual(T.cleanTracks({text: 99, audio: 0, bogus: 3}), {scene: 1, shape: 1, text: 12, overlay: 1, audio: 1})
+    assert.deepStrictEqual(T.cleanTracks({text: 99, audio: 0, bogus: 3}), {scene: 1, shape: 1, text: 12, overlay: 1, bg: 1, audio: 1})
     const sh = T.newShape(2, 3, 'x'); assert.strictEqual(sh.start, 2); assert.strictEqual(sh.kind, 'rounded')
     assert.strictEqual(T.activeShapes([sh], 1.9).length, 0); assert.strictEqual(T.activeShapes([sh], 4).length, 1); assert.strictEqual(T.activeShapes([sh], 5).length, 0)
     const sc = T.cleanScene({name: 'In\\u0000tro', items: [1, 'b'], start: -1})
