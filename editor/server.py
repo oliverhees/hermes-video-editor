@@ -21,7 +21,7 @@ from . import toolrun
 from .security import MEDIA_EXTS, default_roots, inside, safe_dir, safe_image_file, safe_media_file
 
 WEB = Path(__file__).resolve().parent / "web"
-STATIC = {"app.js": "text/javascript; charset=utf-8", "timeline.js": "text/javascript; charset=utf-8", "layers.js": "text/javascript; charset=utf-8", "overlays.js": "text/javascript; charset=utf-8", "tracks.js": "text/javascript; charset=utf-8", "shapes.js": "text/javascript; charset=utf-8", "scenes.js": "text/javascript; charset=utf-8", "pick.js": "text/javascript; charset=utf-8", "tools.js": "text/javascript; charset=utf-8", "backgrounds.js": "text/javascript; charset=utf-8", "clipfx.js": "text/javascript; charset=utf-8", "captions.js": "text/javascript; charset=utf-8", "help.js": "text/javascript; charset=utf-8",
+STATIC = {"app.js": "text/javascript; charset=utf-8", "timeline.js": "text/javascript; charset=utf-8", "layers.js": "text/javascript; charset=utf-8", "overlays.js": "text/javascript; charset=utf-8", "tracks.js": "text/javascript; charset=utf-8", "shapes.js": "text/javascript; charset=utf-8", "scenes.js": "text/javascript; charset=utf-8", "pick.js": "text/javascript; charset=utf-8", "tools.js": "text/javascript; charset=utf-8", "backgrounds.js": "text/javascript; charset=utf-8", "clipfx.js": "text/javascript; charset=utf-8", "captions.js": "text/javascript; charset=utf-8", "library.js": "text/javascript; charset=utf-8", "help.js": "text/javascript; charset=utf-8",
           "app.css": "text/css; charset=utf-8"}
 DOCS = Path(__file__).resolve().parents[1] / "docs"
 HELP_DOCS = {"/help/en.md": DOCS / "en" / "GUIDE.md", "/help/de.md": DOCS / "de" / "GUIDE.md",

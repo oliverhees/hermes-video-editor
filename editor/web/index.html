@@ -10,7 +10,9 @@
 <div id="app">
   <header id="top">
     <div class="brand"><span class="dot"></span> Video Editor <small>local &middot; FFmpeg</small></div>
+    <div id="brand"><a id="powered" href="https://lokyy.de" target="_blank" rel="noopener noreferrer">Powered by Lokyy.de</a><span class="tag">German Hermes Engineering</span></div>
     <div id="file-chip" class="chip" title="">Untitled project</div>
+    <button id="btn-library" class="btn" title="Show or hide the media library">Media</button>
     <button id="btn-whatsnew" class="btn" title="What is new in this version">What's new<i id="new-dot" hidden></i></button>
     <button id="btn-help" class="btn" title="User guide (English / Deutsch)">Help</button>
     <button id="btn-openproj" class="btn">Open project&hellip;</button>
@@ -18,6 +20,22 @@
     <button id="btn-saveas" class="btn">Save as&hellip;</button>
     <button id="btn-open" class="btn primary">Add clip&hellip;</button>
   </header>
+
+  <aside id="library" aria-label="Media">
+    <div class="lib-head"><strong>Media</strong>
+      <button id="lib-import" class="btn small primary" title="Add a video or sound file">Import&hellip;</button>
+      <button id="lib-picture" class="btn small" title="Add a picture or GIF as a sticker on top">Sticker&hellip;</button></div>
+    <div id="lib-grid"></div>
+    <p id="lib-empty" class="muted">Everything you add shows up here. Click a card to put it on the timeline (video at the end, sound or sticker at the playhead). You can also drop files into the window.</p>
+    <h3>Add to the picture</h3>
+    <div id="lib-elements">
+      <button id="lib-text" class="btn small" title="A text at the playhead">Text</button>
+      <button id="lib-shape" class="btn small" title="A coloured shape at the playhead">Shape</button>
+      <button id="lib-bg" class="btn small" title="A background strip at the playhead">Background</button>
+      <button id="lib-subs" class="btn small" title="Subtitles from speech">Subtitles</button>
+    </div>
+    <p id="ai-soon" class="soon" title="A separate, optional plugin. It will need your own Kie.ai account.">AI video, image &amp; sound via Kie.ai: coming soon</p>
+  </aside>
 
   <aside id="side">
     <nav id="tabs">
@@ -265,8 +283,6 @@
       </div>
       <div id="result" class="result" hidden></div>
     </section>
-    <div id="brand"><a id="powered" href="https://lokyy.de" target="_blank" rel="noopener noreferrer">Powered by Lokyy.de</a><span class="tag">German Hermes Engineering</span>
-      <span id="ai-soon" class="soon" title="A separate, optional plugin. It will need your own Kie.ai account.">AI video, image &amp; sound via Kie.ai: coming soon</span></div>
   </aside>
 
   <main id="stage-wrap">
@@ -378,6 +394,7 @@
 <script src="/static/backgrounds.js"></script>
 <script src="/static/clipfx.js"></script>
 <script src="/static/captions.js"></script>
+<script src="/static/library.js"></script>
 <script src="/static/tools.js"></script>
 <script src="/static/pick.js"></script>
 <script src="/static/help.js"></script>

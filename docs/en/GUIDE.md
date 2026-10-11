@@ -14,7 +14,8 @@ The editor never changes your original files. Every export creates a new file.
 
 | Area | What it is |
 |---|---|
-| Left | Tabs: **Edit, Picture, Text, Shape, Overlay, Sound, Scene, Tools, Export** |
+| Left | The **media library**: every file you added is a card. A click puts a video at the end of the timeline, a sound or a sticker at the playhead. Quick buttons add text, a shape, a background strip or subtitles. Hide it with **Media** in the top bar |
+| Right | Tabs (the properties of what is selected): **Edit, Clip, Picture, Text, Shape, Overlay, Sound, Scene, Tools, Export** |
 | Centre | Preview of your canvas. **Click what you see** (a text, a shape, a video on top or the clip) to select it, then drag it |
 | Bottom | Timeline: clips and waveform, then lanes for **Scene, Text, Overlay, Shape and Audio** |
 
@@ -65,7 +66,13 @@ A second video track above the main picture: reaction clip, logo animation, b-ro
 2. Drag it in the preview to place it. Mouse wheel or the **Size** slider scales it.
    Corner buttons snap it to a corner, **Full picture** covers the canvas.
 3. On the **Overlay** lane: drag to move it in time, drag the edges to trim.
+   **Add a picture or GIF at the playhead...** puts a sticker, logo or GIF on top the same way (PNG, JPG, WebP, BMP, GIF; transparency is kept). A GIF repeats for as long as the item is long; drag the edge to make it longer or shorter.
 4. **Opacity** blends it. **Play its sound** mixes the overlay's own audio in (off by default).
+
+## 5b. Hermes and the editor
+
+- When Hermes makes a video for you and the agent hands it over (tool `lk_open_in_editor`), the Video Editor page picks it up within a few seconds and loads it. If you are already working on something, a note with a button appears instead, so nothing is replaced by surprise. Without Hermes Desktop (the editor in a browser) the same note appears.
+- **Settings.** In newer Hermes Desktop versions the plugin has its own page under **Settings → Plugins → Video Editor**: open videos by itself or not, bring the page to the front, show the changelog after an update, the magnet, the default canvas and background for new projects, and the language and model for automatic subtitles. Saved projects keep their own values.
 
 ## 6. Text (tab Text)
 

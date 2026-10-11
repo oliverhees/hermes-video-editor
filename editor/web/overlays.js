@@ -22,16 +22,19 @@
       }).catch(function (e) { V.flash("Could not add the video: " + e.message); });
     } });
   });
+  function addPicture(a) {
+    var g = a.gifDur || 0, len = g ? (g >= 3 ? g : Math.ceil(3 / g) * g) : 4;                  // a GIF is repeated until it is at least 3 s long, a still picture gets 4 s
+    V.commit(function () {
+      var no = TL.newOverlay(a.id, len, S.t); no.tf = { s: 0.3, x: 0, y: 0 }; no.track = T.freeTrack("overlay", no.start, len);
+      S.overlays = S.overlays.concat([no]); clearOthers(); S.selOv = S.overlays.length - 1;
+    });
+    tab("overlay");
+  }
+  V.addPictureAsset = addPicture;
   $("btn-ov-pic").addEventListener("click", function () {
     V.openDialog({ kind: "picture", title: "Add a picture or GIF on top", done: function (path) {
       V.flash("Reading " + V.baseName(path) + "…");
-      V.ensurePicture(path).then(function (a) {
-        var g = a.gifDur || 0, len = g ? (g >= 3 ? g : Math.ceil(3 / g) * g) : 4;                  // a GIF is repeated until it is at least 3 s long, a still picture gets 4 s
-        V.commit(function () {
-          var no = TL.newOverlay(a.id, len, S.t); no.tf = { s: 0.3, x: 0, y: 0 }; no.track = T.freeTrack("overlay", no.start, len);
-          S.overlays = S.overlays.concat([no]); clearOthers(); S.selOv = S.overlays.length - 1;
-        });
-      }).catch(function (e) { V.flash("Could not add the picture: " + e.message); });
+      V.ensurePicture(path).then(addPicture).catch(function (e) { V.flash("Could not add the picture: " + e.message); });
     } });
   });
   function live(changes) { var i = S.selOv; if (i < 0) return; V.gestureBegin(); replace(i, changes); drawLane(); V.drawStage(); renderPanel(true); }

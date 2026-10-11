@@ -1,6 +1,6 @@
 [🇬🇧 English](README.md) · **🇩🇪 Deutsch**
 
-**🚧 STATUS: BETA v0.4.0**
+**🚧 STATUS: BETA v0.5.0**
 
 ![Video Editor](docs/banner.png)
 
@@ -113,6 +113,10 @@ python scripts/editor.py my-video.mp4    # mit vorgeladener Datei
 | **Hintergrund-Streifen** | Tab *Picture* + Spur *BG strip*: Leinwand-Hintergrund für beliebige Zeitbereiche ändern (Unschärfe, Farbe, Verlauf, Bild) |
 | **Tab Clip** | Tempo 0,25x-4x, **Standbild**, **Übergänge** zwischen Clips, Helligkeit / Kontrast / Sättigung, Lautstärke, Stumm, Ein-/Ausblenden |
 | **Auto-Untertitel** | Tab *Text*: Sprache zu Text mit dem optionalen lokalen `faster-whisper`; das Ergebnis ist normaler, bearbeitbarer Text (Szene *Captions*) |
+| **Sticker & GIFs** | Tab *Overlay*: PNG / JPG / WebP / GIF obendrauf legen (Transparenz bleibt, GIFs wiederholen sich) |
+| **Medienbibliothek** | Linke Spalte: jede hinzugefügte Datei als Karte; ein Klick legt sie auf die Zeitleiste |
+| **Übergabe von Hermes** | Das Werkzeug `lk_open_in_editor` des Agenten öffnet ein fertiges Video im Editor (Hinweis statt Überraschung, wenn du gerade arbeitest) |
+| **Einstellungsseite** | Hermes Desktop: *Settings -> Plugins -> Video Editor* (Verhalten beim Öffnen, Standardwerte für neue Projekte, Sprache und Modell der Untertitel) |
 | **Video obendrauf** | Tab *Overlay*: Videos über dem Bild (Position, Größe, Deckkraft, eigener Ton), beliebig viele Spuren |
 | **Formen** | Tab *Shape*: Rechteck, abgerundete Box, Ellipse, Caption bar, Card, Farbfeld (Farbe, Deckkraft, Größe, Zeit) |
 | **Szenen** | Tab *Scene*: Texte, Formen, Videos und Töne bündeln; Szene ziehen, alles wandert mit |

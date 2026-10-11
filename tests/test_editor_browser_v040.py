@@ -313,3 +313,39 @@ def test_picture_and_gif_overlays_in_the_editor(media, tmp_path):
         assert not errors, errors
     finally:
         b.close(); p.stop(); srv.stop()
+
+
+def test_media_library_cards_and_quick_buttons(media, tmp_path):
+    import subprocess
+    png = tmp_path / "logo.png"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=red@1:s=120x80,format=rgba", "-frames:v", "1", str(png)], check=True)
+    srv, p, b, page, errors = setup(media, tmp_path)
+    try:
+        assert page.is_visible("#library") and page.locator(".lib-card").count() == 1               # the clip that was opened
+        assert "Video" in page.inner_text(".lib-card") and "1× used" in page.inner_text(".lib-card")
+        page.click("#lib-picture")
+        page.fill("#dlg-path", str(png))
+        page.press("#dlg-path", "Enter")
+        for _ in range(100):
+            if page.locator(".lib-card").count() == 2:
+                break
+            page.wait_for_timeout(100)
+        assert page.locator(".lib-card").count() == 2 and state(page, "s.overlays.length") == 1
+        page.click('.lib-card[data-asset="%s"]' % state(page, "s.overlays[0].asset"))                # a click on the card adds the sticker once more
+        assert state(page, "s.overlays.length") == 2
+        page.click('.lib-card[data-asset="%s"]' % state(page, "s.clips[0].asset"))                   # a video card appends the clip
+        for _ in range(60):
+            if state(page, "s.clips.length") == 2:
+                break
+            page.wait_for_timeout(100)
+        assert state(page, "s.clips.length") == 2
+        page.click("#lib-text")
+        assert state(page, "s.texts.length") == 1
+        page.click("#lib-bg")
+        assert state(page, "s.bgs.length") == 1
+        page.click("#btn-library")                                                                   # the library can be hidden
+        assert not page.is_visible("#library")
+        page.click("#btn-library")
+        assert page.is_visible("#library") and not errors, errors
+    finally:
+        b.close(); p.stop(); srv.stop()

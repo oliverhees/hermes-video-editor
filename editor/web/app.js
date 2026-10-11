@@ -1041,7 +1041,7 @@
 
   // ---------------------------------------------------------------- start
   window.__ve = { seek: seek, state: S, TL: TL };          // handy for debugging and the browser tests
-  window.VE = { cfg: function () { return CFG; }, ensurePicture: ensurePicture, S: S, TL: TL, $: $, el: el, fmt: fmt, clamp: clamp, api: api, url: url, assetFor: assetFor, ensureAsset: ensureAsset, snap: snap, commit: commit,
+  window.VE = { addClipFromPath: addClipFromPath, cfg: function () { return CFG; }, ensurePicture: ensurePicture, S: S, TL: TL, $: $, el: el, fmt: fmt, clamp: clamp, api: api, url: url, assetFor: assetFor, ensureAsset: ensureAsset, snap: snap, commit: commit,
     renderAll: renderAll, drawStage: drawStage, drawCanvases: drawCanvases, seek: seek, flash: flash, openDialog: openDialog, cssColor: cssColor, baseName: baseName,
     canvasDims: canvasDims, playing: function () { return PB.playing; }, gestureBegin: beginGesture, gestureEnd: endGesture, layers: null, tab: tab, clearSel: clearSel, hits: HITS,
     bgTarget: bgTarget, syncCanvasControls: syncCanvasControls, targetIndex: targetIndex, canvasDimsFor: canvasDims, invalidatePreload: invalidatePreload,

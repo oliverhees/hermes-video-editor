@@ -1,6 +1,6 @@
 **🇬🇧 English** · [🇩🇪 Deutsch](README.de.md)
 
-**🚧 STATUS: BETA v0.4.0**
+**🚧 STATUS: BETA v0.5.0**
 
 ![Video Editor](docs/banner.png)
 
@@ -113,6 +113,10 @@ python scripts/editor.py my-video.mp4    # with a file preloaded
 | **Background strips** | *Picture* tab + *BG strip* lane: change the canvas background for any time range (blur, colour, gradient, picture) |
 | **Clip tab** | Speed 0.25x-4x, **freeze frame**, **transitions** between clips, brightness / contrast / saturation, volume, mute, fades |
 | **Auto subtitles** | *Text* tab: speech to text with the optional local `faster-whisper`; the result is normal, editable text (scene *Captions*) |
+| **Stickers & GIFs** | *Overlay* tab: add a PNG / JPG / WebP / GIF on top (transparency kept, GIFs repeat) |
+| **Media library** | Left column: every added file as a card; one click puts it on the timeline |
+| **Hermes hand-over** | The agent's tool `lk_open_in_editor` opens a finished video in the editor (note instead of a surprise if you are mid-edit) |
+| **Settings page** | Hermes Desktop: *Settings -> Plugins -> Video Editor* (open behaviour, defaults for new projects, subtitle language and model) |
 | **Video on top** | *Overlay* tab: videos above the picture (position, size, opacity, own sound), as many tracks as you like |
 | **Shapes** | *Shape* tab: rectangle, rounded box, ellipse, caption bar, card, colour field (colour, opacity, size, time) |
 | **Scenes** | *Scene* tab: bundle texts, shapes, videos and sounds; drag the scene and everything moves along |

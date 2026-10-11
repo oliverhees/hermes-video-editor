@@ -2,6 +2,21 @@
 
 Every release lists what is new in it. The oldest entry (0.3.1) describes everything that was in the editor at that point; newer entries only list what changed.
 
+## 0.5.0 (2026-10-11)
+
+Hermes and the editor work together, stickers and GIFs, and a layout with a media library.
+
+### Hermes
+- **Videos made by Hermes open in the editor.** The new tool `lk_open_in_editor` hands a finished video (or a saved project) over; the Video Editor page picks it up, shows it and loads it. If you are already working, you get a note with a button instead of a surprise.
+- **Own settings page** under *Settings → Plugins → Video Editor* in Hermes Desktop (newer versions): open-in-editor behaviour, what's new, magnet, default canvas and background, subtitle language and model. The agent-side option appears as a form from the plugin's settings schema.
+- 46 tools (new: `lk_open_in_editor`).
+
+### Layers
+- **Pictures and GIFs** (PNG, JPG, WebP, BMP, GIF) as stickers on the overlay lane: place, resize, fade, trim, split. A GIF repeats for as long as you want. Transparency is kept.
+
+### Layout
+- A **media library** on the left: every file you added is a card; one click puts a video on the timeline, a sound or a sticker at the playhead. Quick buttons for text, shapes, background strips and subtitles. The settings and tabs moved to the right (properties), the timeline stays at the bottom. Hide the library with *Media* in the top bar.
+
 ## 0.4.0 (2026-10-09)
 
 More of what a modern editor offers: an edit toolbar, backgrounds that change over time, per-clip speed, transitions and look, fades and automatic subtitles.

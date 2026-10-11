@@ -2,6 +2,21 @@
 
 Jede Version listet, was neu ist. Der älteste Eintrag (0.3.1) beschreibt alles, was der Editor damals konnte; neuere Einträge nennen nur die Änderungen.
 
+## 0.5.0 (2026-10-11)
+
+Hermes und der Editor arbeiten zusammen, Sticker und GIFs und ein Layout mit Medienbibliothek.
+
+### Hermes
+- **Von Hermes erstellte Videos öffnen sich im Editor.** Das neue Werkzeug `lk_open_in_editor` übergibt ein fertiges Video (oder ein gespeichertes Projekt); die Seite Video Editor holt es ab, zeigt es und lädt es. Arbeitest du schon, bekommst du einen Hinweis mit Knopf statt einer Überraschung.
+- **Eigene Einstellungsseite** unter *Settings → Plugins → Video Editor* in Hermes Desktop (neuere Versionen): Verhalten beim Öffnen, Was ist neu, Magnet, Standard-Leinwand und Hintergrund, Sprache und Modell der Untertitel. Die Option für den Agenten erscheint als Formular aus dem Einstellungsschema des Plugins.
+- 46 Werkzeuge (neu: `lk_open_in_editor`).
+
+### Ebenen
+- **Bilder und GIFs** (PNG, JPG, WebP, BMP, GIF) als Sticker in der Overlay-Spur: platzieren, skalieren, ein-/ausblenden, kürzen, teilen. Ein GIF wiederholt sich beliebig lange. Transparenz bleibt erhalten.
+
+### Layout
+- Eine **Medienbibliothek** links: jede hinzugefügte Datei ist eine Karte; ein Klick legt ein Video auf die Zeitleiste, einen Ton oder Sticker an den Abspielkopf. Schnelltasten für Text, Formen, Hintergrund-Streifen und Untertitel. Die Einstellungen und Tabs sind nach rechts gewandert (Eigenschaften), die Zeitleiste bleibt unten. Die Bibliothek blendest du mit *Media* in der oberen Leiste aus.
+
 ## 0.4.0 (2026-10-09)
 
 Mehr von dem, was ein moderner Editor bietet: eine Werkzeugleiste, Hintergründe, die sich über die Zeit ändern, Tempo, Übergänge und Look pro Clip, Ein-/Ausblenden und automatische Untertitel.
