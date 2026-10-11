@@ -176,7 +176,23 @@
 
   // ---------------------------------------------------------------- assets (the files behind the clips)
   function baseName(p) { return String(p).replace(/\\/g, "/").split("/").pop(); }
+  var PICTURE_RE = /\.(png|jpe?g|webp|bmp|gif)$/i;
+  // pictures and GIFs (stickers, logos) are assets too, but they have no timeline of their own: they only live on the overlay lane
+  function registerPicture(id, path, name) {
+    var a = { id: id, path: path, name: name || baseName(path), picture: true, uploaded: false, info: null, dur: 0, hasAudio: false, hasVideo: true,
+      src: "picture", peaks: null, thumbs: null, cacheId: null, state: "ready", error: null };
+    S.assets[id] = a;
+    return api("/api/picture", { path: path }).then(function (r) {
+      a.info = { video: { display_width: r.width || 1, display_height: r.height || 1 }, duration_s: r.duration_s }; a.animated = !!r.animated; a.gifDur = r.animated ? r.duration_s : 0;
+      return a;
+    }).catch(function (e) { a.state = "missing"; a.error = e.message; renderAll(); throw e; });
+  }
+  function ensurePicture(path) {
+    var existing = findAssetByPath(path); if (existing) return Promise.resolve(existing);
+    return registerPicture(TL.uid("a"), path);
+  }
   function registerAsset(id, path, name, uploaded) {
+    if (PICTURE_RE.test(String(path))) return registerPicture(id, path, name);
     var a = { id: id, path: path, name: name || baseName(path), uploaded: !!uploaded, info: null, dur: 0, hasAudio: false, hasVideo: false,
       src: null, peaks: null, thumbs: null, cacheId: null, state: "probing", error: null };
     S.assets[id] = a;
@@ -1025,7 +1041,7 @@
 
   // ---------------------------------------------------------------- start
   window.__ve = { seek: seek, state: S, TL: TL };          // handy for debugging and the browser tests
-  window.VE = { cfg: function () { return CFG; }, S: S, TL: TL, $: $, el: el, fmt: fmt, clamp: clamp, api: api, url: url, assetFor: assetFor, ensureAsset: ensureAsset, snap: snap, commit: commit,
+  window.VE = { cfg: function () { return CFG; }, ensurePicture: ensurePicture, S: S, TL: TL, $: $, el: el, fmt: fmt, clamp: clamp, api: api, url: url, assetFor: assetFor, ensureAsset: ensureAsset, snap: snap, commit: commit,
     renderAll: renderAll, drawStage: drawStage, drawCanvases: drawCanvases, seek: seek, flash: flash, openDialog: openDialog, cssColor: cssColor, baseName: baseName,
     canvasDims: canvasDims, playing: function () { return PB.playing; }, gestureBegin: beginGesture, gestureEnd: endGesture, layers: null, tab: tab, clearSel: clearSel, hits: HITS,
     bgTarget: bgTarget, syncCanvasControls: syncCanvasControls, targetIndex: targetIndex, canvasDimsFor: canvasDims, invalidatePreload: invalidatePreload,

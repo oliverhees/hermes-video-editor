@@ -22,6 +22,18 @@
       }).catch(function (e) { V.flash("Could not add the video: " + e.message); });
     } });
   });
+  $("btn-ov-pic").addEventListener("click", function () {
+    V.openDialog({ kind: "picture", title: "Add a picture or GIF on top", done: function (path) {
+      V.flash("Reading " + V.baseName(path) + "…");
+      V.ensurePicture(path).then(function (a) {
+        var g = a.gifDur || 0, len = g ? (g >= 3 ? g : Math.ceil(3 / g) * g) : 4;                  // a GIF is repeated until it is at least 3 s long, a still picture gets 4 s
+        V.commit(function () {
+          var no = TL.newOverlay(a.id, len, S.t); no.tf = { s: 0.3, x: 0, y: 0 }; no.track = T.freeTrack("overlay", no.start, len);
+          S.overlays = S.overlays.concat([no]); clearOthers(); S.selOv = S.overlays.length - 1;
+        });
+      }).catch(function (e) { V.flash("Could not add the picture: " + e.message); });
+    } });
+  });
   function live(changes) { var i = S.selOv; if (i < 0) return; V.gestureBegin(); replace(i, changes); drawLane(); V.drawStage(); renderPanel(true); }
   function liveTf(tf) { var i = S.selOv; if (i < 0) return; V.gestureBegin(); setTf(i, tf); V.drawStage(); renderPanel(true); }
   function end() { V.gestureEnd(); V.renderAll(); }
@@ -49,6 +61,8 @@
     if (!o) return;
     var asset = V.assetFor(o.asset);
     $("ov-name").textContent = (asset ? asset.name : "?") + "  " + V.fmt(o["in"]) + " → " + V.fmt(o.out);
+    $("ov-sound").disabled = !!(asset && asset.picture);
+    if (asset && asset.picture) $("ov-name").textContent = asset.name + "  " + (asset.animated ? "GIF, repeats" : "picture") + "  " + o.out.toFixed(1) + " s";
     $("ov-s").value = Math.round(o.tf.s * 100); $("v-ovs").textContent = Math.round(o.tf.s * 100) + "%";
     $("ov-op").value = Math.round(o.op * 100); $("v-ovop").textContent = Math.round(o.op * 100) + "%";
     $("ov-sound").checked = o.sound; $("ov-vol").value = o.vol; $("v-ovvol").textContent = Math.round(o.vol) + " dB"; $("ov-vol").disabled = !o.sound;
@@ -63,7 +77,11 @@
   }
   T.drag("overlay", { items: function () { return S.overlays; }, tab: "overlay", after: function () { renderPanel(true); drawLane(); V.drawStage(); },
     select: function (i) { clearOthers(); S.selOv = i; },
-    trim: function (it, edge, dx) { var asset = V.assetFor(it.asset); return TL.trimAudio(it, edge, dx, asset && asset.dur); },
+    trim: function (it, edge, dx) {
+      var asset = V.assetFor(it.asset);
+      if (asset && asset.picture) return TL.trimPicture(it, edge, dx);
+      return TL.trimAudio(it, edge, dx, asset && asset.dur);
+    },
     replace: function (i, next) { S.overlays = S.overlays.map(function (o, k) { return k === i ? TL.cleanOverlay(next) : o; }); } });
 
   // ---------------------------------------------------------------- preview: one hidden <video> per overlay
@@ -74,16 +92,31 @@
     n.muted = !o.sound; n.volume = clamp(Math.pow(10, o.vol / 20), 0, 1);
     return n;
   }
+  var imgs = {};                       // pictures and GIFs: one <img> each, kept (invisible) in the page so that a GIF keeps moving
+  function imgNode(o, asset) {
+    var n = imgs[o.id];
+    if (!n) {
+      n = imgs[o.id] = new Image(); n.alt = ""; n.setAttribute("aria-hidden", "true");
+      n.style.cssText = "position:fixed;left:0;top:0;width:1px;height:1px;opacity:0.01;pointer-events:none";
+      n.addEventListener("load", function () { V.drawStage(); }); n.src = V.url("/api/image", { path: asset.path }); document.body.appendChild(n);
+    }
+    return n;
+  }
   function active() { return TL.activeOverlays(S.overlays, S.t); }
   function drawStage(g, k, W, H) {
     var hit = null;
     var kc = $("stage").clientWidth / W;
     active().slice().sort(function (a, b) { return (a.track || 0) - (b.track || 0); }).forEach(function (o) {
       var asset = V.assetFor(o.asset); if (!asset || !asset.src || !asset.info || !asset.info.video) return;
+      var r = TL.fgRect(asset.info.video.display_width, asset.info.video.display_height, W, H, o.tf);
+      if (asset.picture) {
+        var im = imgNode(o, asset);
+        if (im.complete && im.naturalWidth) { g.globalAlpha = o.op * TL.fadeFactor(o, S.t); g.drawImage(im, r[0] * k, r[1] * k, r[2] * k, r[3] * k); g.globalAlpha = 1; }
+      } else {
       var n = node(o, asset), want = o["in"] + (S.t - o.start);
       if (!V.playing() && Math.abs(n.currentTime - want) > 0.04) { try { n.currentTime = want; } catch (e) { /* not ready */ } }
-      var r = TL.fgRect(asset.info.video.display_width, asset.info.video.display_height, W, H, o.tf);
       if (n.readyState >= 2 && n.videoWidth) { g.globalAlpha = o.op * TL.fadeFactor(o, S.t); g.drawImage(n, r[0] * k, r[1] * k, r[2] * k, r[3] * k); g.globalAlpha = 1; }
+      }
       if (S.overlays[S.selOv] && S.overlays[S.selOv].id === o.id) hit = r;
       V.hits.push({ z: 20 + (o.track || 0), rect: [r[0] * kc, r[1] * kc, r[2] * kc, r[3] * kc], gizmo: "ogizmo",
         select: function () { clearOthers(); S.selOv = S.overlays.findIndex(function (x) { return x.id === o.id; }); tab("overlay"); } });
@@ -110,7 +143,7 @@
   })();
   function tick() {
     active().forEach(function (o) {
-      var asset = V.assetFor(o.asset); if (!asset || !asset.src) return;
+      var asset = V.assetFor(o.asset); if (!asset || !asset.src || asset.picture) return;
       var n = node(o, asset), want = o["in"] + (S.t - o.start);
       if (n.paused) { try { n.currentTime = want; } catch (e) { /* not ready */ } var pr = n.play(); if (pr && pr.catch) pr.catch(function () { /* blocked until the next click */ }); }
       else if (Math.abs(n.currentTime - want) > 0.35) n.currentTime = want;

@@ -254,3 +254,62 @@ def test_captions_endpoint_reports_missing_model_clearly(media, tmp_path, monkey
         assert state(page, "s.texts.length") == 0
     finally:
         b.close(); p.stop(); srv.stop()
+
+
+def test_picture_and_gif_overlays_in_the_editor(media, tmp_path):
+    import subprocess
+    png = tmp_path / "sticker.png"
+    gif = tmp_path / "blink.gif"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=red@1:s=120x80,format=rgba", "-frames:v", "1", str(png)], check=True)
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=blue:s=100x100:d=0.5:r=10", "-loop", "0", str(gif)], check=True)
+    srv, p, b, page, errors = setup(media, tmp_path)
+    try:
+        page.click("#tabs button[data-tab=overlay]")
+        page.evaluate("window.__ve.seek(1)")
+        for path in (png, gif):
+            page.click("#btn-ov-pic")
+            page.fill("#dlg-path", str(path))
+            page.press("#dlg-path", "Enter")
+        for _ in range(100):
+            if state(page, "s.overlays.length") == 2:
+                break
+            page.wait_for_timeout(100)
+        assert state(page, "s.overlays.map(o => [o.in, o.out])") == [[0, 4], [0, 3.0]]               # still: 4 s; GIF (0.5 s) repeated to at least 3 s
+        assert state(page, "s.assets[s.overlays[0].asset].picture") is True and state(page, "s.assets[s.overlays[1].asset].animated") is True
+        # preview draws the picture
+        page.evaluate("(() => { const s = window.__ve.state; s.overlays[0].tf = {s: 1, x: 0, y: 0}; window.__ve.seek(1.5) })()")
+        page.wait_for_timeout(600)
+        px = page.evaluate("(() => { const c = document.getElementById('stage-canvas'); const d = c.getContext('2d').getImageData(Math.round(c.width/2), Math.round(c.height/2), 1, 1).data; return [d[0], d[1], d[2]] })()")
+        assert max(px) > 150 and px[1] < 80                                                          # red or blue (the GIF is on the higher track), not the video behind
+        # split and trim keep in at 0 and the length consistent
+        page.evaluate("window.__ve.state.selOv = 0; window.__ve.seek(3)")
+        blur(page)
+        page.click("#tb-split")
+        got = state(page, "s.overlays.map(o => [o.in, o.start, o.out])")
+        assert got[0] == [0, 1, 2] and got[-1] == [0, 3, 2] and len(got) == 3                         # the right piece is a new item at the end of the list
+        page.evaluate("window.__ve.state.selOv = 0; window.__ve.seek(1.5)")
+        page.click("#tb-trim-start")
+        assert state(page, "s.overlays[0].start") == pytest.approx(1.5) and state(page, "s.overlays[0].out") == pytest.approx(1.5) and state(page, "s.overlays[0].in") == 0
+        # export
+        page.evaluate("window.__ve.state.selOv = -1")
+        page.click("#tabs button[data-tab=export]")
+        page.fill("#in-outdir", str(tmp_path / "picout"))
+        page.click("#btn-export")
+        page.wait_for_selector("#result .ok", timeout=120000)
+        assert len(list((tmp_path / "picout").glob("*.mp4"))) == 1
+        page.click("#btn-saveas")
+        page.fill("#dlg-name", "pics")
+        page.fill("#dlg-path", str(tmp_path))
+        page.press("#dlg-path", "Enter")
+        for _ in range(50):
+            if state(page, "s.dlgProjectPath") == str(tmp_path):
+                break
+            page.wait_for_timeout(100)
+        page.click("#dlg-usefolder")
+        for _ in range(50):
+            if (tmp_path / "pics.vproj.json").exists():
+                break
+            page.wait_for_timeout(100)
+        assert not errors, errors
+    finally:
+        b.close(); p.stop(); srv.stop()

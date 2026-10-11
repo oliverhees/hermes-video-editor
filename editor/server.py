@@ -450,8 +450,13 @@ def make_handler(srv: EditorServer):
                 self._json(api_recent(srv, first("kind")))
             elif route == "/api/media":
                 self._serve_file(safe_media_file(first("path"), srv.roots))
-            elif route == "/api/image":                                # a picture used as the background
+            elif route == "/api/image":                                # a picture used as the background or as a sticker
                 self._serve_file(safe_image_file(first("path"), srv.roots))
+            elif route == "/api/picture":                              # size and (for a GIF) length of a picture
+                info = probe(safe_image_file(first("path"), srv.roots))
+                v = info.get("video") or {}
+                self._json({"ok": True, "width": v.get("display_width"), "height": v.get("display_height"),
+                            "animated": v.get("codec") == "gif" and bool(info["duration_s"] and info["duration_s"] > 0.2), "duration_s": info["duration_s"]})
             elif route == "/api/cache":
                 cid, name = first("id") or "", first("name") or ""
                 if not HASH_RE.match(cid) or name not in CACHE_FILES:

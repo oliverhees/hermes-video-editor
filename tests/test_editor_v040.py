@@ -1,4 +1,6 @@
 """v0.4.0 render features: background strips, fades, clip adjustments, speed, still frames and transitions."""
+import subprocess
+
 import pytest
 
 from conftest import ffprobe, needs_ffmpeg
@@ -133,3 +135,26 @@ def test_project_file_roundtrip_keeps_v040_fields():
     out = P.validate_project(proj)
     assert out["clips"][0]["adj"]["br"] == 0.2 and out["clips"][0]["sp"] == 2 and out["clips"][0]["tr"]["type"] == "wipeleft"
     assert out["bgs"][0]["color"] == "#112233" and out["bgs"][0]["track"] == 1 and out["texts"][0]["fo"] == 2
+
+
+def _picture(tmp_path, name, args):
+    p = tmp_path / name
+    subprocess.run(["ffmpeg", "-v", "error", "-y"] + args + [str(p)], check=True)
+    return p
+
+
+def test_picture_and_gif_overlays_render_for_their_whole_time(media, tmp_path):
+    png = _picture(tmp_path, "sticker.png", ["-f", "lavfi", "-i", "color=c=red@1:s=120x80,format=rgba", "-frames:v", "1"])
+    gif = _picture(tmp_path, "blink.gif", ["-f", "lavfi", "-i", "color=c=blue:s=100x100:d=0.5:r=10", "-loop", "0"])
+    roots = [str(media["dir"]), str(tmp_path)]
+    clips = sanitized(media, [clip(media, "clip", 0, 4)])
+    ov = P.sanitize_overlays([{"path": str(png), "out": 2, "start": 1, "tf": {"s": 0.5, "x": -0.25, "y": 0}},
+                              {"path": str(gif), "out": 3, "start": 0.5, "tf": {"s": 0.3, "x": 0.3, "y": 0}, "fi": 0.2}], roots)
+    assert ov[0]["in"] == 0 and ov[0]["out"] == 2 and ov[1]["out"] == 3                      # a picture is as long as it is told to be
+    out = P.render_project(clips, tmp_path / "pics", overlays=ov)
+    assert ffprobe(out)["duration"] == pytest.approx(4, abs=0.3)
+    assert _red(_rgb_at(out, 160, 180, 1.5)) and not _red(_rgb_at(out, 160, 180, 0.5)) and not _red(_rgb_at(out, 160, 180, 3.3))
+    blue = _rgb_at(out, 512, 180, 3.0)                                                         # the 0.5 s GIF is still there after 2 s (it loops)
+    assert blue[2] > 200 and blue[0] < 60
+    with pytest.raises(P.ToolError):
+        P.sanitize_overlays([{"path": str(tmp_path.parent / "x.png"), "out": 2}], roots)
