@@ -21,7 +21,7 @@ from . import toolrun
 from .security import MEDIA_EXTS, default_roots, inside, safe_dir, safe_image_file, safe_media_file
 
 WEB = Path(__file__).resolve().parent / "web"
-STATIC = {"app.js": "text/javascript; charset=utf-8", "timeline.js": "text/javascript; charset=utf-8", "layers.js": "text/javascript; charset=utf-8", "overlays.js": "text/javascript; charset=utf-8", "tracks.js": "text/javascript; charset=utf-8", "shapes.js": "text/javascript; charset=utf-8", "scenes.js": "text/javascript; charset=utf-8", "pick.js": "text/javascript; charset=utf-8", "tools.js": "text/javascript; charset=utf-8", "backgrounds.js": "text/javascript; charset=utf-8", "clipfx.js": "text/javascript; charset=utf-8", "captions.js": "text/javascript; charset=utf-8", "help.js": "text/javascript; charset=utf-8",
+STATIC = {"app.js": "text/javascript; charset=utf-8", "timeline.js": "text/javascript; charset=utf-8", "layers.js": "text/javascript; charset=utf-8", "overlays.js": "text/javascript; charset=utf-8", "tracks.js": "text/javascript; charset=utf-8", "shapes.js": "text/javascript; charset=utf-8", "scenes.js": "text/javascript; charset=utf-8", "pick.js": "text/javascript; charset=utf-8", "tools.js": "text/javascript; charset=utf-8", "backgrounds.js": "text/javascript; charset=utf-8", "clipfx.js": "text/javascript; charset=utf-8", "captions.js": "text/javascript; charset=utf-8", "library.js": "text/javascript; charset=utf-8", "help.js": "text/javascript; charset=utf-8",
           "app.css": "text/css; charset=utf-8"}
 DOCS = Path(__file__).resolve().parents[1] / "docs"
 HELP_DOCS = {"/help/en.md": DOCS / "en" / "GUIDE.md", "/help/de.md": DOCS / "de" / "GUIDE.md",
@@ -428,6 +428,12 @@ def make_handler(srv: EditorServer):
                 self._send(200, (WEB / route[8:]).read_bytes(), STATIC[route[8:]])
             elif route in HELP_DOCS:                                  # the user guide, one markdown file per language
                 self._send(200, HELP_DOCS[route].read_bytes(), "text/markdown; charset=utf-8")
+            elif route == "/api/pending":                               # files the agent handed over (standalone editor; Desktop asks the plugin route)
+                from . import handoff
+                items = handoff.pop_all()
+                for it in items:
+                    srv.add_root(str(Path(it["path"]).expanduser().resolve().parent))
+                self._json({"ok": True, "items": items})
             elif route == "/api/config":
                 self._json(api_config(srv))
             elif route == "/api/ls":
@@ -444,8 +450,13 @@ def make_handler(srv: EditorServer):
                 self._json(api_recent(srv, first("kind")))
             elif route == "/api/media":
                 self._serve_file(safe_media_file(first("path"), srv.roots))
-            elif route == "/api/image":                                # a picture used as the background
+            elif route == "/api/image":                                # a picture used as the background or as a sticker
                 self._serve_file(safe_image_file(first("path"), srv.roots))
+            elif route == "/api/picture":                              # size and (for a GIF) length of a picture
+                info = probe(safe_image_file(first("path"), srv.roots))
+                v = info.get("video") or {}
+                self._json({"ok": True, "width": v.get("display_width"), "height": v.get("display_height"),
+                            "animated": v.get("codec") == "gif" and bool(info["duration_s"] and info["duration_s"] > 0.2), "duration_s": info["duration_s"]})
             elif route == "/api/cache":
                 cid, name = first("id") or "", first("name") or ""
                 if not HASH_RE.match(cid) or name not in CACHE_FILES:

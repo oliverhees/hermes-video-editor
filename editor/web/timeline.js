@@ -222,6 +222,11 @@
     if (edge === "left") { var ni = clampN(a["in"] + delta, a["in"], 0, a.out - 0.2); return patch(a, { "in": round(ni), start: round(a.start + (ni - a["in"])) }); }
     return patch(a, { out: round(clampN(a.out + delta, a.out, a["in"] + 0.2, assetDur == null ? Infinity : assetDur)) });
   }
+  // a picture or GIF on the overlay lane has no source clock (in stays 0, out = how long it is shown): trimming moves start / length
+  function trimPicture(o, edge, delta) {
+    if (edge === "left") { var d = clampN(delta, 0, -o.start, o.out - 0.2); return patch(o, { start: round(o.start + d), out: round(o.out - d) }); }
+    return patch(o, { out: round(clampN(o.out + delta, o.out, 0.2, 3600)) });
+  }
   function audioGain(a, t) {                                // linear gain of an audio item at timeline time t (volume + fades), for the preview
     var g = Math.pow(10, a.vol / 20), into = t - a.start, left = audioEnd(a) - t;
     if (a.fi > 0 && into < a.fi) g *= Math.max(0, into / a.fi);
@@ -322,7 +327,7 @@
   var api = { MIN_CLIP: MIN_CLIP, MIN_PIECE: MIN_PIECE, uid: uid, layout: layout, total: total, at: at, split: split, removeIndex: removeIndex,
     deleteRange: deleteRange, subtractRanges: subtractRanges, applySilence: applySilence, trim: trim, move: move, dropIndex: dropIndex,
     insertAt: insertAt, copy: copy, forExport: forExport, createHistory: createHistory, round: round,
-    newText: newText, cleanText: cleanText, trimText: trimText, newAudio: newAudio, cleanAudio: cleanAudio, trimAudio: trimAudio,
+    newText: newText, cleanText: cleanText, trimText: trimText, newAudio: newAudio, cleanAudio: cleanAudio, trimAudio: trimAudio, trimPicture: trimPicture,
     audioDur: audioDur, audioEnd: audioEnd, audioGain: audioGain, activeText: activeText, trackOf: trackOf, cleanTracks: cleanTracks, MAX_TRACKS: MAX_TRACKS, TRACK_KINDS: TRACK_KINDS, SHAPE_KINDS: SHAPE_KINDS,
     cleanBg: cleanBg, newBgSeg: newBgSeg, cleanBgSeg: cleanBgSeg, activeBg: activeBg, BG_MODES: BG_MODES, newShape: newShape, cleanShape: cleanShape, activeShapes: activeShapes, newScene: newScene, cleanScene: cleanScene, span: span, shiftItem: shiftItem, newOverlay: newOverlay, cleanOverlay: cleanOverlay, activeOverlays: activeOverlays, activeAudio: activeAudio, patch: patch,
     cleanAdj: cleanAdj, isDefaultAdj: isDefaultAdj, cleanClipExtras: cleanClipExtras, srcDur: srcDur, dur: dur, piece: piece, fadeFactor: fadeFactor, captionTimes: captionTimes, TRANSITIONS: TRANSITIONS,

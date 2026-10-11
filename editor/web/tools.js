@@ -28,6 +28,7 @@
   }
 
   // ---------------------------------------------------------------- layer items
+  function isPicture(sel) { var a = sel.item.asset && V.assetFor(sel.item.asset); return !!(a && a.picture); }     // pictures and GIFs have no source clock
   function splitItem(sel, t) {
     var w = window_(sel.item, sel.def);
     if (sel.kind === "scene") { V.flash("A scene cannot be split. Use Copy scene, or Ungroup."); return; }
@@ -35,6 +36,7 @@
     V.commit(function () {
       var it = sel.item, a, b;
       if (sel.def.dur) { a = TL.patch(it, { dur: TL.round(t - it.start) }); b = TL.patch(it, { id: TL.uid(it.id.charAt(0)), start: TL.round(t), dur: TL.round(w[1] - t) }); }
+      else if (isPicture(sel)) { var left = TL.round(t - it.start); a = TL.patch(it, { out: left }); b = TL.patch(it, { id: TL.uid(it.id.charAt(0)), start: TL.round(t), out: TL.round(it.out - left) }); }
       else { var cut = TL.round(it["in"] + (t - it.start)); a = TL.patch(it, { out: cut }); b = TL.patch(it, { id: TL.uid(it.id.charAt(0)), "in": cut, start: TL.round(t) }); }
       if (a.fo != null) { a = TL.patch(a, { fo: 0 }); }                                  // a fade-out belongs to the end, a fade-in to the start
       if (b.fi != null) { b = TL.patch(b, { fi: 0 }); }
@@ -48,7 +50,8 @@
     if (side === "start" ? w[1] - t < MIN : t - w[0] < MIN) { V.flash("That would leave less than " + MIN + " s."); return; }
     V.commit(function () {
       var it = sel.item, n;
-      if (side === "start") n = sel.def.dur ? { start: TL.round(t), dur: TL.round(w[1] - t) } : { "in": TL.round(it["in"] + (t - it.start)), start: TL.round(t) };
+      if (isPicture(sel)) n = side === "start" ? { start: TL.round(t), out: TL.round(it.out - (t - it.start)) } : { out: TL.round(t - it.start) };
+      else if (side === "start") n = sel.def.dur ? { start: TL.round(t), dur: TL.round(w[1] - t) } : { "in": TL.round(it["in"] + (t - it.start)), start: TL.round(t) };
       else n = sel.def.dur ? { dur: TL.round(t - it.start) } : { out: TL.round(it["in"] + (t - it.start)) };
       setItem(sel, clean(sel.kind, TL.patch(it, n)));
     });

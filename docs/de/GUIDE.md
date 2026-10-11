@@ -14,7 +14,8 @@ Der Editor verändert nie deine Originaldateien. Jeder Export erzeugt eine neue 
 
 | Bereich | Was es ist |
 |---|---|
-| Links | Tabs: **Edit, Picture, Text, Shape, Overlay, Sound, Scene, Tools, Export** |
+| Links | Die **Medienbibliothek**: jede hinzugefügte Datei ist eine Karte. Ein Klick legt ein Video ans Ende der Zeitleiste, einen Ton oder Sticker an den Abspielkopf. Schnelltasten fügen Text, eine Form, einen Hintergrund-Streifen oder Untertitel hinzu. Mit **Media** in der oberen Leiste blendest du sie aus |
+| Rechts | Tabs (die Eigenschaften des Gewählten): **Edit, Clip, Picture, Text, Shape, Overlay, Sound, Scene, Tools, Export** |
 | Mitte | Vorschau deiner Leinwand. **Klicke auf das, was du siehst** (Text, Form, Video obendrauf oder Clip), um es auszuwählen, dann ziehen |
 | Unten | Zeitleiste: Clips und Wellenform, darunter Spuren für **Scene, Text, Overlay, Shape und Audio** |
 
@@ -65,7 +66,13 @@ Eine zweite Videospur über dem Hauptbild: Reaktions-Clip, Logo-Animation, B-Rol
 2. In der Vorschau ziehen, um es zu platzieren. Mausrad oder Regler **Size** skaliert.
    Die Ecken-Knöpfe setzen es in eine Ecke, **Full picture** füllt die Leinwand.
 3. In der Spur **Overlay**: ziehen verschiebt es in der Zeit, an den Rändern ziehen kürzt es.
+   **Add a picture or GIF at the playhead...** legt auf dieselbe Weise einen Sticker, ein Logo oder ein GIF obendrauf (PNG, JPG, WebP, BMP, GIF; Transparenz bleibt erhalten). Ein GIF wiederholt sich, solange das Element lang ist; am Rand ziehen macht es länger oder kürzer.
 4. **Opacity** blendet es durch. **Play its sound** mischt den eigenen Ton des Overlays dazu (standardmäßig aus).
+
+## 5b. Hermes und der Editor
+
+- Macht Hermes ein Video für dich und übergibt der Agent es (Werkzeug `lk_open_in_editor`), holt die Seite Video Editor es innerhalb weniger Sekunden ab und lädt es. Arbeitest du schon an etwas, erscheint stattdessen ein Hinweis mit Knopf, damit nichts überraschend ersetzt wird. Ohne Hermes Desktop (Editor im Browser) erscheint derselbe Hinweis.
+- **Einstellungen.** In neueren Hermes-Desktop-Versionen hat das Plugin eine eigene Seite unter **Settings → Plugins → Video Editor**: Videos selbst öffnen oder nicht, die Seite nach vorn holen, das Änderungsprotokoll nach einem Update zeigen, der Magnet, Standard-Leinwand und -Hintergrund für neue Projekte sowie Sprache und Modell der automatischen Untertitel. Gespeicherte Projekte behalten ihre eigenen Werte.
 
 ## 6. Text (Tab Text)
 
@@ -102,7 +109,7 @@ Eine Szene bündelt Texte, Formen, Videos obendrauf und Töne. Bereich mit **I**
 
 ## 9. Alle Werkzeuge (Tab Tools)
 
-Alle 45 `lk_*`-Werkzeuge als Formular: suchen, ausfüllen, **Run**. Dieselben Werkzeuge nutzt der Hermes-Agent im Chat.
+Alle 46 `lk_*`-Werkzeuge als Formular: suchen, ausfüllen, **Run**. Dieselben Werkzeuge nutzt der Hermes-Agent im Chat.
 Beispiele für den Chat:
 
 - „Schneide die Stille aus `interview.mp4` und mach es 9:16 mit unscharfem Hintergrund.“

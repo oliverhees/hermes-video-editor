@@ -1,4 +1,4 @@
-"""Fake-Hermes tests: register(ctx) registers 45 valid tools + 1 skill; installed copy loads under any module name."""
+"""Fake-Hermes tests: register(ctx) registers 46 valid tools + 1 skill; installed copy loads under any module name."""
 import importlib.util
 import json
 import subprocess
@@ -10,7 +10,7 @@ from conftest import ROOT
 
 import hermes_video_editor
 
-EXPECTED_TOOLS = 45
+EXPECTED_TOOLS = 46
 
 
 class FakeCtx:
@@ -71,6 +71,8 @@ def test_common_params_present():
             assert "timeout_s" in props
         elif name in ("lk_media_probe", "lk_detect_silence", "lk_detect_scenes", "lk_platform_check", "lk_loudness_report"):
             assert "input" in props and "timeout_s" in props
+        elif name == "lk_open_in_editor":
+            assert "input" in props
         elif name in ("lk_join", "lk_crossfade_join"):
             assert {"output", "output_dir", "overwrite", "timeout_s"} <= set(props)
         elif name == "lk_split":      # writes several files, so no single 'output'

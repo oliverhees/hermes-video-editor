@@ -10,7 +10,9 @@
 <div id="app">
   <header id="top">
     <div class="brand"><span class="dot"></span> Video Editor <small>local &middot; FFmpeg</small></div>
+    <div id="brand"><a id="powered" href="https://lokyy.de" target="_blank" rel="noopener noreferrer">Powered by Lokyy.de</a><span class="tag">German Hermes Engineering</span></div>
     <div id="file-chip" class="chip" title="">Untitled project</div>
+    <button id="btn-library" class="btn" title="Show or hide the media library">Media</button>
     <button id="btn-whatsnew" class="btn" title="What is new in this version">What's new<i id="new-dot" hidden></i></button>
     <button id="btn-help" class="btn" title="User guide (English / Deutsch)">Help</button>
     <button id="btn-openproj" class="btn">Open project&hellip;</button>
@@ -18,6 +20,22 @@
     <button id="btn-saveas" class="btn">Save as&hellip;</button>
     <button id="btn-open" class="btn primary">Add clip&hellip;</button>
   </header>
+
+  <aside id="library" aria-label="Media">
+    <div class="lib-head"><strong>Media</strong>
+      <button id="lib-import" class="btn small primary" title="Add a video or sound file">Import&hellip;</button>
+      <button id="lib-picture" class="btn small" title="Add a picture or GIF as a sticker on top">Sticker&hellip;</button></div>
+    <div id="lib-grid"></div>
+    <p id="lib-empty" class="muted">Everything you add shows up here. Click a card to put it on the timeline (video at the end, sound or sticker at the playhead). You can also drop files into the window.</p>
+    <h3>Add to the picture</h3>
+    <div id="lib-elements">
+      <button id="lib-text" class="btn small" title="A text at the playhead">Text</button>
+      <button id="lib-shape" class="btn small" title="A coloured shape at the playhead">Shape</button>
+      <button id="lib-bg" class="btn small" title="A background strip at the playhead">Background</button>
+      <button id="lib-subs" class="btn small" title="Subtitles from speech">Subtitles</button>
+    </div>
+    <p id="ai-soon" class="soon" title="A separate, optional plugin. It will need your own Kie.ai account.">AI video, image &amp; sound via Kie.ai: coming soon</p>
+  </aside>
 
   <aside id="side">
     <nav id="tabs">
@@ -200,6 +218,7 @@
     <section data-pane="overlay" class="pane">
       <h3>Video on top (picture-in-picture)</h3>
       <button id="btn-ov-add" class="btn primary wide">Add a video on top at the playhead&hellip;</button>
+      <button id="btn-ov-pic" class="btn wide" style="margin-top:6px">Add a picture or GIF at the playhead&hellip;</button>
       <p id="ov-none" class="muted">A second video track above the main picture: a reaction, a logo clip, a b-roll. Move it on the OVERLAY lane, drag its edges to trim, drag it on the preview to place it.</p>
       <div id="ov-edit" hidden>
         <div id="ov-name" class="muted"></div>
@@ -238,7 +257,7 @@
     </section>
 
     <section data-pane="tools" class="pane">
-      <input id="tool-search" type="text" placeholder="Search the 45 tools&hellip;">
+      <input id="tool-search" type="text" placeholder="Search the 46 tools&hellip;">
       <div id="tool-list"></div>
       <div id="tool-form" hidden>
         <button id="tool-back" class="btn small">&larr; All tools</button>
@@ -264,11 +283,10 @@
       </div>
       <div id="result" class="result" hidden></div>
     </section>
-    <div id="brand"><a id="powered" href="https://lokyy.de" target="_blank" rel="noopener noreferrer">Powered by Lokyy.de</a><span class="tag">German Hermes Engineering</span>
-      <span id="ai-soon" class="soon" title="A separate, optional plugin. It will need your own Kie.ai account.">AI video, image &amp; sound via Kie.ai: coming soon</span></div>
   </aside>
 
   <main id="stage-wrap">
+    <div id="handover" hidden></div>
     <div id="stage"><video id="video" playsinline preload="auto"></video><video id="video2" playsinline preload="auto"></video>
       <canvas id="stage-canvas"></canvas>
       <div id="tgizmo" hidden></div>
@@ -376,6 +394,7 @@
 <script src="/static/backgrounds.js"></script>
 <script src="/static/clipfx.js"></script>
 <script src="/static/captions.js"></script>
+<script src="/static/library.js"></script>
 <script src="/static/tools.js"></script>
 <script src="/static/pick.js"></script>
 <script src="/static/help.js"></script>

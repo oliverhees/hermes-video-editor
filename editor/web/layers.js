@@ -195,6 +195,11 @@
 
   function deleteSelected() { return deleteAudio() || deleteText(); }
   function render() { renderPanel(); drawLanes(); }
+  V.addAudioAsset = function (a) {                  // used by the media library: an existing asset as an audio item at the playhead
+    if (!a.hasAudio) { V.flash(a.name + " has no sound."); return; }
+    V.commit(function () { var na = TL.newAudio(a.id, a.dur, S.t); na.track = T.freeTrack("audio", na.start, TL.audioDur(na)); S.audios = S.audios.concat([na]); clearSel("audio"); S.selAudio = S.audios.length - 1; });
+    tab("sound");
+  };
   V.layers = { drawStage: drawStageText, drawCanvases: drawCanvases, drawLanes: drawLanes, render: render, tick: tick, stop: stop, deleteSelected: deleteSelected };
   V.renderAll();
 })();

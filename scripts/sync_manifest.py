@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.4.0"
+VERSION = "0.5.0"
 
 
 def load_tools():
@@ -27,7 +27,7 @@ def render(names):
     lines = [
         "name: hermes-video-editor",
         'version: "%s"' % VERSION,
-        "description: Local FFmpeg video editor for your own footage, driven by chat. 45 tools to trim, cut "
+        "description: Local FFmpeg video editor for your own footage, driven by chat. 46 tools to trim, cut "
         "silence, crop to 9:16, add text and captions, mix music, normalize loudness, export for "
         "Reels/TikTok/YouTube and check platform rules. No cloud, no API key.",
         "author: oliverhees",
@@ -38,7 +38,11 @@ def render(names):
     lines += ["  - %s" % n for n in names]
     lines += ["capabilities:", "  provides_tools:"]
     lines += ["    - %s" % n for n in names]
-    lines += ["  provides_hooks: []", "  provides_middleware: []", "  requires_env: []", ""]
+    lines += ["  provides_hooks: []", "  provides_middleware: []", "  requires_env: []"]
+    # agent-side preferences, shown by Hermes as a form under Settings > Plugins (the editor's own preferences live in the Desktop page)
+    lines += ["config_schema:",
+              '  focus_editor: {type: bool, default: true, label: "Bring the editor to the front", '
+              'description: "When the agent hands a video over with lk_open_in_editor, ask Hermes Desktop to show the Video Editor page."}', ""]
     return "\n".join(lines)
 
 

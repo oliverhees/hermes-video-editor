@@ -5,14 +5,27 @@
   var TL = window.VETimeline;
   var Q = new URLSearchParams(location.search);
   var TOKEN = Q.get("t") || "";
+  // preferences from the Hermes Desktop settings page (Settings > Plugins > Video Editor); every value is checked here
+  var CFG = {};
+  function cleanCfg(raw) {
+    var r = raw && typeof raw === "object" ? raw : {}, o = {};
+    o.whatsNew = r.whatsNew !== false; o.magnet = r.magnet !== false;
+    o.aspect = ["auto", "16:9", "9:16", "1:1", "4:5"].indexOf(r.aspect) >= 0 ? r.aspect : "auto";
+    o.short = [360, 480, 720, 1080, 1440, 2160].indexOf(Number(r.short)) >= 0 ? Number(r.short) : 1080;
+    o.bg = ["blur", "black", "color", "gradient"].indexOf(r.bg) >= 0 ? r.bg : "blur";
+    o.captionLang = ["", "de", "en", "fr", "es", "it", "pt", "nl", "pl", "tr", "ru"].indexOf(r.captionLang) >= 0 ? r.captionLang : "";
+    o.captionModel = ["tiny", "base", "small", "medium", "large-v3"].indexOf(r.captionModel) >= 0 ? r.captionModel : "base";
+    return o;
+  }
+  try { CFG = cleanCfg(JSON.parse(Q.get("cfg") || "{}")); } catch (e) { CFG = cleanCfg({}); }
   var $ = function (id) { return document.getElementById(id); };
   // assets: files that were added (id -> {path,name,info,dur,src,peaks,thumbs,...}); clips: the sequence, played back to back
   var S = {
     assets: {}, clips: [], sel: -1, t: 0, zoom: 80, mark: { a: null, b: null }, hist: TL.createHistory(100),
     projectPath: null, projectName: "", dirty: false, config: null, dlgPath: "", fitted: false,
-    canvas: { aspect: "auto", short: 1080 }, bg: { mode: "blur", color: "#000000", color2: "#1b1464", image: "" },
+    canvas: { aspect: CFG.aspect, short: CFG.short }, bg: { mode: CFG.bg, color: "#000000", color2: "#1b1464", image: "" },
     texts: [], audios: [], overlays: [], shapes: [], scenes: [], bgs: [], tracks: { scene: 1, bg: 1, shape: 1, text: 1, overlay: 1, audio: 1 },
-    selText: -1, selAudio: -1, selOv: -1, selShape: -1, selScene: -1, selBg: -1, magnet: true,           // layers: text on the picture, audio items (music, voice-over)
+    selText: -1, selAudio: -1, selOv: -1, selShape: -1, selScene: -1, selBg: -1, magnet: CFG.magnet,           // layers: text on the picture, audio items (music, voice-over)
   };
 
   // ---------------------------------------------------------------- api
@@ -163,7 +176,23 @@
 
   // ---------------------------------------------------------------- assets (the files behind the clips)
   function baseName(p) { return String(p).replace(/\\/g, "/").split("/").pop(); }
+  var PICTURE_RE = /\.(png|jpe?g|webp|bmp|gif)$/i;
+  // pictures and GIFs (stickers, logos) are assets too, but they have no timeline of their own: they only live on the overlay lane
+  function registerPicture(id, path, name) {
+    var a = { id: id, path: path, name: name || baseName(path), picture: true, uploaded: false, info: null, dur: 0, hasAudio: false, hasVideo: true,
+      src: "picture", peaks: null, thumbs: null, cacheId: null, state: "ready", error: null };
+    S.assets[id] = a;
+    return api("/api/picture", { path: path }).then(function (r) {
+      a.info = { video: { display_width: r.width || 1, display_height: r.height || 1 }, duration_s: r.duration_s }; a.animated = !!r.animated; a.gifDur = r.animated ? r.duration_s : 0;
+      return a;
+    }).catch(function (e) { a.state = "missing"; a.error = e.message; renderAll(); throw e; });
+  }
+  function ensurePicture(path) {
+    var existing = findAssetByPath(path); if (existing) return Promise.resolve(existing);
+    return registerPicture(TL.uid("a"), path);
+  }
   function registerAsset(id, path, name, uploaded) {
+    if (PICTURE_RE.test(String(path))) return registerPicture(id, path, name);
     var a = { id: id, path: path, name: name || baseName(path), uploaded: !!uploaded, info: null, dur: 0, hasAudio: false, hasVideo: false,
       src: null, peaks: null, thumbs: null, cacheId: null, state: "probing", error: null };
     S.assets[id] = a;
@@ -974,6 +1003,36 @@
     if (show) box.appendChild(el("pre", "", JSON.stringify(show, null, 2)));
   }
 
+  // ---------------------------------------------------------------- files handed over by the agent (lk_open_in_editor)
+  // Hermes Desktop asks the plugin for them and posts them in (ve-open); the standalone editor asks its own server.
+  function openHandedOver(items) {
+    if (!items || !items.length) return;
+    var idle = !S.clips.length || !S.dirty, box = $("handover");
+    var rest = [];
+    items.forEach(function (it) {
+      if (it.kind === "project" ? idle : (!S.clips.length || it.auto)) { idle = false; if (it.kind === "project") loadProjectFile(it.path); else addClipFromPath(it.path); }
+      else rest.push(it);
+    });
+    if (!rest.length) return;
+    box.hidden = false; box.textContent = ""; box.appendChild(el("div", "", "Hermes made something for you:"));
+    rest.forEach(function (it) {
+      var row = el("div", "hrow"); row.appendChild(el("span", "", (it.kind === "project" ? "\uD83D\uDCC4 " : "\uD83C\uDFAC ") + it.name));
+      var b = el("button", "btn small primary", it.kind === "project" ? "Open project (replaces the timeline)" : "Add to timeline");
+      b.addEventListener("click", function () { row.parentNode.removeChild(row); if (!box.querySelector(".hrow")) box.hidden = true; if (it.kind === "project") loadProjectFile(it.path); else addClipFromPath(it.path); });
+      row.appendChild(b); box.appendChild(row);
+    });
+    var x = el("button", "btn small", "Later"); x.addEventListener("click", function () { box.hidden = true; }); box.appendChild(x);
+  }
+  window.addEventListener("message", function (e) {
+    if (window.parent === window || e.source !== window.parent || !e.data) return;
+    if (e.data.type === "ve-settings") { CFG = cleanCfg(e.data.cfg); S.magnet = CFG.magnet; renderAll(); return; }
+    if (e.data.type === "ve-open" && Array.isArray(e.data.items)) openHandedOver(e.data.items.slice(0, 10).filter(function (i) { return i && typeof i.path === "string"; }).map(function (i) { return { path: i.path, kind: i.kind === "project" ? "project" : "media", name: baseName(i.path), auto: true }; }));
+  });
+  if (window.parent === window) {                                   // standalone: ask our own server now and then
+    var pollHandover = function () { api("/api/pending").then(function (r) { openHandedOver((r.items || []).map(function (i) { return { path: i.path, kind: i.kind, name: i.name }; })); }).catch(function () { /* server gone */ }); };
+    setTimeout(pollHandover, 1200); setInterval(pollHandover, 5000);
+  } else { try { window.parent.postMessage({ type: "ve-ready" }, "*"); } catch (e) { /* no parent */ } }
+
   // ---------------------------------------------------------------- "Powered by" link
   // Inside Hermes Desktop the page runs in a sandboxed frame without popups: ask the embedding page to open the link.
   $("powered").addEventListener("click", function (e) {
@@ -982,7 +1041,7 @@
 
   // ---------------------------------------------------------------- start
   window.__ve = { seek: seek, state: S, TL: TL };          // handy for debugging and the browser tests
-  window.VE = { S: S, TL: TL, $: $, el: el, fmt: fmt, clamp: clamp, api: api, url: url, assetFor: assetFor, ensureAsset: ensureAsset, snap: snap, commit: commit,
+  window.VE = { addClipFromPath: addClipFromPath, cfg: function () { return CFG; }, ensurePicture: ensurePicture, S: S, TL: TL, $: $, el: el, fmt: fmt, clamp: clamp, api: api, url: url, assetFor: assetFor, ensureAsset: ensureAsset, snap: snap, commit: commit,
     renderAll: renderAll, drawStage: drawStage, drawCanvases: drawCanvases, seek: seek, flash: flash, openDialog: openDialog, cssColor: cssColor, baseName: baseName,
     canvasDims: canvasDims, playing: function () { return PB.playing; }, gestureBegin: beginGesture, gestureEnd: endGesture, layers: null, tab: tab, clearSel: clearSel, hits: HITS,
     bgTarget: bgTarget, syncCanvasControls: syncCanvasControls, targetIndex: targetIndex, canvasDimsFor: canvasDims, invalidatePreload: invalidatePreload,

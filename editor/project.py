@@ -15,7 +15,7 @@ from ..core.ffmpeg import (encode_args, filter_complex_args, probe, require_filt
 from ..core.fonts import resolve_font
 from ..core.paths import ff_escape_path, plan_output, unique_path
 from ..core.result import ToolError
-from .security import inside, safe_dir, safe_image_file, safe_media_file
+from .security import BG_IMAGE_EXTS, inside, safe_dir, safe_image_file, safe_media_file
 
 PROJECT_SUFFIX = ".vproj.json"
 MAX_CLIPS = 300
@@ -353,7 +353,8 @@ def sanitize_overlays(raw: Any, roots: List[str]) -> List[Dict[str, Any]]:
     for i, o in enumerate(raw):
         if not isinstance(o, dict):
             raise ToolError("Overlay %d is invalid." % (i + 1))
-        path = str(safe_media_file(o.get("path"), roots))
+        is_picture = isinstance(o.get("path"), str) and Path(o["path"]).suffix.lower() in BG_IMAGE_EXTS
+        path = str(safe_image_file(o.get("path"), roots) if is_picture else safe_media_file(o.get("path"), roots))
         if path not in cache:
             cache[path] = probe(Path(path))
         info = cache[path]
@@ -361,7 +362,10 @@ def sanitize_overlays(raw: Any, roots: List[str]) -> List[Dict[str, Any]]:
             raise ToolError("Overlay %d (%s) has no picture." % (i + 1, os.path.basename(path)))
         total = info["duration_s"] or 0
         lo, hi = _num(o.get("in"), 0.0, 0.0, 86400.0), _num(o.get("out"), total, 0.0, 86400.0)
-        hi = min(hi, total) if total else hi
+        if is_picture:                                          # pictures and GIFs are shown for as long as the item says (a GIF loops)
+            lo, hi = 0.0, _num(o.get("out"), 3.0, 0.0, 3600.0)
+        else:
+            hi = min(hi, total) if total else hi
         if hi - lo < 0.05:
             raise ToolError("Overlay %d is shorter than 0.05 s." % (i + 1))
         item = {"path": path, "in": lo, "out": hi, "info": info}
@@ -400,6 +404,17 @@ def shape_filters(shapes: List[Dict[str, Any]], W: int, H: int, fps: Any, src: s
 def _enable(a: float, b: float) -> str:
     from ..tools.overlay import enable_expr
     return enable_expr(a, b)
+
+
+def overlay_input_args(o: Dict[str, Any]) -> List[str]:
+    """ffmpeg input options of one overlay: a section of a video, a still picture held for the whole time, or a GIF that loops."""
+    d = o["out"] - o["in"]
+    suffix = Path(o["path"]).suffix.lower()
+    if suffix == ".gif":
+        return ["-stream_loop", "-1", "-t", "%.3f" % d, "-i", o["path"]]
+    if suffix in BG_IMAGE_EXTS:
+        return ["-loop", "1", "-framerate", "25", "-t", "%.3f" % d, "-i", o["path"]]
+    return ["-ss", "%.3f" % o["in"], "-t", "%.3f" % d, "-i", o["path"]]
 
 
 def overlay_filters(overlays: List[Dict[str, Any]], first_input: int, W: int, H: int, fps: Any, src: str, dst: str) -> List[str]:
@@ -757,7 +772,7 @@ def build_render_graph(clips: List[Dict[str, Any]], width: int, height: int, fps
         cur = dst
     if overlays:
         for o in overlays:
-            inputs += ["-ss", "%.3f" % o["in"], "-t", "%.3f" % (o["out"] - o["in"]), "-i", o["path"]]
+            inputs += overlay_input_args(o)
         dst = "vt" if texts else "vo"
         parts += overlay_filters(overlays, len(clips), width, height, fps, cur, dst)
         cur = dst

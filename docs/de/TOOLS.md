@@ -1,4 +1,4 @@
-# Werkzeug-Referenz (45 Werkzeuge)
+# Werkzeug-Referenz (46 Werkzeuge)
 
 Erzeugt von `scripts/gen_docs.py`. Nicht von Hand ändern. Die vollständigen Parameterbeschreibungen stehen in der [englischen Referenz](../en/TOOLS.md); hier die Kurzfassung auf Deutsch.
 
@@ -9,6 +9,7 @@ Jedes Werkzeug gibt einen JSON-Text zurück: `{"ok": true, "output": ..., "durat
 | Werkzeug | Was es macht | Parameter (* = Pflicht) |
 |---|---|---|
 | `lk_media_doctor` | Prüft, ob FFmpeg/ffprobe installiert sind und welche Encoder/Filter vorhanden sind (libx264, aac, drawtext, loudnorm …). | `timeout_s` |
+| `lk_open_in_editor` | Übergibt ein fertiges Video (oder ein gespeichertes Projekt) an den visuellen Video-Editor, damit du weiterarbeiten kannst. Legt nur eine Anfrage in die Warteschlange; schreibt keine Datei. | `input`*, `focus` |
 | `lk_media_probe` | Liest Länge, Auflösung, FPS, Codecs, Audiospuren und Dateigröße einer Datei aus. | `input`*, `timeout_s` |
 | `lk_detect_silence` | Findet stille Abschnitte (Start/Ende/Dauer) ohne die Datei zu ändern. | `input`*, `timeout_s`, `noise_db`, `min_duration_s` |
 | `lk_detect_scenes` | Findet Szenenwechsel und gibt die Zeitpunkte zurück. | `input`*, `timeout_s`, `threshold` |

@@ -65,6 +65,26 @@ def media_probe(args: Dict[str, Any]) -> Any:
     return {"output": None, "duration_s": info["duration_s"], "info": info}
 
 
+@tool_handler
+def open_in_editor(args: Dict[str, Any]) -> Any:
+    """Put a finished video (or a saved .vproj.json project) in the hand-over queue of the visual editor."""
+    from ..editor import handoff
+    from ..editor.project import PROJECT_SUFFIX
+    raw = args.get("input")
+    path = resolve_input(raw)
+    if str(path).endswith(PROJECT_SUFFIX):
+        kind = "project"
+    else:
+        info = probe(path, get_timeout(args))
+        if not (info["has_video"] or info["has_audio"]):
+            raise ToolError("Nothing to open: the file has no picture and no sound.")
+        kind = "media"
+    entry = handoff.push(str(path), kind, focus=bool(args.get("focus", handoff.SETTINGS.get("focus_editor", True))))
+    return {"output": None, "info": {"queued": True, "path": str(path), "kind": kind, "request": entry["id"],
+            "how_to_open": ("Open the 'Video Editor' page in Hermes Desktop: it picks the file up by itself within a few seconds. "
+                            "Without Hermes Desktop run:  python scripts/editor.py \"%s\"" % path)}}
+
+
 def detect_silence_ranges(src: Any, noise_db: float, min_d: float, timeout: float,
                           duration: Any) -> List[List[float]]:
     """Run silencedetect; returns [[start, end], ...] in seconds (open end -> clip duration)."""
@@ -165,6 +185,14 @@ SPECS = [
                      "(libx264, aac, libx265, drawtext, subtitles, loudnorm...). Run this once if "
                      "any other lk_* tool reports a missing binary or filter. Takes no media file."),
         handler=media_doctor, common=("timeout_s",)),
+    ToolSpec(
+        name="lk_open_in_editor",
+        description=("Hand a finished video (or a saved .vproj.json project) over to the visual Video Editor so the user can keep editing it "
+                     "(trim, text, music, subtitles, export). Call this after you made a video the user may want to refine. Read-only: "
+                     "it only queues the file; the editor opens it. Tell the user to look at the Video Editor page."),
+        handler=open_in_editor, common=("input",),
+        properties={"focus": {"type": "boolean", "default": True,
+                              "description": "Ask Hermes Desktop to bring the editor page to the front (the user can turn this off in the plugin settings)."}}),
     ToolSpec(
         name="lk_media_probe",
         description=("Read-only inspection of a media file: duration (seconds), resolution, fps, "

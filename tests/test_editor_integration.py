@@ -406,7 +406,7 @@ def test_browser_theme_empty_state_and_drop(media, tmp_path):
             f.unlink()
 
 
-def test_browser_tools_tab_lists_all_42_and_runs_one(media, tmp_path):
+def test_browser_tools_tab_lists_all_46_and_runs_one(media, tmp_path):
     pw = pytest.importorskip("playwright.sync_api")
     from hermes_video_editor.editor.server import EditorServer
     srv = EditorServer(roots=[str(media["dir"]), str(tmp_path)])
@@ -416,9 +416,9 @@ def test_browser_tools_tab_lists_all_42_and_runs_one(media, tmp_path):
         wait_ready(page)
         page.click("#tabs button[data-tab=tools]")
         page.wait_for_selector(".tool-item")
-        assert page.locator(".tool-item").count() == 45
+        assert page.locator(".tool-item").count() == 46
         page.fill("#tool-search", "silence")
-        assert 2 <= page.locator(".tool-item").count() < 45
+        assert 2 <= page.locator(".tool-item").count() < 46
         assert page.locator('.tool-item[data-tool="lk_detect_silence"]').count() == 1
         assert page.locator('.tool-item[data-tool="lk_remove_silence"]').count() == 1
         page.fill("#tool-search", "")
@@ -1075,3 +1075,51 @@ def test_whats_new_shows_once_per_version(media, tmp_path, monkeypatch):
         b.close()
         p.stop()
         srv.stop()
+
+
+@pytest.mark.skipif(not NODE, reason="node is not installed")
+def test_desktop_settings_page_registers_saves_and_feeds_the_editor(tmp_path):
+    script = desktop_harness(GOOD_SDK, RUNTIME, """
+        const store = {}, pages = []
+        ctx.storage = { get: (k, d) => (k in store ? store[k] : d), set: (k, v) => { store[k] = v } }
+        ctx.registerSettingsPage = p => pages.push(p)
+        plugin_default.register(ctx)
+        if (pages.length !== 1 || pages[0].id !== 'settings' || pages[0].title !== 'Video Editor') throw new Error('settings page missing')
+        if (pages[0].children.map(c => c.id).join() !== 'project,subtitles,about') throw new Error('sub pages: ' + pages[0].children.map(c => c.id))
+        const expand = el => {                                    // render function components down to plain elements
+          if (el == null || typeof el !== 'object') return []
+          if (Array.isArray(el)) return el.flatMap(expand)
+          if (typeof el.type === 'function') return expand(el.type(el.props))
+          return [el].concat(expand(el.props && el.props.children))
+        }
+        const toggles = expand(pages[0].render()).filter(e => e.type === 'input')
+        if (toggles.length !== 3 || !toggles.every(t => t.props.checked === true)) throw new Error('three toggles, default on')
+        toggles[0].props.onChange({ target: { checked: false } })
+        if (store.settings.autoOpen !== false || store.settings.focus !== true) throw new Error('not saved: ' + JSON.stringify(store.settings))
+        const sels = expand(pages[0].children[0].render()).filter(e => e.type === 'select')
+        const canvas = sels[0]
+        canvas.props.onChange({ target: { value: '9:16' } })
+        sels[1].props.onChange({ target: { value: '720' } })
+        if (store.settings.aspect !== '9:16' || store.settings.short !== 720) throw new Error('canvas not saved: ' + JSON.stringify(store.settings))
+        // the editor page hands the saved values to the frame
+        const tree = plugin_default.register && regs.find(r => r.area === 'routes').render()
+        expand(tree); effects[0]()
+        await new Promise(r => setTimeout(r, 20))
+        const [state] = hookState[hookState.length - 1]
+        const cfg = JSON.parse(decodeURIComponent(state.url.split('&cfg=')[1]))
+        if (cfg.aspect !== '9:16' || cfg.autoOpen !== false || cfg.captionModel !== 'base') throw new Error('cfg: ' + JSON.stringify(cfg))
+        console.log('OK')
+        """)
+    r = run_node(script, tmp_path)
+    assert r.returncode == 0 and "OK" in r.stdout, r.stderr + r.stdout
+
+
+@pytest.mark.skipif(not NODE, reason="node is not installed")
+def test_desktop_page_works_on_hermes_without_settings_pages(tmp_path):
+    script = desktop_harness(GOOD_SDK, RUNTIME, """
+        plugin_default.register(ctx)                               // no registerSettingsPage, no storage: must still load
+        if (!regs.find(r => r.area === 'routes')) throw new Error('route missing')
+        console.log('OK')
+        """)
+    r = run_node(script, tmp_path)
+    assert r.returncode == 0 and "OK" in r.stdout, r.stderr + r.stdout

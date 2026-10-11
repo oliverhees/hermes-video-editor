@@ -7,6 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 DE = {
+'lk_open_in_editor':'Übergibt ein fertiges Video (oder ein gespeichertes Projekt) an den visuellen Video-Editor, damit du weiterarbeiten kannst. Legt nur eine Anfrage in die Warteschlange; schreibt keine Datei.',
 'lk_loudness_report':'Misst, wie laut eine Datei ist (LUFS, Spitzenpegel, Lautheitsbereich) und sagt, ob sie zu Social-Media-Zielen passt. Schreibt keine Datei.',
 'lk_mute_video':'Entfernt den Ton aus einem Video; das Bild wird ohne Neu-Kodierung kopiert (sofort, verlustfrei).',
 'lk_crossfade_join':'Fügt Clips mit weichem Übergang zusammen (Überblendung, Wischen, Schieben, Kreis, Pixel); Bild und Ton werden überblendet.','lk_media_doctor': 'Prüft, ob FFmpeg/ffprobe installiert sind und welche Encoder/Filter vorhanden sind (libx264, aac, drawtext, loudnorm …).',
@@ -52,9 +53,9 @@ DE = {
       'lk_contact_sheet': 'Erzeugt ein Übersichtsbild aus vielen Standbildern.',
       'lk_transcribe_captions': 'Erzeugt Untertitel (SRT) lokal mit faster-whisper. Optional: braucht ein bereits lokal vorhandenes Modell.'}
 
-DE_GROUPS = [("A. Prüfen", 6), ("B. Schneiden & Zeit", 9), ("C. Bild", 9), ("D. Overlays & Text", 6), ("E. Ton", 9), ("F. Export & Prüfung", 6)]
+DE_GROUPS = [("A. Prüfen", 7), ("B. Schneiden & Zeit", 9), ("C. Bild", 9), ("D. Overlays & Text", 6), ("E. Ton", 9), ("F. Export & Prüfung", 6)]
 
-GROUPS = [("A. Inspect", 6), ("B. Cut & time", 9), ("C. Picture", 9),
+GROUPS = [("A. Inspect", 7), ("B. Cut & time", 9), ("C. Picture", 9),
           ("D. Overlays & text", 6), ("E. Audio", 9), ("F. Export & check", 6)]
 
 

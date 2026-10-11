@@ -5,6 +5,7 @@
   var V = window.VE;
   if (!V || !V.layers || !V.tracks) return;
   var S = V.S, TL = V.TL, $ = V.$, T = V.tracks;
+  $("cap-lang").value = V.cfg().captionLang; $("cap-model").value = V.cfg().captionModel;       // defaults from the Hermes settings page
   var cache = {};                    // asset id + language + model -> cues (one run per file)
 
   function setBusy(on, msg) { $("btn-captions").disabled = on; $("cap-state").textContent = msg || ""; }
