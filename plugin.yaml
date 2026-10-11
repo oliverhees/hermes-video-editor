@@ -1,11 +1,12 @@
 name: hermes-video-editor
-version: "0.4.0"
-description: Local FFmpeg video editor for your own footage, driven by chat. 45 tools to trim, cut silence, crop to 9:16, add text and captions, mix music, normalize loudness, export for Reels/TikTok/YouTube and check platform rules. No cloud, no API key.
+version: "0.5.0"
+description: Local FFmpeg video editor for your own footage, driven by chat. 46 tools to trim, cut silence, crop to 9:16, add text and captions, mix music, normalize loudness, export for Reels/TikTok/YouTube and check platform rules. No cloud, no API key.
 author: oliverhees
 license: PolyForm-Noncommercial-1.0.0
 homepage: https://lokyy.de/hermes-video-editor/
 provides_tools:
   - lk_media_doctor
+  - lk_open_in_editor
   - lk_media_probe
   - lk_detect_silence
   - lk_detect_scenes
@@ -53,6 +54,7 @@ provides_tools:
 capabilities:
   provides_tools:
     - lk_media_doctor
+    - lk_open_in_editor
     - lk_media_probe
     - lk_detect_silence
     - lk_detect_scenes
@@ -100,3 +102,5 @@ capabilities:
   provides_hooks: []
   provides_middleware: []
   requires_env: []
+config_schema:
+  focus_editor: {type: bool, default: true, label: "Bring the editor to the front", description: "When the agent hands a video over with lk_open_in_editor, ask Hermes Desktop to show the Video Editor page."}

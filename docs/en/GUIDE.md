@@ -102,7 +102,7 @@ A scene bundles texts, shapes, videos on top and sounds. Mark a range with **I**
 
 ## 9. Tools (tab Tools)
 
-All 45 `lk_*` tools as forms: search, fill in, **Run**. The same tools are available to the Hermes agent in chat.
+All 46 `lk_*` tools as forms: search, fill in, **Run**. The same tools are available to the Hermes agent in chat.
 Example prompts for the chat:
 
 - "Cut the silences out of `interview.mp4` and make it 9:16 with a blurred background."

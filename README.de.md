@@ -6,10 +6,10 @@
 
 # 🎬 HERMES VIDEO EDITOR
 
-**Ein lokaler Video-Editor für deine eigenen Aufnahmen: 45 FFmpeg-Werkzeuge für den Hermes-Agenten plus ein visueller Editor mit Ebenen.**
+**Ein lokaler Video-Editor für deine eigenen Aufnahmen: 46 FFmpeg-Werkzeuge für den Hermes-Agenten plus ein visueller Editor mit Ebenen.**
 
 [![Lizenz: PolyForm Noncommercial](https://img.shields.io/badge/Lizenz-PolyForm%20Noncommercial%201.0.0-blue.svg)](LICENSE)
-[![Werkzeuge](https://img.shields.io/badge/Werkzeuge-45-informational.svg)](docs/de/TOOLS.md)
+[![Werkzeuge](https://img.shields.io/badge/Werkzeuge-46-informational.svg)](docs/de/TOOLS.md)
 [![Lokal](https://img.shields.io/badge/100%25-lokal-brightgreen.svg)](#-sicherheit-und-offenlegung)
 [![Hermes](https://img.shields.io/badge/Hermes-%E2%89%A50.21.5-black.svg)](https://hermes-agent.nousresearch.com/)
 
@@ -29,7 +29,7 @@
 - [Schnellstart](#-schnellstart)
 - [Der visuelle Editor](#-der-visuelle-editor)
 - [Oder einfach mit Hermes reden](#-oder-einfach-mit-hermes-reden)
-- [Die 45 Werkzeuge](#-die-45-werkzeuge)
+- [Die 46 Werkzeuge](#-die-46-werkzeuge)
 - [KI-Erzeugung mit Kie.ai (kommt bald)](#-optional-ki-erzeugung-mit-kieai-kommt-bald)
 - [Dokumentation](#-dokumentation)
 - [Wie sich jedes Werkzeug verhält](#-wie-sich-jedes-werkzeug-verhält)
@@ -46,13 +46,13 @@
 
 Die meisten „KI-Video“-Werkzeuge erzeugen Clips in der Cloud. Dieses Plugin macht die andere, alltägliche Hälfte: **Du hast das Material schon** und brauchst es geschnitten, gestrafft, auf 9:16 umgerahmt, untertitelt, in der Lautheit angeglichen und für die richtige Plattform exportiert.
 
-Es gibt dem Hermes-Agenten 45 präzise FFmpeg-Werkzeuge und dir einen visuellen Editor (Seite in der Hermes-Desktop-Seitenleiste) mit Mehrclip-Zeitleiste, Leinwand, Video-Overlay-Spur, Text und Musik. Beide nutzen denselben Code: Was du klickst, macht auch der Agent.
+Es gibt dem Hermes-Agenten 46 präzise FFmpeg-Werkzeuge und dir einen visuellen Editor (Seite in der Hermes-Desktop-Seitenleiste) mit Mehrclip-Zeitleiste, Leinwand, Video-Overlay-Spur, Text und Musik. Beide nutzen denselben Code: Was du klickst, macht auch der Agent.
 
 > Nicht „erzeuge mir ein Video“, sondern „schneide / beschneide / untertitele / mastere **mein** Material“.
 
 ## ✨ Funktionen
 
-- **45 Werkzeuge** für den Agenten: prüfen, schneiden und Zeit, Bild, Overlays und Text, Ton, Export und Prüfung.
+- **46 Werkzeuge** für den Agenten: prüfen, schneiden und Zeit, Bild, Overlays und Text, Ton, Export und Prüfung.
 - **Visueller Editor** in Hermes Desktop: Videos hineinziehen, teilen, löschen, umsortieren, kürzen, Stille entfernen, Rückgängig/Wiederholen.
 - **Leinwand** 16:9, 9:16, 1:1, 4:5 mit unscharfem, schwarzem oder farbigem Hintergrund; jeden Clip frei positionieren und skalieren (ein 16:9-Clip passt in eine 9:16-Leinwand, du rahmst neu, wenn sich die Person bewegt), mit unscharfem, schwarzem, farbigem, Verlauf- oder Bild-Hintergrund.
 - **Ebenen auf beliebig vielen Spuren**: **Video-Overlays** (Bild-in-Bild), **Text**, **Formen** (Farbboxen, Balken, Karten, Ellipsen), **Audio** (Musik oder Sprecher mit Ein-/Ausblenden und Ducking) und **Szenen**, die Elemente bündeln, damit sie zusammen wandern. Klicke in der Vorschau auf das, was du siehst, um es auszuwählen und zu ziehen.
@@ -119,7 +119,7 @@ python scripts/editor.py my-video.mp4    # mit vorgeladener Datei
 | **Spuren** | Menü *Tracks...* über der Zeitleiste: Spuren hinzufügen oder entfernen; Elemente zwischen Spuren hoch und runter ziehen |
 | **Text** | Tab *Text*: Größe, Farbe, Umriss, Box, Vorlagen (Title, Lower third, Caption); in der Vorschau ziehen |
 | **Musik / Sprecher** | Tab *Sound*: Lautstärke, Ein-/Ausblenden, Startzeit, **Ducking** (Musik wird leiser, solange das Video spricht) |
-| Eines der 45 Werkzeuge | Tab *Tools*: jedes Werkzeug als Formular |
+| Eines der 46 Werkzeuge | Tab *Tools*: jedes Werkzeug als Formular |
 | Export | Tab *Export*: Plattform-Voreinstellung, Lautheit, Tempo, Ordner |
 | Hilfe | Knopf **Help** (obere Leiste): diese Anleitung auf Deutsch oder Englisch. **What's new** zeigt das Änderungsprotokoll (öffnet sich nach einem Update beim ersten Start von selbst) |
 
@@ -139,11 +139,11 @@ Bekannte Grenzen: Die Vorschau spielt kein Ducking und kann Ton nicht lauter mac
 
 Das Plugin bringt einen Skill mit, der dem Agenten die richtige Reihenfolge beibringt (erst prüfen, zuletzt die Plattform-Prüfung).
 
-## 🧰 Die 45 Werkzeuge
+## 🧰 Die 46 Werkzeuge
 
 | Gruppe | Werkzeuge |
 |---|---|
-| **A. Prüfen (6)** | `lk_media_doctor` `lk_media_probe` `lk_detect_silence` `lk_detect_scenes` `lk_extract_frame` `lk_loudness_report` |
+| **A. Prüfen (7)** | `lk_open_in_editor` `lk_media_doctor` `lk_media_probe` `lk_detect_silence` `lk_detect_scenes` `lk_extract_frame` `lk_loudness_report` |
 | **B. Schneiden & Zeit (9)** | `lk_trim` `lk_split` `lk_join` `lk_crossfade_join` `lk_remove_silence` `lk_remove_segments` `lk_change_speed` `lk_reverse` `lk_loop` |
 | **C. Bild (9)** | `lk_crop` `lk_crop_to_aspect` `lk_resize` `lk_rotate_flip` `lk_pad_blur_background` `lk_color_adjust` `lk_denoise_video` `lk_fade_video` `lk_stabilize` |
 | **D. Overlays & Text (6)** | `lk_add_text` `lk_burn_captions` `lk_add_image_overlay` `lk_picture_in_picture` `lk_stack_videos` `lk_blur_region` |
@@ -228,7 +228,7 @@ Hinweis: Das ist eine *Source-Available*-Lizenz, keine von der OSI anerkannte Op
 
 ## 🔧 Status
 
-Beta. Die 45 Werkzeuge und der Editor sind durch eine automatische Testsuite abgedeckt (Unit-, FFmpeg-Integrations- und echte Browser-Tests). Noch nicht auf jeder Hermes-Desktop-Version geprüft; getestet gegen Hermes Desktop 0.21.5. Geplant: weitere Overlay-Funktionen und ein optionales separates Plugin für KI-Erzeugung.
+Beta. Die 46 Werkzeuge und der Editor sind durch eine automatische Testsuite abgedeckt (Unit-, FFmpeg-Integrations- und echte Browser-Tests). Noch nicht auf jeder Hermes-Desktop-Version geprüft; getestet gegen Hermes Desktop 0.21.5. Geplant: weitere Overlay-Funktionen und ein optionales separates Plugin für KI-Erzeugung.
 
 ---
 

@@ -102,7 +102,7 @@ Eine Szene bündelt Texte, Formen, Videos obendrauf und Töne. Bereich mit **I**
 
 ## 9. Alle Werkzeuge (Tab Tools)
 
-Alle 45 `lk_*`-Werkzeuge als Formular: suchen, ausfüllen, **Run**. Dieselben Werkzeuge nutzt der Hermes-Agent im Chat.
+Alle 46 `lk_*`-Werkzeuge als Formular: suchen, ausfüllen, **Run**. Dieselben Werkzeuge nutzt der Hermes-Agent im Chat.
 Beispiele für den Chat:
 
 - „Schneide die Stille aus `interview.mp4` und mach es 9:16 mit unscharfem Hintergrund.“

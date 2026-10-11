@@ -428,6 +428,12 @@ def make_handler(srv: EditorServer):
                 self._send(200, (WEB / route[8:]).read_bytes(), STATIC[route[8:]])
             elif route in HELP_DOCS:                                  # the user guide, one markdown file per language
                 self._send(200, HELP_DOCS[route].read_bytes(), "text/markdown; charset=utf-8")
+            elif route == "/api/pending":                               # files the agent handed over (standalone editor; Desktop asks the plugin route)
+                from . import handoff
+                items = handoff.pop_all()
+                for it in items:
+                    srv.add_root(str(Path(it["path"]).expanduser().resolve().parent))
+                self._json({"ok": True, "items": items})
             elif route == "/api/config":
                 self._json(api_config(srv))
             elif route == "/api/ls":

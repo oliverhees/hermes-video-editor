@@ -68,5 +68,5 @@
   window.addEventListener("keydown", function (e) { if (e.key === "Escape" && !$("help").hidden) { close(); e.stopPropagation(); } }, true);
   V.openHelp = open;
   // the first start of a new version shows what is new (once); the dot stays until it was read
-  V.api("/api/config").then(function (c) { version = c.version || ""; if (c.whats_new) { $("new-dot").hidden = false; open("changelog"); } }).catch(function () { /* the editor works without it */ });
+  V.api("/api/config").then(function (c) { version = c.version || ""; if (c.whats_new) { $("new-dot").hidden = false; if (V.cfg().whatsNew) open("changelog"); } }).catch(function () { /* the editor works without it */ });
 })();

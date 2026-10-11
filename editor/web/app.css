@@ -234,6 +234,9 @@ input[type=color]{width:100%;min-width:36px;height:32px;padding:2px;background:v
 #snap-line{position:absolute;top:0;bottom:0;width:0;border-left:2px dashed var(--accent);pointer-events:none;z-index:3}
 #snap-line[hidden]{display:none}
 .litem.bgitem{color:#fff;text-shadow:0 1px 2px #000a}
+/* files the agent handed over */
+#handover{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:6;max-width:min(560px,90%);background:var(--panel);border:1px solid var(--accent);border-radius:10px;padding:8px 12px;box-shadow:0 6px 24px #0005;font-size:13px}
+#handover .hrow{display:flex;gap:8px;align-items:center;margin:4px 0}#handover .hrow span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* Clip tab, transitions on the timeline */
 .clip .trz{position:absolute;left:0;top:0;bottom:0;background:repeating-linear-gradient(135deg,#ffffff55 0 5px,#ffffff11 5px 10px);border-right:2px solid #fff;pointer-events:none}
 #fx-speeds{flex-wrap:wrap;gap:4px}#fx-speeds .btn.on{border-color:var(--accent);color:var(--accent)}

@@ -321,11 +321,11 @@ def test_config_has_videos_dir(srv):
 def test_tool_catalog_lists_all_tools(srv):
     r = req(srv, "/api/tools").json()
     names = [t["name"] for t in r["tools"]]
-    assert len(names) == 45 and len(set(names)) == 45
+    assert len(names) == 46 and len(set(names)) == 46
     assert r["groups"] == ["Inspect", "Cut & time", "Picture", "Overlays & text", "Audio", "Export & check"]
     assert {t["group"] for t in r["tools"]} == set(r["groups"])
     assert {t["name"] for t in r["tools"] if t["read_only"]} == {
-        "lk_media_doctor", "lk_media_probe", "lk_detect_silence", "lk_detect_scenes", "lk_platform_check", "lk_loudness_report"}
+        "lk_media_doctor", "lk_media_probe", "lk_detect_silence", "lk_detect_scenes", "lk_platform_check", "lk_loudness_report", "lk_open_in_editor"}
     trim = next(t for t in r["tools"] if t["name"] == "lk_trim")
     assert "start" in trim["properties"] and "input" in trim["properties"]
 

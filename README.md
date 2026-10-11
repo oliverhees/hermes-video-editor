@@ -6,10 +6,10 @@
 
 # 🎬 HERMES VIDEO EDITOR
 
-**A local video editor for your own footage: 45 FFmpeg tools for the Hermes agent plus a visual editor with layers.**
+**A local video editor for your own footage: 46 FFmpeg tools for the Hermes agent plus a visual editor with layers.**
 
 [![License: PolyForm Noncommercial](https://img.shields.io/badge/License-PolyForm%20Noncommercial%201.0.0-blue.svg)](LICENSE)
-[![Tools](https://img.shields.io/badge/Tools-45-informational.svg)](docs/en/TOOLS.md)
+[![Tools](https://img.shields.io/badge/Tools-46-informational.svg)](docs/en/TOOLS.md)
 [![Local](https://img.shields.io/badge/100%25-local-brightgreen.svg)](#-security-and-disclosures)
 [![Hermes](https://img.shields.io/badge/Hermes-%E2%89%A50.21.5-black.svg)](https://hermes-agent.nousresearch.com/)
 
@@ -29,7 +29,7 @@
 - [Quickstart](#-quickstart)
 - [The visual editor](#-the-visual-editor)
 - [Or just talk to Hermes](#-or-just-talk-to-hermes)
-- [The 45 tools](#-the-45-tools)
+- [The 46 tools](#-the-46-tools)
 - [AI generation with Kie.ai (coming soon)](#-optional-ai-generation-with-kieai-coming-soon)
 - [Documentation](#-documentation)
 - [How every tool behaves](#-how-every-tool-behaves)
@@ -46,13 +46,13 @@
 
 Most "AI video" tools generate clips in a cloud. This plugin does the other, everyday half: **you already have the footage**, and you need it cut, tightened, reframed to 9:16, captioned, loudness-matched and exported for the right platform.
 
-It gives the Hermes agent 45 precise FFmpeg tools, and gives you a visual editor (sidebar page in Hermes Desktop) with a multi-clip timeline, a canvas, a video overlay track, text and music. Both use the same code, so what you click is what the agent does.
+It gives the Hermes agent 46 precise FFmpeg tools, and gives you a visual editor (sidebar page in Hermes Desktop) with a multi-clip timeline, a canvas, a video overlay track, text and music. Both use the same code, so what you click is what the agent does.
 
 > Not "generate me a video". It is "cut / crop / caption / master **my** footage".
 
 ## ✨ Features
 
-- **45 tools** for the agent: inspect, cut and time, picture, overlays and text, audio, export and check.
+- **46 tools** for the agent: inspect, cut and time, picture, overlays and text, audio, export and check.
 - **Visual editor** in Hermes Desktop: drop videos in, split, delete, reorder, trim, remove silences, undo/redo.
 - **Canvas** 16:9, 9:16, 1:1, 4:5 with blurred, black or coloured background; position and scale every clip freely (a 16:9 clip fits into a 9:16 canvas, you re-frame where the speaker moves), with a blurred, black, coloured, gradient or picture background.
 - **Layers on any number of tracks**: **video overlays** (picture-in-picture), **text**, **shapes** (colour boxes, bars, cards, ellipses), **audio** (music or voice-over with fades and ducking) and **scenes** that bundle items so they move together. Click what you see on the preview to select it and drag it.
@@ -119,7 +119,7 @@ python scripts/editor.py my-video.mp4    # with a file preloaded
 | **Tracks** | *Tracks...* menu above the timeline: add or remove tracks; drag items up and down between tracks |
 | **Text** | *Text* tab: size, colour, outline, box, presets (Title, Lower third, Caption); drag in the preview |
 | **Music / voice-over** | *Sound* tab: volume, fades, start time, **ducking** (music gets quieter while the video speaks) |
-| Any of the 45 tools | *Tools* tab: every tool as a form |
+| Any of the 46 tools | *Tools* tab: every tool as a form |
 | Export | *Export* tab: platform preset, loudness, speed, folder |
 | Help | **Help** button (top bar): this guide in English or German. **What's new** shows the changelog (it opens by itself the first time after an update) |
 
@@ -139,11 +139,11 @@ Known limits: the preview does not play ducking and cannot make audio louder tha
 
 The plugin ships a skill that teaches the agent the right order (probe first, platform check last).
 
-## 🧰 The 45 tools
+## 🧰 The 46 tools
 
 | Group | Tools |
 |---|---|
-| **A. Inspect (6)** | `lk_media_doctor` `lk_media_probe` `lk_detect_silence` `lk_detect_scenes` `lk_extract_frame` `lk_loudness_report` |
+| **A. Inspect (7)** | `lk_open_in_editor` `lk_media_doctor` `lk_media_probe` `lk_detect_silence` `lk_detect_scenes` `lk_extract_frame` `lk_loudness_report` |
 | **B. Cut & time (9)** | `lk_trim` `lk_split` `lk_join` `lk_crossfade_join` `lk_remove_silence` `lk_remove_segments` `lk_change_speed` `lk_reverse` `lk_loop` |
 | **C. Picture (9)** | `lk_crop` `lk_crop_to_aspect` `lk_resize` `lk_rotate_flip` `lk_pad_blur_background` `lk_color_adjust` `lk_denoise_video` `lk_fade_video` `lk_stabilize` |
 | **D. Overlays & text (6)** | `lk_add_text` `lk_burn_captions` `lk_add_image_overlay` `lk_picture_in_picture` `lk_stack_videos` `lk_blur_region` |
@@ -228,7 +228,7 @@ Note: this is a *source-available* licence, not an OSI-approved open-source lice
 
 ## 🔧 Status
 
-Beta. The 45 tools and the editor are covered by an automated test suite (unit, FFmpeg integration and real-browser tests). Not yet verified on every Hermes Desktop version; tested against Hermes Desktop 0.21.5. Planned: more overlay features and an optional separate plugin for AI generation.
+Beta. The 46 tools and the editor are covered by an automated test suite (unit, FFmpeg integration and real-browser tests). Not yet verified on every Hermes Desktop version; tested against Hermes Desktop 0.21.5. Planned: more overlay features and an optional separate plugin for AI generation.
 
 ---
 

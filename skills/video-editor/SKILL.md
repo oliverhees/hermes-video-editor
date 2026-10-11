@@ -25,6 +25,8 @@ no stock library, no upload. If the user wants something that needs those, say s
 Besides your tools the plugin has a visual cut editor: sidebar entry **Video Editor** in Hermes Desktop (or
 `python scripts/editor.py` in a browser). The user can mark cuts, find silences, reframe, place clips on a canvas, add text and a music track, and export there by clicking.
 Point them to it when they want to scrub, preview or fine-tune cuts by eye; you cannot operate it yourself.
+**After you made a video the user may want to refine, call `lk_open_in_editor` with its path.** It hands the file over: the user's Video Editor page
+picks it up by itself (or shows a note) and they can continue there. Then tell them to look at the Video Editor page.
 Files the user exports there appear as new files next to the original.
 
 ## Units and formats
@@ -37,6 +39,7 @@ Files the user exports there appear as new files next to the original.
 
 | Goal | Tool |
 |---|---|
+| Hand a finished video to the visual editor | `lk_open_in_editor` |
 | Look at a file | `lk_media_probe`, `lk_contact_sheet`, `lk_extract_frame`, `lk_loudness_report` (how loud, measure only) |
 | Find things | `lk_detect_silence`, `lk_detect_scenes` |
 | Keep a section | `lk_trim` |

@@ -36,6 +36,20 @@ def start(open: Optional[str] = None):  # noqa: A002 - query parameter name used
         raise HTTPException(status_code=500, detail="%s: %s" % (type(exc).__name__, exc))
 
 
+@router.get("/pending")
+def pending():
+    """Files the agent handed over with lk_open_in_editor (oldest first). Asking empties the queue; the folders are opened up for the editor."""
+    try:
+        srv = _server()
+        from importlib import import_module
+        items = import_module(_PKG + ".editor.handoff").pop_all()
+        for it in items:
+            srv.add_root(str(Path(it["path"]).expanduser().resolve().parent))
+        return {"items": items}
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail="%s: %s" % (type(exc).__name__, exc))
+
+
 @router.get("/status")
 def status():
     return {"loaded": _PKG in sys.modules}
